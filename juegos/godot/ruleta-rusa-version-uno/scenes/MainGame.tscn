@@ -1,0 +1,50 @@
+[gd_scene load_steps=2 format=3 uid="uid://xtcyy3hwjjdg"]
+
+[ext_resource type="Script" uid="uid://bk1s1iqexillm" path="res://MainGame.gd" id="1_hat22"]
+
+[node name="MainGame" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.15, 0.15, 0.2, 1)
+
+[node name="Centro" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Columnas" type="VBoxContainer" parent="Centro"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="Titulo" type="Label" parent="Centro/Columnas"]
+layout_mode = 2
+text = "RUELETA RUSA"
+horizontal_alignment = 1
+
+[node name="Instrucciones" type="Label" parent="Centro/Columnas"]
+layout_mode = 2
+text = "El tambor tiene una bala en una posicion del 1 al 6. Pulsa el boton y aprieta el gatillo."
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="Resultado" type="Label" parent="Centro/Columnas"]
+layout_mode = 2
+text = "Pulsa Disparar cuando estes listo..."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="DispararBtn" type="Button" parent="Centro/Columnas"]
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Disparar"
+
+[connection signal="pressed" from="Centro/Columnas/DispararBtn" to="." method="_on_disparar_btn_pressed"]
+
+
