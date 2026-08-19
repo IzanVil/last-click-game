@@ -31,14 +31,14 @@ horizontal_alignment = 1
 
 [node name="Instrucciones" type="Label" parent="Centro/Columnas"]
 layout_mode = 2
-text = "El tambor tiene una bala escondida. Escribe tu numero y dispara."
+text = "El tambor esta cargado. Elige una posicion y dispara."
 horizontal_alignment = 1
 autowrap_mode = 2
 
 [node name="EntradaNumero" type="LineEdit" parent="Centro/Columnas"]
 layout_mode = 2
-tooltip_text = "Escribe un numero"
-placeholder_text = "Elige un numero"
+tooltip_text = "Elige una posicion del 1 al 10"
+placeholder_text = "Posicion del 1 al 10"
 size_flags_horizontal = 4
 
 [node name="Resultado" type="Label" parent="Centro/Columnas"]
@@ -53,4 +53,5 @@ size_flags_horizontal = 4
 text = "Disparar"
 
 [connection signal="pressed" from="Centro/Columnas/DispararBtn" to="." method="_on_disparar_btn_pressed"]
+
 

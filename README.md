@@ -25,10 +25,10 @@ Escribe un número del 1 al 6..., aprieta el gatillo... y deja que el azar decid
 
 La eterna apuesta de la ruleta rusa, llevada a la consola y a la pantalla:
 
-1. El revólver tiene **6 huecos** en el tambor.
-2. Se introduce **una sola bala** en una posición aleatoria.
-3. Tú eliges un número del 1 al 6 y **aprietas el gatillo**.
-4. Si coincide con la bala → 💥 *BOOM*. Si no → 😅 *Click*.
+1. El tambor tiene **10 huecos**, cargados con un número variable de balas.
+2. El jugador elige una posición del tambor y **aprieta el gatillo**.
+3. Si el hueco es una bala → 💥 *BOOM* (pierde). Si está vacío → 😅 *Click* (sobrevive).
+4. En la versión gráfica cada **ronda añade más balas**, subiendo la tensión hasta el final.
 
 > ⚠️ **Descargo de responsabilidad:** es solo un juego de ficción. No existe
 > ninguna arma real. Solo diversión para la terminal y la pantalla.
@@ -96,10 +96,27 @@ campo de número, botón para disparar y mensaje de resultado en pantalla.
 
 1. Abre Godot e importa el proyecto desde `2d/project.godot`.
 2. Pulsa **▶ Play** (o la tecla **F5**).
-3. Escribe un número del 1 al 6 en el campo de texto.
+3. Escribe un número del 1 al 10 (posición del tambor).
 4. Pulsa **Enter** o el botón **Disparar**.
 
 En pantalla verás si sobrevives (`Click`) o si te ha tocado la bala (`BOOM`).
+
+### Sistema de 8 rondas
+
+Cada partida tiene 8 rondas. El tambor tiene **10 huecos** y, ronda a ronda,
+el número de balas **aumenta** (1, 2, 3, 4, 5, 6, 7 y 8), dejando cada vez
+menos huecos vacíos. Sobrevive a las 8 rondas para coronarte como leyenda.
+
+| Ronda | Balas | Vacíos |
+|:-----:|:-----:|:------:|
+| 1 | 1 | 9 |
+| 2 | 2 | 8 |
+| 3 | 3 | 7 |
+| 4 | 4 | 6 |
+| 5 | 5 | 5 |
+| 6 | 6 | 4 |
+| 7 | 7 | 3 |
+| 8 | 8 | 2 |
 
 ## 🧰 Herramientas de desarrollo
 
