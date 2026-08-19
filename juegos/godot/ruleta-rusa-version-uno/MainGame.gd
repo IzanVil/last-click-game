@@ -1,38 +1,36 @@
 extends Control
 
 var posicion_bala : int
-var ronda_actual : int = 1
-
 @onready var etiqueta_resultado : Label = $Centro/Columnas/Resultado
+@onready var entrada_numero : LineEdit = $Centro/Columnas/EntradaNumero
 
 
 func _ready() -> void:
 	randomize()
 	posicion_bala = randi_range(1, 6)
-	etiqueta_resultado.text = "Pulsa Disparar o deja que la suerte decida..."
+	etiqueta_resultado.text = "Escribe tu numero del 1 al 6 y pulsa Disparar..."
+	entrada_numero.clear()
+	entrada_numero.grab_focus()
 	print("\n--- RUELETA RUSA INICIADA ---")
-	print("Bala en posicion ", posicion_bala, ". Pulsa ESPACIO o el boton para disparar.")
-
-
+	print("La bala esta en una posicion del 1 al 6. Escribe un numero y dispara.")
 func _process(_delta: float) -> void:
 	if Input.is_action_just_pressed("ui_accept"):
-		disparar()
+		_on_disparar_btn_pressed()
+
+
 func _on_disparar_btn_pressed() -> void:
-	disparar()
+	var numero : int = entrada_numero.text.to_int()
+	if numero < 1 or numero > 6:
+		etiqueta_resultado.text = "Ese numero no esta en el tambor. Escribe un numero del 1 al 6."
+		return
 
-
-func disparar() -> void:
-	if ronda_actual == posicion_bala:
-		etiqueta_resultado.text = "BOOM. La bala estaba en " + str(posicion_bala) + ". Perdiste en la ronda " + str(ronda_actual) + ". El tambor gira de nuevo."
-		print("💥 BOOM en la posicion ", posicion_bala, ". Moriste en la ronda ", ronda_actual, ".")
-		ronda_actual = 1
-		_ready()
+	if numero == posicion_bala:
+		etiqueta_resultado.text = "BOOM. La bala estaba en " + str(posicion_bala) + ". Acertaste de lleno. Perdiste."
+		print("💥 BOOM. La bala estaba en ", posicion_bala, ". Perdiste.")
 	else:
-		etiqueta_resultado.text = "Click. Cartucho vacio. Sobreviviste a la ronda " + str(ronda_actual) + ". Continua."
-		print("👉 Click. Sobrevives a la ronda ", ronda_actual, ".")
-		ronda_actual += 1
-		if ronda_actual > 6:
-			etiqueta_resultado.text = "HAS SOBREVIVIDO TODAS LAS RONDAS. ERES UNA LEYENDA."
-			print("🏆 Sobreviviste las 6 rondas. Eres una leyenda.")
-			ronda_actual = 1
-			_ready()
+		etiqueta_resultado.text = "Click. Solo un cartucho vacio. Sobreviviste a la posicion " + str(numero) + "."
+		print("👉 Click. Sobreviviste a la posicion ", numero, ".")
+
+	entrada_numero.text = ""
+	entrada_numero.grab_focus()
+

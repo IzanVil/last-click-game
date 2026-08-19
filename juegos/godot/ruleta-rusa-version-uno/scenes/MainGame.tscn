@@ -30,13 +30,19 @@ horizontal_alignment = 1
 
 [node name="Instrucciones" type="Label" parent="Centro/Columnas"]
 layout_mode = 2
-text = "El tambor tiene una bala en una posicion del 1 al 6. Pulsa el boton y aprieta el gatillo."
+text = "El tambor tiene una bala en una posicion del 1 al 6. Escribe tu numero y dispara."
 horizontal_alignment = 1
 autowrap_mode = 2
 
+[node name="EntradaNumero" type="LineEdit" parent="Centro/Columnas"]
+layout_mode = 2
+tooltip_text = "Escribe un numero del 1 al 6"
+placeholder_text = "Numero del 1 al 6"
+size_flags_horizontal = 4
+
 [node name="Resultado" type="Label" parent="Centro/Columnas"]
 layout_mode = 2
-text = "Pulsa Disparar cuando estes listo..."
+text = "Escribe tu numero del 1 al 6 y pulsa Disparar..."
 horizontal_alignment = 1
 autowrap_mode = 3
 
@@ -46,5 +52,4 @@ size_flags_horizontal = 4
 text = "Disparar"
 
 [connection signal="pressed" from="Centro/Columnas/DispararBtn" to="." method="_on_disparar_btn_pressed"]
-
 
