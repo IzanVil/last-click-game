@@ -32,4 +32,3 @@ func _on_disparar_btn_pressed() -> void:
 
 	entrada_numero.text = ""
 	entrada_numero.grab_focus()
-
