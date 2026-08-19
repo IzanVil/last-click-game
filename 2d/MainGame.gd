@@ -71,4 +71,3 @@ func _on_disparar_btn_pressed() -> void:
 			ronda_actual += 1
 			await get_tree().create_timer(1.8).timeout
 			preparar_ronda()
-
