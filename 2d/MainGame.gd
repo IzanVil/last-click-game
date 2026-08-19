@@ -4,19 +4,13 @@ var posicion_bala : int
 
 @onready var etiqueta_resultado : Label = $Centro/Columnas/Resultado
 @onready var entrada_numero : LineEdit = $Centro/Columnas/EntradaNumero
-@onready var boton_disparar : Button = $Centro/Columnas/DispararBtn
-
-
 func _ready() -> void:
 	randomize()
 	posicion_bala = randi_range(1, 6)
 	etiqueta_resultado.text = "Escribe tu numero del 1 al 6 y pulsa Disparar..."
 	entrada_numero.clear()
 	entrada_numero.grab_focus()
-	boton_disparar.pressed.connect(_on_disparar_btn_pressed)
 	entrada_numero.text_submitted.connect(func(_texto): _on_disparar_btn_pressed())
-	print("\n--- RUELETA RUSA INICIADA ---")
-	print("La bala esta en una posicion del 1 al 6. Escribe un numero y dispara.")
 func _on_disparar_btn_pressed() -> void:
 	var numero : int = entrada_numero.text.to_int()
 	if numero < 1 or numero > 6:
@@ -32,3 +26,4 @@ func _on_disparar_btn_pressed() -> void:
 
 	entrada_numero.text = ""
 	entrada_numero.grab_focus()
+

@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://xtcyy3hwjjdg"]
 
-[ext_resource type="Script" uid="uid://bk1s1iqexillm" path="res://MainGame.gd" id="1_hat22"]
+[ext_resource type="Script" path="res://MainGame.gd" id="1_game"]
 
 [node name="MainGame" type="Control"]
 layout_mode = 3
@@ -10,6 +10,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.15, 0.15, 0.2, 1)
+script = ExtResource("1_game")
 
 [node name="Centro" type="CenterContainer" parent="."]
 layout_mode = 1
@@ -25,7 +26,7 @@ theme_override_constants/separation = 20
 
 [node name="Titulo" type="Label" parent="Centro/Columnas"]
 layout_mode = 2
-text = "RUELETA RUSA"
+text = "RULETA RUSA"
 horizontal_alignment = 1
 
 [node name="Instrucciones" type="Label" parent="Centro/Columnas"]
@@ -52,4 +53,3 @@ size_flags_horizontal = 4
 text = "Disparar"
 
 [connection signal="pressed" from="Centro/Columnas/DispararBtn" to="." method="_on_disparar_btn_pressed"]
-
