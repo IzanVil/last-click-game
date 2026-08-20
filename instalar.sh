@@ -36,19 +36,21 @@ if [ "$MAYOR" -lt 3 ] || { [ "$MAYOR" -eq 3 ] && [ "$MENOR" -lt 6 ]; }; then
     exit 1
 fi
 
-# --- 3. Crear acceso directo (solo en Linux con escritorio) ---------
-INSTALAR_DIRTO=0
-case "${1:-}" in
-    --solo) INSTALAR_DIRTO=0 ;;
-    *)      INSTALAR_DIRTO=1 ;;
-esac
+# --- 3. Crear acceso directo (solo en Linux/macOS) ------------------
+INSTALAR_DIRTO=1
+if [ "${1:-}" = "--solo" ]; then
+    INSTALAR_DIRTO=0
+fi
 
-if [ "$INSTALAR_DIRTO" = "1" ] && [ -z "${XDG_CURRENT_DESKTOP:-}${DESKTOP_SESSION:-}" ] && [ -d "$HOME/Desktop" ]; then
-    ESC="$HOME/Desktop"
-elif [ "$INSTALAR_DIRTO" = "1" ] && [ -d "$HOME/Escritorio" ]; then
-    ESC="$HOME/Escritorio"
-else
     ESC=""
+if [ "$INSTALAR_DIRTO" = "1" ]; then
+    if [ -d "$HOME/Desktop" ]; then
+        ESC="$HOME/Desktop"
+    elif [ -d "$HOME/Escritorio" ]; then
+        ESC="$HOME/Escritorio"
+    elif [ -d "$HOME/OneDrive/Escritorio" ]; then
+        ESC="$HOME/OneDrive/Escritorio"
+    fi
 fi
 
 if [ -n "$ESC" ]; then
@@ -65,7 +67,7 @@ EOF
     chmod +x "$ESC/RussianRoulette.desktop"
     echo "Acceso directo creado en: $ESC/RussianRoulette.desktop"
 else
-    echo "No se pudo crear acceso directo (escritorio no detectado)."
+    echo "Aviso: no se detecto escritorio, no se creo acceso directo."
 fi
 
 # --- 4. Lanzar el juego ---------------------------------------------
