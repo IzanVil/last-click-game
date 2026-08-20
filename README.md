@@ -148,6 +148,11 @@ menos huecos vacíos. Sobrevive a las 8 rondas para coronarte como leyenda.
 - **Control de versiones**: Git.
 - **Pruebas**: los juegos se pueden verificar desde línea de comandos con Godot
   `--headless` para la versión gráfica, y ejecutando el script para la terminal.
+  La versión Python incluye una batería de tests en `terminal/test_ruleta.py`:
+
+  ```bash
+  cd terminal && python3 -m unittest test_ruleta -v
+  ```
 
 ## 🧭 Hoja de ruta
 
