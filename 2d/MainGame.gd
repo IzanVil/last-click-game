@@ -4,8 +4,14 @@ const HUECOS := 10
 const RONDAS := 8
 const BALAS_POR_RONDA := [1, 2, 3, 4, 5, 6, 7, 8]
 
+const COLOR_NORMAL := Color(0.15, 0.15, 0.2, 1)
+const COLOR_BOOM := Color(0.45, 0.05, 0.05, 1)
+const COLOR_CLICK := Color(0.05, 0.3, 0.1, 1)
+const COLOR_VICTORIA := Color(0.25, 0.2, 0.05, 1)
+
 var ronda_actual := 1
 var posiciones_bala : Array          # posiciones (del 1 al 10) que tienen bala
+@onready var fondo : ColorRect = $Fondo
 @onready var etiqueta_resultado : Label = $Centro/Columnas/Resultado
 @onready var etiqueta_instrucciones : Label = $Centro/Columnas/Instrucciones
 @onready var entrada_numero : LineEdit = $Centro/Columnas/EntradaNumero
@@ -57,6 +63,7 @@ func _on_disparar_btn_pressed() -> void:
 	if numero in posiciones_bala:
 		etiqueta_resultado.text = "BOOM. La posicion " + str(numero) + " tenia una bala. Perdiste en la ronda " + str(ronda_actual) + "."
 		print("💥 BOOM. Perdiste en la ronda ", ronda_actual, ". Bala en ", numero, ".")
+		_flash(COLOR_BOOM)
 		await get_tree().create_timer(2.0).timeout
 		iniciar_juego()
 	else:
@@ -65,9 +72,19 @@ func _on_disparar_btn_pressed() -> void:
 		if ronda_actual >= RONDAS:
 			etiqueta_resultado.text = "🏆 Sobreviviste las " + str(RONDAS) + " rondas. ERES UNA LEYENDA."
 			print("🏆 Sobreviviste las ", RONDAS, " rondas. Eres una leyenda.")
+			_flash(COLOR_VICTORIA)
 			await get_tree().create_timer(2.5).timeout
 			iniciar_juego()
 		else:
 			ronda_actual += 1
+			_flash(COLOR_CLICK)
 			await get_tree().create_timer(1.8).timeout
 			preparar_ronda()
+
+
+func _flash(color: Color) -> void:
+	var tween := create_tween()
+	tween.tween_property(fondo, "color", color, 0.15)
+	tween.tween_property(fondo, "color", COLOR_NORMAL, 0.6)
+
+

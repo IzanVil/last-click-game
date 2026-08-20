@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="ruleta-rusa-version-uno"
+config/name="Russian Roulette"
 run/main_scene="uid://xtcyy3hwjjdg"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
