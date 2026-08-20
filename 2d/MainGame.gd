@@ -86,5 +86,3 @@ func _flash(color: Color) -> void:
 	var tween := create_tween()
 	tween.tween_property(fondo, "color", color, 0.15)
 	tween.tween_property(fondo, "color", COLOR_NORMAL, 0.6)
-
-
