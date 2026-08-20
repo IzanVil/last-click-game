@@ -19,7 +19,7 @@
 
 Una colección de minijuegos de ruleta rusa en **dos sabores**: un clásico de
 **terminal** escrito en Python y una versión **gráfica 2D** hecha con Godot.
-Escribe un número del 1 al 6..., aprieta el gatillo... y deja que el azar decida.
+Elige una posición del tambor aprieta el gatillo y deja que el azar decida.
 
 ## 🧠 La idea
 
@@ -40,14 +40,31 @@ La eterna apuesta de la ruleta rusa, llevada a la consola y a la pantalla:
 | Terminal | 🐍 Python | Python 3.6 o superior |
 | Gráfica  | 🎮 Godot | Godot 4.6 o superior |
 
+## 🚀 Lanzadores rápidos
+
+Incluimos dos lanzadores para que el juego arranque directo sin teclear comandos:
+
+| Archivo | Sistema | Qué hace |
+|---------|---------|----------|
+| `run.sh` | Linux / macOS | Lanza la ruleta; con `run.sh -g` abre Godot |
+| `run.bat` | Windows | Lanza la ruleta; con `run.bat -g` abre Godot |
+
+```bash
+# Ejecutar el juego en la terminal (Linux / macOS)
+./run.sh
+
+# O abrir el editor Godot
+./run.sh -g
+```
+
 ## 🗂️ Estructura del repositorio
 
 ```
 russian-roulette-2d/
 ├── README.md            ← esta documentación
 ├── LICENSE              ← licencia MIT
-├── docs/
-│   └── GUIA.md          ← guía técnica y de ampliación
+├── run.sh               ← lanzador Linux / macOS
+├── run.bat              ← lanzador Windows
 ├── terminal/            ← versión de consola
 │   └── ruleta.py        ← juego en Python puro
 └── 2d/                  ← versión gráfica
@@ -63,29 +80,36 @@ La versión más pura: abre una terminal, escribe un número y deja que el azar 
 
 ### Cómo jugar
 
+Desde la raíz del repositorio:
+
 ```bash
-cd terminal
-python3 ruleta.py
+./run.sh                       # usa el lanzador (Linux / macOS)
+# o directamente:
+cd terminal && python3 ruleta.py
 ```
 
-> 💡 En Windows usa `python ruleta.py` en lugar de `python3`.
+> 💡 En Windows usa `run.bat`, o `python ruleta.py` en lugar de `python3`.
 
 ### Ejemplo de partida
 
 ```
-=== RULETA RUSA ===
-La bala esta en una posicion del 1 al 6.
-Elige un numero y cruza los dedos.
+ ╔════════════════════════════════════════════╗
+ ║            RULETA RUSA              ║
+ ║   Ronda 3/8  ·  Balas 3  ·  Vacios 7    ║
+ ╚════════════════════════════════════════════╝
 
-Numero del 1 al 6: 4
-Click. Solo fue un cartucho vacio. Sobreviviste a la posicion 4 .
+   La bala descansa en un hueco. Tu huella deja marcas.
+   ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
+   0  0  0  0  0  0  0  0  0  0
+   1  2  3  4  5  6  7  8  9  10
 
-Volver a jugar? (s/n):
+   Elige una posicion (1-10): 4
+   Click. Cartucho vacio. Avanzas a la ronda 4.
 ```
 
-- 💀 Si tu número coincide con la bala → **BOOM, perdiste.**
-- 😅 Si no coincide → **Click, sobreviviste.**
-- 🔁 Puedes volver a jugar tantas veces como quieras.
+- 💀 Si eliges un hueco con bala → **BOOM, pierdes.**
+- 😅 Si eliges un hueco vacío → **Click, avanzas a la siguiente ronda.**
+- 🏆 Sobrevive a las 8 rondas para ganar.
 
 ## 🎮 versión gráfica (Godot 2D)
 
