@@ -1,37 +1,63 @@
-# 🎯 Guía del proyecto
+# Guía del proyecto
 
-Este documento describe la mecánica y las reglas de los dos juegos del repositorio,
-además de cómo ampliarlos y modificarlos.
+Este documento describe la mecánica y las reglas de los dos juegos del
+repositorio, además de cómo ampliarlos y modificarlos.
 
-## ⚙️ Mecánica de la ruleta rusa
+## Mecánica de la ruleta rusa
 
-La idea es muy sencilla y se repite en ambas versiones:
+La idea se repite en ambas versiones, subiendo la tensión ronda a ronda:
 
-1. El revólver tiene **6 huecos** en el tambor.
-2. Se introduce **una sola bala** en una posición aleatoria (de 1 a 6).
-3. El jugador elige un número del 1 al 6 y «dispara».
-4. Si su número coincide con la posición de la bala → **BOOM** (pierde).
-   Si no coincide → **Click** (sobrevive).
+1. El tambor tiene **10 huecos**, numerados del 1 al 10.
+2. El juego consta de **8 rondas**. En cada ronda se cargan más balas que en la
+   anterior: de 1 bala en la ronda 1 hasta 8 balas en la ronda 8.
+3. El jugador elige una posición del tambor y «dispara».
+4. Si el hueco elegido es una **bala** → **BOOM** (pierde y la partida se reinicia).
+   Si está **vacío** → **Click** (sobrevive y avanza a la siguiente ronda).
+5. Sobrevivir a las 8 rondas supone la **victoria**.
 
-## 🐍 versión de terminal (Python)
+### Tabla de dificultad por ronda
+
+| Ronda | Huecos | Balas | Vacíos |
+|:-----:|:------:|:-----:|:------:|
+| 1 | 10 | 1 | 9 |
+| 2 | 10 | 2 | 8 |
+| 3 | 10 | 3 | 7 |
+| 4 | 10 | 4 | 6 |
+| 5 | 10 | 5 | 5 |
+| 6 | 10 | 6 | 4 |
+| 7 | 10 | 7 | 3 |
+| 8 | 10 | 8 | 2 |
+
+## Versión de terminal (Python)
 
 - Archivo: `terminal/ruleta.py`
 - Dependencias: **ninguna** (solo la librería estándar de Python 3.6+).
-- Ejecución: `python3 ruleta.py`
-- Interactúa por entrada/salida estándar.
+- Ejecución: `./run.sh`, o directamente `python3 terminal/ruleta.py`.
+- Interactúa por entrada/salida estándar con interfaz en colores y tambor ASCII.
 
 ### Cómo modificar la lógica
 
-El corazón del juego está en la función `jugar()`:
+Los valores clave están al comienzo del archivo:
 
 ```python
-posicion_bala = random.randint(1, 6)
+HUECOS = 10
+RONDAS = 8
 ```
 
-Si quieres cambiar el número de huecos del tambor, basta con modificar el `6`
-por el valor deseado (por ejemplo, `8` para un tambor más grande).
+- `HUECOS` controla el tamaño del tambor.
+- La dificultad por ronda se deriva del número de ronda (ronda N → N balas).
+  Si quieres una curva distinta, basta con cambiar el cálculo en `jugar()`
+  (por ejemplo, `balas = min(balas + 2, HUECOS)` para que suba más rápido).
 
-## 🎮 versión gráfica (Godot)
+### Tests
+
+La batería de pruebas se encuentra en `terminal/test_ruleta.py`:
+
+```bash
+cd terminal && python3 -m unittest test_ruleta -v
+```
+
+## Versión gráfica (Godot)
 
 - Carpeta: `2d/`
 - Motor: **Godot 4.6+**
@@ -40,37 +66,51 @@ por el valor deseado (por ejemplo, `8` para un tambor más grande).
 
 ### Cómo modificar la lógica
 
-El script `MainGame.gd` usa una etiqueta (`Resultado`), un campo de texto
-(`EntradaNumero`) y un botón (`DispararBtn`). La comprobación es:
+El script `MainGame.gd` centraliza la configuración al principio:
 
 ```gdscript
-if numero == posicion_bala:
-    # pierde
-else:
-    # sobrevive
+const HUECOS := 10
+const RONDAS := 8
+const BALAS_POR_RONDA := [1, 2, 3, 4, 5, 6, 7, 8]
 ```
 
-Para cambiar el rango de números basta editar el `6` en `randi_range(1, 6)`
-y el límite de validación (`if numero < 1 or numero > 6`).
+- `HUECOS` cambia el tamaño del tambor.
+- `RONDAS` cambia el número de rondas.
+- `BALAS_POR_RONDA` define cuántas balas hay en cada ronda; puedes editarlo
+  para diseñar tu propia curva de dificultad.
 
-## 🧑‍🔧 Ampliaciones sugeridas
+El feedback visual (flash rojo/verde/dorado) se gestiona en `_flash(color)`.
 
-Consulta la **Hoja de ruta** del `README.md` para ver ideas de mejora como:
+## Lanzadores
+
+| Archivo | Plataforma | Acción |
+|---------|-----------|--------|
+| `run.sh` | Linux / macOS | Juego en terminal (`-g` abre Godot) |
+| `run.bat` | Windows | Juego en terminal (`-g` abre Godot) |
+
+## Ampliaciones sugeridas
+
+Consulta la **Hoja de ruta** del `README.md` para más ideas:
 
 - Modo «borracho».
-- Múltiples balas.
-- Selector de dificultad.
+- Selector de dificultad (tambores de otros tamaños).
+- Sistema de puntos, rachas y récords.
+- Efectos de sonido de gatillo.
+- Animación del tambor girando en Godot.
 
-## 🗂️ Estructura de carpetas
+## Estructura de carpetas
 
 ```
 russian-roulette-2d/
 ├── README.md
 ├── LICENSE
+├── run.sh
+├── run.bat
 ├── docs/
 │   └── GUIA.md
 ├── terminal/
-│   └── ruleta.py
+│   ├── ruleta.py
+│   └── test_ruleta.py
 └── 2d/
     ├── project.godot
     ├── MainGame.gd
