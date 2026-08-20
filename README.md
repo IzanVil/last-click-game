@@ -40,6 +40,28 @@ La eterna apuesta de la ruleta rusa, llevada a la consola y a la pantalla:
 | Terminal | 🐍 Python | Python 3.6 o superior |
 | Gráfica  | 🎮 Godot | Godot 4.6 o superior |
 
+## ⬇️ Instalación (versión terminal)
+
+La forma más cómoda de jugar es descargar el juego e instalar un **acceso
+directo** en tu escritorio: con un doble clic el juego se abre solo.
+
+**1. Descarga e instala [Python 3.6+](https://python.org/downloads/)** si aún
+no lo tienes.
+
+**2. Descarga e inicia el instalador:**
+
+- **Linux / macOS** → descarga el proyecto (botón *Code ▾ → Download ZIP*),
+  descomprime la carpeta y haz **doble clic** en `instalar.sh` (o en la
+  terminal: `./instalar.sh`).
+- **Windows** → haz **doble clic** en `instalar.bat`.
+
+El instalador detecta Python, crea el acceso directo en el escritorio y abre
+el juego directamente.
+
+> 💡 Si el sistema bloquea el archivo por ser de Internet, abre la terminal y
+> ejecútalo tú: `./instalar.sh`. En Windows, si aparece un aviso, pulsa
+> *「Más información → Ejecutar de todas formas»*.
+
 ## 🚀 Lanzadores rápidos
 
 Incluimos dos lanzadores para que el juego arranque directo sin teclear comandos:
@@ -63,10 +85,13 @@ Incluimos dos lanzadores para que el juego arranque directo sin teclear comandos
 russian-roulette-2d/
 ├── README.md            ← esta documentación
 ├── LICENSE              ← licencia MIT
+├── instalar.sh          ← instalador + acceso directo (Linux / macOS)
+├── instalar.bat         ← instalador (Windows)
 ├── run.sh               ← lanzador Linux / macOS
 ├── run.bat              ← lanzador Windows
 ├── terminal/            ← versión de consola
-│   └── ruleta.py        ← juego en Python puro
+│   ├── ruleta.py        ← juego en Python puro
+│   └── test_ruleta.py   ← pruebas unitarias
 └── 2d/                  ← versión gráfica
     ├── project.godot    ← proyecto Godot
     ├── MainGame.gd      ← lógica del juego
@@ -156,12 +181,20 @@ menos huecos vacíos. Sobrevive a las 8 rondas para coronarte como leyenda.
 
 ## 🧭 Hoja de ruta
 
+### ✅ Hecho en esta beta `v0.1.0`
+- [x] Sistema de **8 rondas** con dificultad creciente (1→8 balas)
+- [x] **Lanzadores** para Linux, macOS y Windows (`run.sh`, `run.bat`)
+- [x] **Instalador** con acceso directo en el escritorio (`instalar.sh`, `instalar.bat`)
+- [x] **Tests** automáticos de la versión Python
+- [x] **Feedback visual** por colores en la versión Godot
+
+### 🎯 Próximos pasos
 - [ ] Modo «borracho» 🍺 (menos suerte y más humor)
-- [ ] Múltiples balas en el tambor
 - [ ] Selector de dificultad (tambores de 4, 6 u 8 huecos)
 - [ ] Sistema de puntos, rachas y récords
 - [ ] Efectos de sonido de gatillo
-- [ ] Animación del tambor girando
+- [ ] Animación del tambor girando (Godot)
+- [ ] Empaquetado en un ejecutable único (`pyinstaller`)
 
 ## 🤝 Cómo contribuir
 
