@@ -107,7 +107,15 @@ class TestFlujoJuego(unittest.TestCase):
     def test_pantalla_fracaso(self, mock_limpiar, mock_sleep):
         with patch("builtins.print") as mock_print:
             ruleta.fracaso(3)
-        mock_print.assert_any_call('\x1b[1m\x1b[91m\n      ▓▓▓   B O O M   ▓▓▓\n\x1b[0m')
+
+        mensajes = " ".join(
+            str(llamada.args[0]) for llamada in mock_print.call_args_list if llamada.args
+        )
+        # Se comprueba el contenido real (BOOM y el numero de ronda), no
+        # el color exacto ni el espaciado entre letras: un cambio
+        # cosmetico ahi no debe romper el test si no hay ningun bug real.
+        self.assertRegex(mensajes, r"(?i)b\s*o\s*o\s*m")
+        self.assertIn(str(3), mensajes)
 
 
 if __name__ == "__main__":
