@@ -1,85 +1,92 @@
 extends Control
-
-const HUECOS := 10
-const RONDAS := 8
-const BALAS_POR_RONDA := [1, 2, 3, 4, 5, 6, 7, 8]
+## Vista de la ruleta rusa: solo escucha las senales de RuletaEstado y
+## actualiza Label/ColorRect/Tween en pantalla. No conoce reglas del
+## juego (rondas, balas, condicion de victoria viven en RuletaEstado).
 
 const COLOR_NORMAL := Color(0.15, 0.15, 0.2, 1)
 const COLOR_BOOM := Color(0.45, 0.05, 0.05, 1)
 const COLOR_CLICK := Color(0.05, 0.3, 0.1, 1)
 const COLOR_VICTORIA := Color(0.25, 0.2, 0.05, 1)
 
-var ronda_actual := 1
-var posiciones_bala : Array          # posiciones (del 1 al 10) que tienen bala
-@onready var fondo : ColorRect = $Fondo
-@onready var etiqueta_resultado : Label = $Centro/Columnas/Resultado
-@onready var etiqueta_instrucciones : Label = $Centro/Columnas/Instrucciones
-@onready var entrada_numero : LineEdit = $Centro/Columnas/EntradaNumero
+@onready var fondo: ColorRect = $Fondo
+@onready var etiqueta_resultado: Label = $Centro/Columnas/Resultado
+@onready var etiqueta_instrucciones: Label = $Centro/Columnas/Instrucciones
+@onready var entrada_numero: LineEdit = $Centro/Columnas/EntradaNumero
+
+const RuletaEstado := preload("res://RuletaEstado.gd")
+
+var _estado := RuletaEstado.new()
 
 
 func _ready() -> void:
 	randomize()
-	iniciar_juego()
+	_estado.ronda_preparada.connect(_on_ronda_preparada)
+	_estado.entrada_invalida.connect(_on_entrada_invalida)
+	_estado.impacto.connect(_on_impacto)
+	_estado.click_seguro.connect(_on_click_seguro)
+	_estado.partida_ganada.connect(_on_partida_ganada)
 	entrada_numero.text_submitted.connect(func(_texto): _on_disparar_btn_pressed())
+	_estado.iniciar_juego()
 
 
-func iniciar_juego() -> void:
-	ronda_actual = 1
-	preparar_ronda()
+func _on_disparar_btn_pressed() -> void:
+	var numero: int = entrada_numero.text.to_int()
+	_estado.disparar(numero)
 
 
-func preparar_ronda() -> void:
-	var num_balas : int = BALAS_POR_RONDA[ronda_actual - 1]
-	posiciones_bala = _colocar_balas(num_balas)
-	actualizar_pantalla()
-
-
-func _colocar_balas(cantidad: int) -> Array:
-	var posiciones := []
-	while posiciones.size() < cantidad:
-		var p : int = randi_range(1, HUECOS)
-		if not posiciones.has(p):
-			posiciones.append(p)
-	return posiciones
-
-
-func actualizar_pantalla() -> void:
-	var num_balas : int = BALAS_POR_RONDA[ronda_actual - 1]
-	var num_vacios : int = HUECOS - num_balas
-	etiqueta_instrucciones.text = "Ronda " + str(ronda_actual) + " de " + str(RONDAS) + " - Tambor de " + str(HUECOS) + " huecos: " + str(num_balas) + " balas y " + str(num_vacios) + " vacios."
+func _on_ronda_preparada(ronda: int, balas: int, vacios: int) -> void:
+	etiqueta_instrucciones.text = (
+		"Ronda " + str(ronda) + " de " + str(RuletaEstado.RONDAS)
+		+ " - Tambor de " + str(RuletaEstado.HUECOS) + " huecos: "
+		+ str(balas) + " balas y " + str(vacios) + " vacios."
+	)
 	etiqueta_resultado.text = "Elige un numero del 1 al 10 y dispara..."
 	entrada_numero.clear()
 	entrada_numero.grab_focus()
-	print("\n--- RULETA RUSA - Ronda ", ronda_actual, "/", RONDAS, " ---")
-	print("Balas: ", posiciones_bala, " / Vacios: 1-", HUECOS, " menos las balas.")
-func _on_disparar_btn_pressed() -> void:
-	var numero : int = entrada_numero.text.to_int()
-	if numero < 1 or numero > HUECOS:
-		etiqueta_resultado.text = "Ese numero no esta en el tambor. Elige entre 1 y " + str(HUECOS) + "."
-		entrada_numero.clear()
-		entrada_numero.grab_focus()
-		return
+	print("\n--- RULETA RUSA - Ronda ", ronda, "/", RuletaEstado.RONDAS, " ---")
+	print("Balas: ", _estado.posiciones_bala, " / Vacios: 1-", RuletaEstado.HUECOS, " menos las balas.")
 
-	if numero in posiciones_bala:
-		etiqueta_resultado.text = "BOOM. La posicion " + str(numero) + " tenia una bala. Perdiste en la ronda " + str(ronda_actual) + "."
-		print("💥 BOOM. Perdiste en la ronda ", ronda_actual, ". Bala en ", numero, ".")
-		_flash(COLOR_BOOM)
-		await get_tree().create_timer(2.0).timeout
-		iniciar_juego()
-	else:
-		etiqueta_resultado.text = "Click. La posicion " + str(numero) + " estaba vacia. Sobreviviste a la ronda " + str(ronda_actual) + "."
-		print("👉 Click. Sobreviviste a la ronda ", ronda_actual, ".")
-		if ronda_actual >= RONDAS:
-			etiqueta_resultado.text = "🏆 Sobreviviste las " + str(RONDAS) + " rondas. ERES UNA LEYENDA."
-			print("🏆 Sobreviviste las ", RONDAS, " rondas. Eres una leyenda.")
-			_flash(COLOR_VICTORIA)
-			await get_tree().create_timer(2.5).timeout
-			iniciar_juego()
-		else:
-			ronda_actual += 1
-			_flash(COLOR_CLICK)
-			await get_tree().create_timer(1.8).timeout
-			preparar_ronda()
+
+func _on_entrada_invalida(_numero: int) -> void:
+	etiqueta_resultado.text = (
+		"Ese numero no esta en el tambor. Elige entre 1 y " + str(RuletaEstado.HUECOS) + "."
+	)
+	entrada_numero.clear()
+	entrada_numero.grab_focus()
+
+
+func _on_impacto(ronda: int, numero: int) -> void:
+	etiqueta_resultado.text = (
+		"BOOM. La posicion " + str(numero) + " tenia una bala. Perdiste en la ronda "
+		+ str(ronda) + "."
+	)
+	print("💥 BOOM. Perdiste en la ronda ", ronda, ". Bala en ", numero, ".")
+	_flash(COLOR_BOOM)
+	await get_tree().create_timer(2.0).timeout
+	_estado.iniciar_juego()
+
+
+func _on_click_seguro(ronda: int, numero: int) -> void:
+	etiqueta_resultado.text = (
+		"Click. La posicion " + str(numero) + " estaba vacia. Sobreviviste a la ronda "
+		+ str(ronda) + "."
+	)
+	print("👉 Click. Sobreviviste a la ronda ", ronda, ".")
+	if ronda < RuletaEstado.RONDAS:
+		_flash(COLOR_CLICK)
+		await get_tree().create_timer(1.8).timeout
+		_estado.avanzar_ronda()
+	# Si ronda == RONDAS, _on_partida_ganada ya se dispara justo despues
+	# (disparar() emite click_seguro y partida_ganada en el mismo turno)
+	# y se encarga del mensaje, el flash y el reinicio.
+
+
+func _on_partida_ganada(rondas: int) -> void:
+	etiqueta_resultado.text = "🏆 Sobreviviste las " + str(rondas) + " rondas. ERES UNA LEYENDA."
+	print("🏆 Sobreviviste las ", rondas, " rondas. Eres una leyenda.")
+	_flash(COLOR_VICTORIA)
+	await get_tree().create_timer(2.5).timeout
+	_estado.iniciar_juego()
 
 
 func _flash(color: Color) -> void:
