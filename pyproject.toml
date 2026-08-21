@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "russian-roulette-2d"
+version = "0.1.0"
+description = "Minijuego de ruleta rusa de ficcion: version de terminal en Python puro y version grafica 2D en Godot."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+authors = [
+    { name = "Izan" },
+]
+
+[project.scripts]
+ruleta = "terminal.ruleta:jugar"
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.16",
+    "black>=24",
+]
+
+[tool.setuptools]
+packages = ["terminal"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+# Reglas por defecto de ruff (pyflakes + un subconjunto de pycodestyle)
+# mas: E (pycodestyle completo, incluye E501 line-too-long), I (orden de
+# imports) y UP (sugerencias de sintaxis moderna acorde a requires-python).
+select = ["E", "F", "I", "UP"]
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
