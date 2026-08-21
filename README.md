@@ -13,7 +13,6 @@
   <img src="https://img.shields.io/badge/Godot-4.7%2B-478CBF?logo=godotengine&logoColor=white" alt="Godot">
   <img src="https://img.shields.io/badge/estado-en%20desarrollo-yellow" alt="Estado">
   <img src="https://img.shields.io/badge/licencia-MIT-green" alt="Licencia">
-  [![CI](https://github.com/IzanVil/last-click-game/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/IzanVil/last-click-game/actions/workflows/ci.yml)
   <img src="https://img.shields.io/badge/coverage-93%25-brightgreen" alt="Cobertura">
 </p>
 
@@ -21,7 +20,7 @@
 
 Una colección de minijuegos de ruleta rusa en **dos sabores**: un clásico de
 **terminal** escrito en Python y una versión **gráfica 2D** hecha con Godot.
-Elige una posición del tambor aprieta el gatillo y deja que el azar decida.
+Elige una posición del tambor, aprieta el gatillo y deja que el azar decida.
 
 ## 🧠 La idea
 
@@ -106,7 +105,7 @@ russian-roulette-2d/
     └── assets/          ← recursos visuales
 ```
 
-## 🐍 versión de terminal (Python)
+## 🐍 Versión de terminal (Python)
 
 La versión más pura: abre una terminal, escribe un número y deja que el azar decida.
 
@@ -125,14 +124,15 @@ cd terminal && python3 ruleta.py
 ### Ejemplo de partida
 
 ```
- ╔════════════════════════════════════════════╗
- ║            RULETA RUSA              ║
- ║   Ronda 3/8  ·  Balas 3  ·  Vacios 7    ║
- ╚════════════════════════════════════════════╝
+╔════════════════════════════════════════════╗
+║            RULETA RUSA              ║
+║   Ronda 3 /8  ·  Balas 3   ·  Vacios 7   ║
+╚════════════════════════════════════════════╝
 
    La bala descansa en un hueco. Tu huella deja marcas.
    ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
-   0  0  0  0  0  0  0  0  0  0
+   0   0   0   0   0   0   0   0   0   0
+   └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
    1  2  3  4  5  6  7  8  9  10
 
    Elige una posicion (1-10): 4
@@ -143,7 +143,7 @@ cd terminal && python3 ruleta.py
 - 😅 Si eliges un hueco vacío → **Click, avanzas a la siguiente ronda.**
 - 🏆 Sobrevive a las 8 rondas para ganar.
 
-## 🎮 versión gráfica (Godot 2D)
+## 🎮 Versión gráfica (Godot 2D)
 
 Una adaptación visual con el motor **Godot 4.7**, con interfaz completa:
 campo de número, botón para disparar y mensaje de resultado en pantalla.
@@ -178,13 +178,32 @@ menos huecos vacíos. Sobrevive a las 8 rondas para coronarte como leyenda.
 
 - **Editor**: cualquiera (VS Code, Neovim, Godot editor...).
 - **Control de versiones**: Git.
-- **Pruebas**: los juegos se pueden verificar desde línea de comandos con Godot
-  `--headless` para la versión gráfica, y ejecutando el script para la terminal.
-  La versión Python incluye una batería de tests en `terminal/test_ruleta.py`:
+- **Empaquetado**: `pyproject.toml` con entry point instalable
+  (`pip install -e .` deja disponible el comando `ruleta`).
+- **Lint y formato**: [ruff](https://docs.astral.sh/ruff/) y
+  [black](https://black.readthedocs.io/), configurados en `pyproject.toml`
+  (`line-length = 88`, `target-version = "py311"`):
+
+  ```bash
+  pip install -e ".[dev]"
+  ruff check .
+  black --check .
+  ```
+
+- **Pruebas y cobertura**: los juegos se pueden verificar desde línea de
+  comandos con Godot `--headless` para la versión gráfica, y ejecutando el
+  script para la terminal. La versión Python incluye una batería de tests en
+  `terminal/test_ruleta.py`, medida con [coverage.py](https://coverage.readthedocs.io/):
 
   ```bash
   cd terminal && python3 -m unittest test_ruleta -v
+  # o, con cobertura, desde la raiz del repositorio:
+  coverage run -m unittest discover -s terminal && coverage report
   ```
+
+- **Integración continua**: GitHub Actions (`.github/workflows/ci.yml`) corre
+  en cada push/PR el lint, el formato, los tests con cobertura (matriz Python
+  3.11-3.13) y un smoke test de Godot en modo `--headless`.
 
 ## 🧭 Hoja de ruta
 
@@ -192,7 +211,10 @@ menos huecos vacíos. Sobrevive a las 8 rondas para coronarte como leyenda.
 - [x] Sistema de **8 rondas** con dificultad creciente (1→8 balas)
 - [x] **Lanzadores** para Linux, macOS y Windows (`run.sh`, `run.bat`)
 - [x] **Instalador** con acceso directo en el escritorio (`instalar.sh`, `instalar.bat`)
-- [x] **Tests** automáticos de la versión Python
+- [x] **Tests** automáticos de la versión Python, con cobertura medida (93%)
+- [x] **Empaquetado** con `pyproject.toml` (entry point instalable, config de lint/formato)
+- [x] **Integración continua** en GitHub Actions (tests + lint + smoke test de Godot)
+- [x] **Lógica separada de la UI** en la versión Godot (estado con señales, sin polling)
 - [x] **Feedback visual** por colores en la versión Godot
 
 ### 🎯 Próximos pasos
