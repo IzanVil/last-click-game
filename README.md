@@ -10,7 +10,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python">
-  <img src="https://img.shields.io/badge/Godot-4.6%2B-478CBF?logo=godotengine&logoColor=white" alt="Godot">
+  <img src="https://img.shields.io/badge/Godot-4.7%2B-478CBF?logo=godotengine&logoColor=white" alt="Godot">
   <img src="https://img.shields.io/badge/estado-en%20desarrollo-yellow" alt="Estado">
   <img src="https://img.shields.io/badge/licencia-MIT-green" alt="Licencia">
 </p>
@@ -38,7 +38,7 @@ La eterna apuesta de la ruleta rusa, llevada a la consola y a la pantalla:
 | Versión | Tecnología | Requisito |
 |---------|-----------|-----------|
 | Terminal | 🐍 Python | Python 3.11 o superior |
-| Gráfica  | 🎮 Godot | Godot 4.6 o superior |
+| Gráfica  | 🎮 Godot | Godot 4.7 o superior |
 
 ## ⬇️ Instalación (versión terminal)
 
@@ -138,7 +138,7 @@ cd terminal && python3 ruleta.py
 
 ## 🎮 versión gráfica (Godot 2D)
 
-Una adaptación visual con el motor **Godot 4.6**, con interfaz completa:
+Una adaptación visual con el motor **Godot 4.7**, con interfaz completa:
 campo de número, botón para disparar y mensaje de resultado en pantalla.
 
 ### Cómo jugar
