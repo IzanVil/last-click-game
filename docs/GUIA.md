@@ -31,7 +31,7 @@ La idea se repite en ambas versiones, subiendo la tensión ronda a ronda:
 ## Versión de terminal (Python)
 
 - Archivo: `terminal/ruleta.py`
-- Dependencias: **ninguna** (solo la librería estándar de Python 3.6+).
+- Dependencias: **ninguna** (solo la librería estándar de Python 3.11+).
 - Ejecución: `./run.sh`, o directamente `python3 terminal/ruleta.py`.
 - Interactúa por entrada/salida estándar con interfaz en colores y tambor ASCII.
 

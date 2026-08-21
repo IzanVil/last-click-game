@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Python-3.6%2B-3776AB?logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/Godot-4.6%2B-478CBF?logo=godotengine&logoColor=white" alt="Godot">
   <img src="https://img.shields.io/badge/estado-en%20desarrollo-yellow" alt="Estado">
   <img src="https://img.shields.io/badge/licencia-MIT-green" alt="Licencia">
@@ -37,7 +37,7 @@ La eterna apuesta de la ruleta rusa, llevada a la consola y a la pantalla:
 
 | Versión | Tecnología | Requisito |
 |---------|-----------|-----------|
-| Terminal | 🐍 Python | Python 3.6 o superior |
+| Terminal | 🐍 Python | Python 3.11 o superior |
 | Gráfica  | 🎮 Godot | Godot 4.6 o superior |
 
 ## ⬇️ Instalación (versión terminal)
@@ -45,7 +45,7 @@ La eterna apuesta de la ruleta rusa, llevada a la consola y a la pantalla:
 La forma más cómoda de jugar es descargar el juego e instalar un **acceso
 directo** en tu escritorio: con un doble clic el juego se abre solo.
 
-**1. Descarga e instala [Python 3.6+](https://python.org/downloads/)** si aún
+**1. Descarga e instala [Python 3.11+](https://python.org/downloads/)** si aún
 no lo tienes.
 
 **2. Descarga e inicia el instalador:**

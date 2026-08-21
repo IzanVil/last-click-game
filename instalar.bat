@@ -21,16 +21,16 @@ if %errorlevel%==0 (
     ) else (
         echo.
         echo ERROR: No se encontro Python.
-        echo Instala Python 3.6 o superior desde python.org
+        echo Instala Python 3.11 o superior desde python.org
         echo y vuelve a ejecutar este instalador.
         pause
         exit /b 1
     )
 )
 
-%PY% -c "import sys; assert sys.version_info >= (3,6)" >nul 2>&1
+%PY% -c "import sys; assert sys.version_info >= (3,11)" >nul 2>&1
 if errorlevel 1 (
-    echo ERROR: Necesitas Python 3.6 o superior.
+    echo ERROR: Necesitas Python 3.11 o superior.
     pause
     exit /b 1
 )

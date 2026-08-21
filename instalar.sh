@@ -4,7 +4,7 @@
 # Uso:
 #   ./instalar.sh          -> instala y ejecuta el juego
 #   ./instalar.sh --solo   -> instala sin abrir el juego de golpe
-# Prerequisito: Python 3.6+ instalado en el sistema.
+# Prerequisito: Python 3.11+ instalado en el sistema.
 # ---------------------------------------------------------------
 set -euo pipefail
 
@@ -21,7 +21,7 @@ elif command -v python >/dev/null 2>&1; then
     PY="python"
 else
     echo "ERROR: No se encontro Python."
-    echo "Instala Python 3.6 o superior desde python.org"
+    echo "Instala Python 3.11 o superior desde python.org"
     echo "y vuelve a ejecutar este instalador."
     exit 1
 fi
@@ -31,8 +31,8 @@ echo "Se detecto Python: ${PY} ($(${PY} --version 2>&1))"
 # --- 2. Verificar la version ----------------------------------------
 MAYOR=$("${PY}" -c "import sys; print(sys.version_info.major)")
 MENOR=$("${PY}" -c "import sys; print(sys.version_info.minor)")
-if [ "$MAYOR" -lt 3 ] || { [ "$MAYOR" -eq 3 ] && [ "$MENOR" -lt 6 ]; }; then
-    echo "ERROR: Necesitas Python 3.6 o superior (el sistema tiene 3.${MENOR})."
+if [ "$MAYOR" -lt 3 ] || { [ "$MAYOR" -eq 3 ] && [ "$MENOR" -lt 11 ]; }; then
+    echo "ERROR: Necesitas Python 3.11 o superior (el sistema tiene ${MAYOR}.${MENOR})."
     exit 1
 fi
 

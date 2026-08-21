@@ -15,7 +15,7 @@ if command -v python3 >/dev/null 2>&1; then
 elif command -v python >/dev/null 2>&1; then
     PYTHON="python"
 else
-    echo "No se encontro Python. Instala Python 3.6 o superior." >&2
+    echo "No se encontro Python. Instala Python 3.11 o superior." >&2
     exit 1
 fi
 
