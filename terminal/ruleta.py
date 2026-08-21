@@ -14,11 +14,13 @@ NEGRITA = "\033[1m"
 RESET = "\033[0m"
 
 
-def limpiar():
+def limpiar() -> None:
+    """Limpia la pantalla de la terminal segun el sistema operativo."""
     os.system("cls" if os.name == "nt" else "clear")
 
 
-def dibujar_tambor(marcadas):
+def dibujar_tambor(marcadas: set[int]) -> None:
+    """Imprime el tambor ASCII marcando los huecos ya probados."""
     marco = "┌" + "─┬" * (HUECOS - 1) + "─┐"
     celdas = []
     etiquetas = []
@@ -34,23 +36,35 @@ def dibujar_tambor(marcadas):
     print("   " + "  ".join(etiquetas))
 
 
-def cabecera(ronda, balas):
-    print(NEGRITA + CELESTE + "╔" + "═" * 44 + "╗" + RESET)
-    print(NEGRITA + CELESTE + "║" + RESET + "            RULETA RUSA              " + NEGRITA + CELESTE + "║" + RESET)
-    print(NEGRITA + CELESTE + "║" + RESET + "   Ronda " + AMARILLO + f"{ronda:^2}" + RESET + "/" + str(RONDAS) + "  ·  Balas " + ROJO + f"{balas:^2}" + RESET + "  ·  Vacios " + VERDE + f"{HUECOS - balas:^2}" + RESET + "  " + NEGRITA + CELESTE + "║" + RESET)
-    print(NEGRITA + CELESTE + "╚" + "═" * 44 + "╝" + RESET)
+def cabecera(ronda: int, balas: int) -> None:
+    """Imprime el marco superior con la ronda actual, balas y huecos vacios."""
+    vacios = HUECOS - balas
+    print(f"{NEGRITA}{CELESTE}╔{'═' * 44}╗{RESET}")
+    print(
+        f"{NEGRITA}{CELESTE}║{RESET}"
+        "            RULETA RUSA              "
+        f"{NEGRITA}{CELESTE}║{RESET}"
+    )
+    print(
+        f"{NEGRITA}{CELESTE}║{RESET}   Ronda {AMARILLO}{ronda:^2}{RESET}/{RONDAS}"
+        f"  ·  Balas {ROJO}{balas:^2}{RESET}  ·  Vacios {VERDE}{vacios:^2}{RESET}  "
+        f"{NEGRITA}{CELESTE}║{RESET}"
+    )
+    print(f"{NEGRITA}{CELESTE}╚{'═' * 44}╝{RESET}")
 
 
-def colocar_balas(cantidad):
+def colocar_balas(cantidad: int) -> set[int]:
+    """Genera un conjunto de posiciones unicas con balas en el tambor."""
     posiciones = set()
     while len(posiciones) < cantidad:
         posiciones.add(random.randint(1, HUECOS))
     return posiciones
 
 
-def elegir_posicion(marcadas):
+def elegir_posicion(marcadas: set[int]) -> int:
+    """Pide al jugador una posicion valida y aun no probada del tambor."""
     while True:
-        entrada = input(NEGRITA + "   Elige una posicion (1-" + str(HUECOS) + "): " + RESET).strip()
+        entrada = input(f"{NEGRITA}   Elige una posicion (1-{HUECOS}): {RESET}").strip()
         try:
             posicion = int(entrada)
         except ValueError:
@@ -65,7 +79,8 @@ def elegir_posicion(marcadas):
         return posicion
 
 
-def escena(ronda, balas, marcadas):
+def escena(ronda: int, balas: int, marcadas: set[int]) -> None:
+    """Limpia la pantalla y dibuja la cabecera y el tambor de la ronda."""
     limpiar()
     cabecera(ronda, balas)
     print()
@@ -74,15 +89,17 @@ def escena(ronda, balas, marcadas):
     print()
 
 
-def fracaso(ronda):
+def fracaso(ronda: int) -> None:
+    """Muestra la pantalla de derrota (BOOM) para la ronda indicada."""
     limpiar()
     print(NEGRITA + ROJO + "\n      ▓▓▓   B O O M   ▓▓▓\n" + RESET)
     print(ROJO + "   La bala ha encontrado tu numero.")
-    print(AMARILLO + "   Caiste en la ronda " + str(ronda) + " de " + str(RONDAS) + ".\n")
+    print(f"{AMARILLO}   Caiste en la ronda {ronda} de {RONDAS}.\n")
     time.sleep(2)
 
 
-def victoria():
+def victoria() -> None:
+    """Muestra la pantalla de victoria tras superar todas las rondas."""
     limpiar()
     print(NEGRITA + VERDE + "\n    ✦  HAS SOBREVIVIDO  ✦\n" + RESET)
     print(CELESTE + "   Superaste las " + str(RONDAS) + " rondas del tambor.")
@@ -90,7 +107,8 @@ def victoria():
     time.sleep(2)
 
 
-def jugar():
+def jugar() -> None:
+    """Ejecuta el bucle principal del juego hasta que el jugador se retira."""
     while True:
         ronda = 1
 
@@ -107,7 +125,10 @@ def jugar():
                 input(NEGRITA + "   Pulsa Enter para volver a empezar..." + RESET)
                 break
 
-            print(VERDE + "   Click. Cartucho vacio. Avanzas a la ronda " + str(ronda + 1) + "." + RESET)
+            print(
+                f"{VERDE}   Click. Cartucho vacio. Avanzas a la ronda "
+                f"{ronda + 1}.{RESET}"
+            )
             time.sleep(1.5)
             ronda += 1
 
@@ -115,7 +136,9 @@ def jugar():
             victoria()
             otra = input(NEGRITA + "   Volver a jugar? (s/n): " + RESET).strip().lower()
             if otra not in ("s", "si", "y", "yes"):
-                print(AMARILLO + "   Hasta la proxima. El tambor siempre espera." + RESET)
+                print(
+                    f"{AMARILLO}   Hasta la proxima. El tambor siempre espera.{RESET}"
+                )
                 break
 
 
