@@ -20,6 +20,7 @@ ruleta = "terminal.ruleta:jugar"
 dev = [
     "ruff>=0.16",
     "black>=24",
+    "coverage>=7.4",
 ]
 
 [tool.setuptools]
@@ -38,3 +39,12 @@ select = ["E", "F", "I", "UP"]
 [tool.black]
 line-length = 88
 target-version = ["py311"]
+
+[tool.coverage.run]
+# Solo interesa medir el codigo de la app (ruleta.py), no el propio
+# fichero de tests: su "cobertura" no dice nada util.
+source = ["terminal"]
+omit = ["terminal/test_ruleta.py"]
+
+[tool.coverage.report]
+show_missing = true

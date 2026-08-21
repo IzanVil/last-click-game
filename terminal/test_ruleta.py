@@ -46,8 +46,10 @@ class TestFlujoJuego(unittest.TestCase):
         mock_colocar_balas.side_effect = lambda cantidad: set(range(2, cantidad + 2))
 
         entradas = iter(["1"] * ruleta.RONDAS + ["n"])
-        with patch("builtins.input", side_effect=lambda _p="": next(entradas)), \
-                patch("builtins.print"):
+        with (
+            patch("builtins.input", side_effect=lambda _p="": next(entradas)),
+            patch("builtins.print"),
+        ):
             ruleta.jugar()
 
         self.assertEqual(mock_colocar_balas.call_count, ruleta.RONDAS)
@@ -84,8 +86,10 @@ class TestFlujoJuego(unittest.TestCase):
             + ["1"] * ruleta.RONDAS  # partida 2: gana las 8 rondas
             + ["n"]  # no quiere jugar otra vez
         )
-        with patch("builtins.input", side_effect=lambda _p="": next(entradas)), \
-                patch("builtins.print"):
+        with (
+            patch("builtins.input", side_effect=lambda _p="": next(entradas)),
+            patch("builtins.print"),
+        ):
             ruleta.jugar()
 
         # Se mostro la pantalla/mensaje de fracaso correspondiente a la
@@ -109,7 +113,9 @@ class TestFlujoJuego(unittest.TestCase):
             ruleta.fracaso(3)
 
         mensajes = " ".join(
-            str(llamada.args[0]) for llamada in mock_print.call_args_list if llamada.args
+            str(llamada.args[0])
+            for llamada in mock_print.call_args_list
+            if llamada.args
         )
         # Se comprueba el contenido real (BOOM y el numero de ronda), no
         # el color exacto ni el espaciado entre letras: un cambio
