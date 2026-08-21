@@ -64,6 +64,16 @@ jobs:
           mv "Godot_v${GODOT_VERSION}_linux.x86_64" godot
           chmod +x godot
 
+      - name: Importar el proyecto (genera .godot/, requerido para resolver uid://)
+        run: |
+          # .godot/ (incluido uid_cache.bin) esta en .gitignore -> en un
+          # checkout limpio no existe, y run/main_scene="uid://..." en
+          # project.godot no se puede resolver sin este paso. Sin el,
+          # --check-only aborta con "Main scene's path could not be
+          # resolved from UID" (visto en un run real de CI). --import
+          # hace el escaneo/reimportacion y sale solo (no necesita --quit).
+          ./godot --headless --import --path 2d
+
       - name: Smoke test (--headless --check-only, falla si hay SCRIPT ERROR)
         run: |
           set -o pipefail
