@@ -60,13 +60,19 @@ cd terminal && python3 -m unittest test_ruleta -v
 ## Versión gráfica (Godot)
 
 - Carpeta: `2d/`
-- Motor: **Godot 4.6+**
+- Motor: **Godot 4.7+**
 - Escena principal: `2d/scenes/MainGame.tscn`
-- Lógica: `2d/MainGame.gd`
+- Lógica del juego (sin UI): `2d/RuletaEstado.gd`
+- Vista (Label/ColorRect/Tween): `2d/MainGame.gd`
+
+`RuletaEstado.gd` no conoce nodos ni UI: solo lleva la ronda actual y las
+balas del tambor, y emite señales (`ronda_preparada`, `entrada_invalida`,
+`impacto`, `click_seguro`, `partida_ganada`). `MainGame.gd` se limita a
+escuchar esas señales y traducirlas a texto en pantalla y animaciones.
 
 ### Cómo modificar la lógica
 
-El script `MainGame.gd` centraliza la configuración al principio:
+La configuración clave está al principio de `RuletaEstado.gd`:
 
 ```gdscript
 const HUECOS := 10
@@ -79,7 +85,8 @@ const BALAS_POR_RONDA := [1, 2, 3, 4, 5, 6, 7, 8]
 - `BALAS_POR_RONDA` define cuántas balas hay en cada ronda; puedes editarlo
   para diseñar tu propia curva de dificultad.
 
-El feedback visual (flash rojo/verde/dorado) se gestiona en `_flash(color)`.
+El feedback visual (flash rojo/verde/dorado) se gestiona en `MainGame.gd`,
+en `_flash(color)`.
 
 ## Lanzadores
 
@@ -104,16 +111,24 @@ Consulta la **Hoja de ruta** del `README.md` para más ideas:
 russian-roulette-2d/
 ├── README.md
 ├── LICENSE
+├── pyproject.toml
+├── instalar.sh
+├── instalar.bat
 ├── run.sh
 ├── run.bat
+├── .github/
+│   └── workflows/
+│       └── ci.yml
 ├── docs/
 │   └── GUIA.md
 ├── terminal/
+│   ├── __init__.py
 │   ├── ruleta.py
 │   └── test_ruleta.py
 └── 2d/
     ├── project.godot
     ├── MainGame.gd
+    ├── RuletaEstado.gd
     ├── scenes/
     │   └── MainGame.tscn
     └── assets/

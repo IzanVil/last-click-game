@@ -13,6 +13,8 @@
   <img src="https://img.shields.io/badge/Godot-4.7%2B-478CBF?logo=godotengine&logoColor=white" alt="Godot">
   <img src="https://img.shields.io/badge/estado-en%20desarrollo-yellow" alt="Estado">
   <img src="https://img.shields.io/badge/licencia-MIT-green" alt="Licencia">
+  [![CI](https://github.com/IzanVil/last-click-game/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/IzanVil/last-click-game/actions/workflows/ci.yml)
+  <img src="https://img.shields.io/badge/coverage-93%25-brightgreen" alt="Cobertura">
 </p>
 
 ---
@@ -85,16 +87,21 @@ Incluimos dos lanzadores para que el juego arranque directo sin teclear comandos
 russian-roulette-2d/
 ├── README.md            ← esta documentación
 ├── LICENSE              ← licencia MIT
+├── pyproject.toml       ← metadata, entry point y config de ruff/black/coverage
 ├── instalar.sh          ← instalador + acceso directo (Linux / macOS)
 ├── instalar.bat         ← instalador (Windows)
 ├── run.sh               ← lanzador Linux / macOS
 ├── run.bat              ← lanzador Windows
+├── .github/workflows/   ← CI (tests Python + smoke test Godot)
+├── docs/
+│   └── GUIA.md          ← guía técnica del proyecto
 ├── terminal/            ← versión de consola
 │   ├── ruleta.py        ← juego en Python puro
 │   └── test_ruleta.py   ← pruebas unitarias
 └── 2d/                  ← versión gráfica
     ├── project.godot    ← proyecto Godot
-    ├── MainGame.gd      ← lógica del juego
+    ├── RuletaEstado.gd  ← estado y reglas del juego (sin UI)
+    ├── MainGame.gd      ← vista: Label/ColorRect/Tween
     ├── scenes/          ← escenas (UI)
     └── assets/          ← recursos visuales
 ```
