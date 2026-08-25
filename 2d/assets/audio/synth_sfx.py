@@ -5,6 +5,7 @@ generados por codigo (sin banco externo, sin licencia que gestionar):
 placeholders limpios que se pueden sustituir mas adelante por SFX grabados
 sin tocar nada del lado de Godot (mismos nombres de archivo).
 """
+
 import math
 import random
 import struct
@@ -80,7 +81,9 @@ def victoria() -> list[float]:
         inicio = idx * paso
         for i in range(n_nota):
             t = i / SAMPLE_RATE
-            env = math.exp(-4.5 * t) * (1.0 - math.exp(-80.0 * t))  # ataque rapido, caida suave
+            env = math.exp(-4.5 * t) * (
+                1.0 - math.exp(-80.0 * t)
+            )  # ataque rapido, caida suave
             out[inicio + i] += math.sin(2 * math.pi * freq * t) * env * 0.5
     peak = max(abs(x) for x in out) or 1.0
     return [x / peak * 0.9 for x in out]
