@@ -1,7 +1,34 @@
+import os
 import unittest
 from unittest.mock import call, patch
 
 import ruleta
+
+
+class TestColorHelper(unittest.TestCase):
+    def test_c_envuelve_con_color_si_esta_activo(self):
+        with patch("ruleta._color_activo", return_value=True):
+            self.assertEqual(
+                ruleta._c("hola", ruleta.ROJO), ruleta.ROJO + "hola" + ruleta.RESET
+            )
+
+    def test_c_deja_texto_plano_si_color_desactivado(self):
+        with patch("ruleta._color_activo", return_value=False):
+            self.assertEqual(ruleta._c("hola", ruleta.ROJO), "hola")
+
+    def test_no_color_desactiva_aunque_haya_tty(self):
+        with patch.dict(os.environ, {"NO_COLOR": "1"}):
+            with patch("ruleta.sys.stdout.isatty", return_value=True):
+                self.assertFalse(ruleta._color_activo())
+
+    def test_color_depende_de_isatty_sin_no_color(self):
+        # clear=True: nos aislamos del NO_COLOR real del entorno donde
+        # corran los tests, no solo del que pusieramos nosotros.
+        with patch.dict(os.environ, {}, clear=True):
+            with patch("ruleta.sys.stdout.isatty", return_value=True):
+                self.assertTrue(ruleta._color_activo())
+            with patch("ruleta.sys.stdout.isatty", return_value=False):
+                self.assertFalse(ruleta._color_activo())
 
 
 class TestColocarBalas(unittest.TestCase):
