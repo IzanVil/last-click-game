@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Lanzador del juego de ruleta rusa (versión terminal Python)
 # Uso:
-#   ./run.sh            -> juega a la ruleta rusa en la terminal
-#   ./run.sh -g         -> abre el proyecto en el editor Godot
+#   ./run.sh                    -> juega a la ruleta rusa en la terminal
+#   ./run.sh --huecos 6         -> dificultad personalizada (ver --help)
+#   ./run.sh -g                 -> abre el proyecto en el editor Godot
 set -euo pipefail
 
 cd "$(dirname "$0")"
 
-MODO="$(pwd)"
 TERMINAL_DIR="terminal"
 
 if command -v python3 >/dev/null 2>&1; then
@@ -32,6 +32,6 @@ case "${1:-}" in
         ;;
     *)
         echo "Lanzando Russian Roulette (terminal)..."
-        "$PYTHON" "${TERMINAL_DIR}/ruleta.py"
+        "$PYTHON" "${TERMINAL_DIR}/ruleta.py" "$@"
         ;;
 esac
