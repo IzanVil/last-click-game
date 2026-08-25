@@ -14,6 +14,9 @@ const COLOR_VICTORIA := Color(0.25, 0.2, 0.05, 1)
 @onready var entrada_numero: LineEdit = $Centro/Columnas/EntradaNumero
 @onready var disparar_btn: Button = $Centro/Columnas/DispararBtn
 @onready var tambor: TamborView = $Centro/Columnas/Tambor
+@onready var sonido_disparo: AudioStreamPlayer = $SonidoDisparo
+@onready var sonido_victoria: AudioStreamPlayer = $SonidoVictoria
+@onready var sonido_derrota: AudioStreamPlayer = $SonidoDerrota
 
 const RuletaEstado := preload("res://RuletaEstado.gd")
 
@@ -85,6 +88,8 @@ func _on_impacto(ronda: int, numero: int) -> void:
 	)
 	print("💥 BOOM. Perdiste en la ronda ", ronda, ". Bala en ", numero, ".")
 	tambor.revelar(numero, true)
+	sonido_disparo.play()
+	sonido_derrota.play()
 	_flash(COLOR_BOOM)
 	await get_tree().create_timer(2.0).timeout
 	_estado.iniciar_juego()
@@ -97,6 +102,7 @@ func _on_click_seguro(ronda: int, numero: int) -> void:
 	)
 	print("👉 Click. Sobreviviste a la ronda ", ronda, ".")
 	tambor.revelar(numero, false)
+	sonido_disparo.play()
 	if ronda < RuletaEstado.RONDAS:
 		_flash(COLOR_CLICK)
 		await get_tree().create_timer(1.8).timeout
@@ -109,6 +115,7 @@ func _on_click_seguro(ronda: int, numero: int) -> void:
 func _on_partida_ganada(rondas: int) -> void:
 	etiqueta_resultado.text = "🏆 Sobreviviste las " + str(rondas) + " rondas. ERES UNA LEYENDA."
 	print("🏆 Sobreviviste las ", rondas, " rondas. Eres una leyenda.")
+	sonido_victoria.play()
 	_flash(COLOR_VICTORIA)
 	await get_tree().create_timer(2.5).timeout
 	_estado.iniciar_juego()
