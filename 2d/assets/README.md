@@ -6,6 +6,15 @@ Esta carpeta aloja los **recursos visuales y de audio** del juego gráfico (Godo
 - **Sonidos**: efectos de gatillo, disparo, click vacío.
 - **Fuentes**: tipografías personalizadas.
 
-Por ahora el juego funciona solo con la escena y el script, sin recursos externos.
-En cuanto se añadan mejoras visuales (animación del tambor, sonidos, etc.),
-los recursos irán aquí.
+## audio/
+
+- `disparo.wav` — se reproduce en cada disparo resuelto (acierto o fallo).
+- `derrota.wav` — se reproduce junto a `disparo.wav` cuando el disparo es una bala.
+- `victoria.wav` — se reproduce al sobrevivir la ronda 8.
+
+Los tres son **sintetizados por código** (`audio/synth_sfx.py`, solo
+librería estándar de Python — `python3 synth_sfx.py` los regenera en el
+mismo sitio), no grabaciones ni assets de terceros: sirven de placeholder
+limpio, sin licencia que gestionar, y se pueden sustituir por SFX grabados
+más adelante sin tocar nada del lado de Godot (mismos nombres de archivo,
+mismos `AudioStreamPlayer` en `MainGame.tscn`).
