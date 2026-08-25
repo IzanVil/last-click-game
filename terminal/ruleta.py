@@ -1,3 +1,4 @@
+import argparse
 import os
 import random
 import sys
@@ -48,107 +49,111 @@ def limpiar() -> None:
     os.system("cls" if os.name == "nt" else "clear")
 
 
-def dibujar_tambor() -> None:
+def dibujar_tambor(huecos: int = HUECOS) -> None:
     """Imprime el tambor ASCII con sus huecos numerados."""
-    marco = "┌" + "─┬" * (HUECOS - 1) + "─┐"
+    marco = "┌" + "─┬" * (huecos - 1) + "─┐"
     celdas = []
     etiquetas = []
-    for i in range(1, HUECOS + 1):
+    for i in range(1, huecos + 1):
         celdas.append(_c("0", CELESTE))
         etiquetas.append(str(i))
     print("   " + _c(marco, NEGRITA))
     print("   " + "   ".join(celdas))
-    print("   " + _c("└" + "─┴" * (HUECOS - 1) + "─┘", NEGRITA))
+    print("   " + _c("└" + "─┴" * (huecos - 1) + "─┘", NEGRITA))
     print("   " + "  ".join(etiquetas))
 
 
-def cabecera(ronda: int, balas: int) -> None:
+def cabecera(
+    ronda: int, balas: int, huecos: int = HUECOS, rondas: int = RONDAS
+) -> None:
     """Imprime el marco superior con la ronda actual, balas y huecos vacios."""
-    vacios = HUECOS - balas
+    vacios = huecos - balas
     doble = NEGRITA + CELESTE
     print(_c("╔" + "═" * 44 + "╗", doble))
     print(_c("║", doble) + "            RULETA RUSA              " + _c("║", doble))
     print(
-        _c("║", doble) + f"   Ronda {_c(f'{ronda:^2}', AMARILLO)}/{RONDAS}"
+        _c("║", doble) + f"   Ronda {_c(f'{ronda:^2}', AMARILLO)}/{rondas}"
         f"  ·  Balas {_c(f'{balas:^2}', ROJO)}"
         f"  ·  Vacios {_c(f'{vacios:^2}', VERDE)}  " + _c("║", doble)
     )
     print(_c("╚" + "═" * 44 + "╝", doble))
 
 
-def colocar_balas(cantidad: int) -> set[int]:
+def colocar_balas(cantidad: int, huecos: int = HUECOS) -> set[int]:
     """Genera un conjunto de posiciones unicas con balas en el tambor.
 
-    Si `cantidad` superase a HUECOS, random.sample lanza ValueError en vez
-    de colgarse: con el enfoque anterior (randint en bucle hasta juntar
-    `cantidad` posiciones distintas) esa situacion nunca converge.
+    Si `cantidad` superase a `huecos`, random.sample lanza ValueError en
+    vez de colgarse: con el enfoque anterior (randint en bucle hasta
+    juntar `cantidad` posiciones distintas) esa situacion nunca converge.
+    _parsear_args() ya rechaza --rondas > --huecos para que esto no
+    llegue a pasar en una partida real; queda como red de seguridad.
     """
-    return set(random.sample(range(1, HUECOS + 1), cantidad))
+    return set(random.sample(range(1, huecos + 1), cantidad))
 
 
-def elegir_posicion() -> int:
+def elegir_posicion(huecos: int = HUECOS) -> int:
     """Pide al jugador una posicion valida del tambor."""
     while True:
-        entrada = input(_c(f"   Elige una posicion (1-{HUECOS}): ", NEGRITA)).strip()
+        entrada = input(_c(f"   Elige una posicion (1-{huecos}): ", NEGRITA)).strip()
         try:
             posicion = int(entrada)
         except ValueError:
             print(_c("   Eso no parece un numero.", ROJO))
             continue
-        if posicion < 1 or posicion > HUECOS:
+        if posicion < 1 or posicion > huecos:
             print(_c("   Ese numero no esta en el tambor.", ROJO))
             continue
         return posicion
 
 
-def escena(ronda: int, balas: int) -> None:
+def escena(ronda: int, balas: int, huecos: int = HUECOS, rondas: int = RONDAS) -> None:
     """Limpia la pantalla y dibuja la cabecera y el tambor de la ronda."""
     limpiar()
-    cabecera(ronda, balas)
+    cabecera(ronda, balas, huecos, rondas)
     print()
     print(_c("   La bala descansa en un hueco. Tu huella deja marcas.", GRIS))
-    dibujar_tambor()
+    dibujar_tambor(huecos)
     print()
 
 
-def fracaso(ronda: int) -> None:
+def fracaso(ronda: int, rondas: int = RONDAS) -> None:
     """Muestra la pantalla de derrota (BOOM) para la ronda indicada."""
     limpiar()
     print(_c("\n      ▓▓▓   B O O M   ▓▓▓\n", NEGRITA + ROJO))
     print(_c("   La bala ha encontrado tu numero.", ROJO))
-    print(_c(f"   Caiste en la ronda {ronda} de {RONDAS}.\n", AMARILLO))
+    print(_c(f"   Caiste en la ronda {ronda} de {rondas}.\n", AMARILLO))
     time.sleep(2)
 
 
-def victoria() -> None:
+def victoria(rondas: int = RONDAS) -> None:
     """Muestra la pantalla de victoria tras superar todas las rondas."""
     limpiar()
     print(_c("\n    ✦  HAS SOBREVIVIDO  ✦\n", NEGRITA + VERDE))
-    print(_c(f"   Superaste las {RONDAS} rondas del tambor.", CELESTE))
+    print(_c(f"   Superaste las {rondas} rondas del tambor.", CELESTE))
     print(_c("   No eres de este mundo. Eres una leyenda.\n", VERDE))
     time.sleep(2)
 
 
-def jugar_partida() -> bool:
+def jugar_partida(huecos: int = HUECOS, rondas: int = RONDAS) -> bool:
     """Juega una partida completa, ronda a ronda, hasta que el jugador
-    muere o sobrevive las RONDAS. Devuelve True si sobrevive (victoria),
-    False si muere en el camino (derrota) -- no decide que hacer con ese
-    resultado (pantalla de victoria, preguntar si se quiere repetir...),
-    de eso se encarga jugar().
+    muere o sobrevive las `rondas`. Devuelve True si sobrevive
+    (victoria), False si muere en el camino (derrota) -- no decide que
+    hacer con ese resultado (pantalla de victoria, preguntar si se
+    quiere repetir...), de eso se encarga jugar().
     """
-    for ronda in range(1, RONDAS + 1):
+    for ronda in range(1, rondas + 1):
         balas = ronda
-        posiciones_bala = colocar_balas(balas)
+        posiciones_bala = colocar_balas(balas, huecos)
 
-        escena(ronda, balas)
-        elegida = elegir_posicion()
+        escena(ronda, balas, huecos, rondas)
+        elegida = elegir_posicion(huecos)
 
         if elegida in posiciones_bala:
-            fracaso(ronda)
+            fracaso(ronda, rondas)
             input(_c("   Pulsa Enter para volver a empezar...", NEGRITA))
             return False
 
-        if ronda < RONDAS:
+        if ronda < rondas:
             print(
                 _c(
                     f"   Click. Cartucho vacio. Avanzas a la ronda {ronda + 1}.",
@@ -160,28 +165,75 @@ def jugar_partida() -> bool:
     return True
 
 
-def jugar() -> None:
+def jugar(huecos: int = HUECOS, rondas: int = RONDAS) -> None:
     """Ejecuta el bucle principal del juego hasta que el jugador se retira."""
     while True:
-        gano = jugar_partida()
+        gano = jugar_partida(huecos, rondas)
 
         if gano:
-            victoria()
+            victoria(rondas)
             otra = input(_c("   Volver a jugar? (s/n): ", NEGRITA)).strip().lower()
             if otra not in ("s", "si", "y", "yes"):
                 print(_c("   Hasta la proxima. El tambor siempre espera.", AMARILLO))
                 break
 
 
-def main() -> None:
+def _parsear_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Define y valida las opciones de dificultad de la CLI.
+
+    Separado de main() para poder testearlo pasandole `argv` a mano, sin
+    tocar el sys.argv real del proceso. Valida aqui (no en jugar_partida)
+    para que un valor invalido (--rondas mayor que --huecos) falle alto
+    con un mensaje claro antes de empezar, en vez de reventar con un
+    ValueError de colocar_balas a mitad de partida.
+    """
+    parser = argparse.ArgumentParser(
+        prog="ruleta",
+        description=(
+            "Ruleta rusa de ficcion en la terminal: cada ronda anade una "
+            "bala mas al tambor."
+        ),
+    )
+    parser.add_argument(
+        "--huecos",
+        type=int,
+        default=HUECOS,
+        help=f"Huecos del tambor (por defecto: {HUECOS}).",
+    )
+    parser.add_argument(
+        "--rondas",
+        type=int,
+        default=RONDAS,
+        help=f"Numero de rondas de la partida (por defecto: {RONDAS}).",
+    )
+    args = parser.parse_args(argv)
+
+    if args.huecos < 1:
+        parser.error("--huecos debe ser al menos 1.")
+    if args.rondas < 1:
+        parser.error("--rondas debe ser al menos 1.")
+    if args.rondas > args.huecos:
+        parser.error(
+            f"--rondas ({args.rondas}) no puede ser mayor que --huecos "
+            f"({args.huecos}): la ultima ronda necesitaria mas balas de "
+            "las que caben en el tambor."
+        )
+
+    return args
+
+
+def main(argv: list[str] | None = None) -> None:
     """Punto de entrada real del juego (usado por `run.sh`/`run.bat` via
     `__main__` y por el comando `ruleta` instalable via pyproject.toml):
     envuelve jugar() para que Ctrl+C siempre salga con el mensaje de
     despedida en vez de un traceback, sin importar por cual de las dos
-    vias se haya lanzado.
+    vias se haya lanzado. `argv=None` hace que argparse lea sys.argv
+    real (comportamiento normal); se le puede pasar una lista para
+    lanzar el juego con otros parametros sin pasar por la terminal.
     """
+    args = _parsear_args(argv)
     try:
-        jugar()
+        jugar(args.huecos, args.rondas)
     except KeyboardInterrupt:
         print()
         print(_c("   Hasta la proxima. El tambor siempre espera.", AMARILLO))
