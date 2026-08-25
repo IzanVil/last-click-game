@@ -50,6 +50,23 @@ class TestColocarBalas(unittest.TestCase):
             ruleta.colocar_balas(ruleta.HUECOS + 1)
 
 
+class TestValidarDificultad(unittest.TestCase):
+    def test_combinacion_valida_no_lanza(self):
+        ruleta._validar_dificultad(10, 8)  # no debe lanzar nada
+
+    def test_huecos_no_positivo(self):
+        with self.assertRaises(ValueError):
+            ruleta._validar_dificultad(0, 1)
+
+    def test_rondas_no_positiva(self):
+        with self.assertRaises(ValueError):
+            ruleta._validar_dificultad(10, 0)
+
+    def test_rondas_mayor_que_huecos(self):
+        with self.assertRaises(ValueError):
+            ruleta._validar_dificultad(4, 5)
+
+
 class TestElegirPosicion(unittest.TestCase):
     def test_valida_fuera_de_rango(self):
         entradas = iter(["0", "11", "3"])
@@ -126,6 +143,17 @@ class TestJugarPartida(unittest.TestCase):
         self.assertTrue(resultado)
         self.assertEqual(mock_colocar_balas.call_count, 4)
         mock_colocar_balas.assert_called_with(4, 6)  # ultima ronda: balas=4, huecos=6
+
+    @patch("ruleta.colocar_balas")
+    def test_rechaza_dificultad_invalida_sin_llegar_a_jugar(self, mock_colocar_balas):
+        # jugar_partida() se puede llamar directamente sin pasar por la
+        # CLI (_parsear_args), asi que tiene que validar por su cuenta:
+        # antes, con rondas > huecos, esto llegaba a colocar_balas() y
+        # reventaba con un ValueError de random.sample a mitad de
+        # partida en vez de fallar antes de la primera ronda.
+        with self.assertRaises(ValueError):
+            ruleta.jugar_partida(huecos=3, rondas=5)
+        mock_colocar_balas.assert_not_called()
 
 
 class TestFlujoJuego(unittest.TestCase):
