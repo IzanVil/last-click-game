@@ -14,7 +14,7 @@ authors = [
 ]
 
 [project.scripts]
-ruleta = "terminal.ruleta:jugar"
+ruleta = "terminal.ruleta:main"
 
 [project.optional-dependencies]
 dev = [

@@ -54,11 +54,13 @@ def cabecera(ronda: int, balas: int) -> None:
 
 
 def colocar_balas(cantidad: int) -> set[int]:
-    """Genera un conjunto de posiciones unicas con balas en el tambor."""
-    posiciones = set()
-    while len(posiciones) < cantidad:
-        posiciones.add(random.randint(1, HUECOS))
-    return posiciones
+    """Genera un conjunto de posiciones unicas con balas en el tambor.
+
+    Si `cantidad` superase a HUECOS, random.sample lanza ValueError en vez
+    de colgarse: con el enfoque anterior (randint en bucle hasta juntar
+    `cantidad` posiciones distintas) esa situacion nunca converge.
+    """
+    return set(random.sample(range(1, HUECOS + 1), cantidad))
 
 
 def elegir_posicion(marcadas: set[int]) -> int:
@@ -142,9 +144,19 @@ def jugar() -> None:
                 break
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Punto de entrada real del juego (usado por `run.sh`/`run.bat` via
+    `__main__` y por el comando `ruleta` instalable via pyproject.toml):
+    envuelve jugar() para que Ctrl+C siempre salga con el mensaje de
+    despedida en vez de un traceback, sin importar por cual de las dos
+    vias se haya lanzado.
+    """
     try:
         jugar()
     except KeyboardInterrupt:
         print()
         print(AMARILLO + "   Hasta la proxima. El tambor siempre espera." + RESET)
+
+
+if __name__ == "__main__":
+    main()
