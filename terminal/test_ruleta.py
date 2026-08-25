@@ -15,6 +15,13 @@ class TestColocarBalas(unittest.TestCase):
         balas = ruleta.colocar_balas(8)
         self.assertEqual(len(balas), len(set(balas)))
 
+    def test_cantidad_mayor_que_huecos_falla_alto(self):
+        # Antes (bucle de randint hasta reunir `cantidad` posiciones
+        # distintas) esto colgaba el proceso para siempre en vez de
+        # fallar. Con random.sample debe lanzar ValueError al momento.
+        with self.assertRaises(ValueError):
+            ruleta.colocar_balas(ruleta.HUECOS + 1)
+
 
 class TestElegirPosicion(unittest.TestCase):
     def test_valida_fuera_de_rango(self):
@@ -122,6 +129,36 @@ class TestFlujoJuego(unittest.TestCase):
         # cosmetico ahi no debe romper el test si no hay ningun bug real.
         self.assertRegex(mensajes, r"(?i)b\s*o\s*o\s*m")
         self.assertIn(str(3), mensajes)
+
+
+class TestMain(unittest.TestCase):
+    def test_ctrl_c_sale_con_mensaje_sin_traceback(self):
+        # main() es lo que ejecutan tanto `python3 ruleta.py` (via el
+        # bloque __main__) como el comando `ruleta` instalado (entry
+        # point en pyproject.toml): ambas vias deben salir limpias ante
+        # Ctrl+C, no solo la primera.
+        with (
+            patch("ruleta.jugar", side_effect=KeyboardInterrupt),
+            patch("builtins.print") as mock_print,
+        ):
+            ruleta.main()  # no debe propagar la excepcion
+
+        mensajes = " ".join(
+            str(llamada.args[0])
+            for llamada in mock_print.call_args_list
+            if llamada.args
+        )
+        self.assertIn("Hasta la proxima", mensajes)
+
+    def test_sin_interrupcion_no_imprime_despedida(self):
+        with (
+            patch("ruleta.jugar", return_value=None) as mock_jugar,
+            patch("builtins.print") as mock_print,
+        ):
+            ruleta.main()
+
+        mock_jugar.assert_called_once()
+        mock_print.assert_not_called()
 
 
 if __name__ == "__main__":
