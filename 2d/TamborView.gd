@@ -14,11 +14,17 @@ const COLOR_HUECO_VACIO := Color(0.2, 0.75, 0.35, 1)
 const COLOR_BORDE := Color(0.05, 0.05, 0.08, 1)
 const COLOR_TEXTO := Color(0.95, 0.95, 0.95, 1)
 const COLOR_ANILLO := Color(0.5, 0.45, 0.15, 1)
+const COLOR_TENSION := Color(0.95, 0.85, 0.25, 1)
 
 enum EstadoHueco { OCULTO, VACIO, BALA }
 
 var _num_huecos := 10
 var _estados: Array[int] = []
+
+## Hueco (0-indexado) que esta "en tension": el jugador ya disparo pero
+## el resultado aun no se ha revelado. -1 = ninguno.
+var _hueco_tension := -1
+var _pulso_tension := 0.0
 
 
 func _ready() -> void:
@@ -46,6 +52,32 @@ func girar(duracion: float = 0.7) -> void:
 	tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tween.tween_property(self, "rotation", rotation + TAU * vueltas, duracion)
 	await tween.finished
+
+
+## Late en torno al hueco elegido antes de revelar el resultado: el
+## disparo ya esta decidido en RuletaEstado, pero la vista retrasa el
+## reveal un instante y pulsa un halo amarillo para meter tension, en
+## vez de mostrar el resultado al momento. Quien llama debe esperar a
+## que termine (await) antes de pedir el reveal real con revelar().
+func tension(numero: int, duracion: float = 0.5) -> void:
+	_hueco_tension = numero - 1
+	queue_redraw()
+
+	var tramo := duracion / 6.0
+	var tween := create_tween()
+	tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.set_loops(3)
+	tween.tween_method(_set_pulso_tension, 0.0, 1.0, tramo)
+	tween.tween_method(_set_pulso_tension, 1.0, 0.0, tramo)
+	await tween.finished
+
+	_hueco_tension = -1
+	queue_redraw()
+
+
+func _set_pulso_tension(valor: float) -> void:
+	_pulso_tension = valor
+	queue_redraw()
 
 
 ## Marca el hueco `numero` (1-indexado, como lo escribe el jugador) como
@@ -84,6 +116,12 @@ func _draw() -> void:
 
 		draw_circle(pos, RADIO_HUECO, color)
 		draw_arc(pos, RADIO_HUECO, 0, TAU, 24, COLOR_BORDE, 2.0)
+
+		if i == _hueco_tension:
+			var radio_halo := RADIO_HUECO + 4.0 + _pulso_tension * 8.0
+			var color_halo := COLOR_TENSION
+			color_halo.a = 0.35 + _pulso_tension * 0.65
+			draw_arc(pos, radio_halo, 0, TAU, 24, color_halo, 3.0)
 
 		var texto := str(i + 1)
 		var text_size := font.get_string_size(texto, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
