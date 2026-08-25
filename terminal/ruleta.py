@@ -55,7 +55,7 @@ def cabecera(ronda: int, balas: int) -> None:
 
 def colocar_balas(cantidad: int) -> set[int]:
     """Genera un conjunto de posiciones unicas con balas en el tambor."""
-    posiciones = set()
+    posiciones: set[int] = set()
     while len(posiciones) < cantidad:
         posiciones.add(random.randint(1, HUECOS))
     return posiciones
@@ -115,7 +115,7 @@ def jugar() -> None:
         while ronda <= RONDAS:
             balas = ronda
             posiciones_bala = colocar_balas(balas)
-            marcadas = set()
+            marcadas: set[int] = set()
 
             escena(ronda, balas, marcadas)
             elegida = elegir_posicion(marcadas)

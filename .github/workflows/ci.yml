@@ -24,7 +24,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencias de dev (ruff, black, coverage)
+      - name: Install dependencias de dev (ruff, black, mypy, coverage)
         run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
 
       - name: Lint (ruff)
@@ -32,6 +32,9 @@ jobs:
 
       - name: Formato (black --check)
         run: black --check .
+
+      - name: Tipos (mypy)
+        run: mypy
 
       - name: Tests con cobertura
         run: |
