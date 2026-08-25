@@ -12,11 +12,16 @@ const COLOR_VICTORIA := Color(0.25, 0.2, 0.05, 1)
 @onready var etiqueta_resultado: Label = $Centro/Columnas/Resultado
 @onready var etiqueta_instrucciones: Label = $Centro/Columnas/Instrucciones
 @onready var entrada_numero: LineEdit = $Centro/Columnas/EntradaNumero
+@onready var disparar_btn: Button = $Centro/Columnas/DispararBtn
 @onready var tambor: TamborView = $Centro/Columnas/Tambor
 
 const RuletaEstado := preload("res://RuletaEstado.gd")
 
 var _estado := RuletaEstado.new()
+
+## Evita disparos dobles mientras tambor.tension() esta en marcha: el
+## resultado ya esta decidido, pero la vista aun no lo ha revelado.
+var _disparo_bloqueado := false
 
 
 func _ready() -> void:
@@ -31,7 +36,19 @@ func _ready() -> void:
 
 
 func _on_disparar_btn_pressed() -> void:
+	if _disparo_bloqueado:
+		return
+
 	var numero: int = entrada_numero.text.to_int()
+	if numero < 1 or numero > RuletaEstado.HUECOS:
+		_estado.disparar(numero)  # deja que RuletaEstado emita entrada_invalida
+		return
+
+	_disparo_bloqueado = true
+	entrada_numero.editable = false
+	disparar_btn.disabled = true
+	etiqueta_resultado.text = "..."
+	await tambor.tension(numero)
 	_estado.disparar(numero)
 
 
@@ -42,6 +59,9 @@ func _on_ronda_preparada(ronda: int, balas: int, vacios: int) -> void:
 		+ str(balas) + " balas y " + str(vacios) + " vacios."
 	)
 	etiqueta_resultado.text = "Elige un numero del 1 al 10 y dispara..."
+	_disparo_bloqueado = false
+	entrada_numero.editable = true
+	disparar_btn.disabled = false
 	entrada_numero.clear()
 	entrada_numero.grab_focus()
 	tambor.preparar_ronda(RuletaEstado.HUECOS)
