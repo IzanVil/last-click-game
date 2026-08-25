@@ -12,6 +12,7 @@ const COLOR_VICTORIA := Color(0.25, 0.2, 0.05, 1)
 @onready var etiqueta_resultado: Label = $Centro/Columnas/Resultado
 @onready var etiqueta_instrucciones: Label = $Centro/Columnas/Instrucciones
 @onready var entrada_numero: LineEdit = $Centro/Columnas/EntradaNumero
+@onready var tambor: TamborView = $Centro/Columnas/Tambor
 
 const RuletaEstado := preload("res://RuletaEstado.gd")
 
@@ -43,6 +44,8 @@ func _on_ronda_preparada(ronda: int, balas: int, vacios: int) -> void:
 	etiqueta_resultado.text = "Elige un numero del 1 al 10 y dispara..."
 	entrada_numero.clear()
 	entrada_numero.grab_focus()
+	tambor.preparar_ronda(RuletaEstado.HUECOS)
+	tambor.girar()
 	print("\n--- RULETA RUSA - Ronda ", ronda, "/", RuletaEstado.RONDAS, " ---")
 	print("Balas: ", _estado.posiciones_bala, " / Vacios: 1-", RuletaEstado.HUECOS, " menos las balas.")
 
@@ -61,6 +64,7 @@ func _on_impacto(ronda: int, numero: int) -> void:
 		+ str(ronda) + "."
 	)
 	print("💥 BOOM. Perdiste en la ronda ", ronda, ". Bala en ", numero, ".")
+	tambor.revelar(numero, true)
 	_flash(COLOR_BOOM)
 	await get_tree().create_timer(2.0).timeout
 	_estado.iniciar_juego()
@@ -72,6 +76,7 @@ func _on_click_seguro(ronda: int, numero: int) -> void:
 		+ str(ronda) + "."
 	)
 	print("👉 Click. Sobreviviste a la ronda ", ronda, ".")
+	tambor.revelar(numero, false)
 	if ronda < RuletaEstado.RONDAS:
 		_flash(COLOR_CLICK)
 		await get_tree().create_timer(1.8).timeout
