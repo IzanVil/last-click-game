@@ -85,8 +85,9 @@ def colocar_balas(cantidad: int, huecos: int = HUECOS) -> set[int]:
     Si `cantidad` superase a `huecos`, random.sample lanza ValueError en
     vez de colgarse: con el enfoque anterior (randint en bucle hasta
     juntar `cantidad` posiciones distintas) esa situacion nunca converge.
-    _parsear_args() ya rechaza --rondas > --huecos para que esto no
-    llegue a pasar en una partida real; queda como red de seguridad.
+    jugar_partida() ya valida rondas <= huecos (via _validar_dificultad)
+    antes de la primera ronda, asi que esto no deberia llegar a pasar en
+    una partida real; queda como red de seguridad de todas formas.
     """
     return set(random.sample(range(1, huecos + 1), cantidad))
 
@@ -134,6 +135,29 @@ def victoria(rondas: int = RONDAS) -> None:
     time.sleep(2)
 
 
+def _validar_dificultad(huecos: int, rondas: int) -> None:
+    """Comprueba que `huecos`/`rondas` son una combinacion jugable.
+
+    Lanza ValueError con un mensaje claro si no lo son (mismo tipo de
+    excepcion que ya lanza colocar_balas() para un mal uso similar, por
+    consistencia). La usan tanto _parsear_args() (la CLI, que la
+    traduce a un error de argparse con exit code 2) como jugar_partida()
+    (para que llamar a la funcion directamente, sin pasar por la CLI,
+    tambien falle alto y claro en vez de reventar con un ValueError
+    mucho menos informativo de colocar_balas() a mitad de partida).
+    """
+    if huecos < 1:
+        raise ValueError(f"huecos debe ser al menos 1 (recibido: {huecos}).")
+    if rondas < 1:
+        raise ValueError(f"rondas debe ser al menos 1 (recibido: {rondas}).")
+    if rondas > huecos:
+        raise ValueError(
+            f"rondas ({rondas}) no puede ser mayor que huecos ({huecos}): "
+            "la ultima ronda necesitaria mas balas de las que caben en el "
+            "tambor."
+        )
+
+
 def jugar_partida(huecos: int = HUECOS, rondas: int = RONDAS) -> bool:
     """Juega una partida completa, ronda a ronda, hasta que el jugador
     muere o sobrevive las `rondas`. Devuelve True si sobrevive
@@ -141,6 +165,7 @@ def jugar_partida(huecos: int = HUECOS, rondas: int = RONDAS) -> bool:
     hacer con ese resultado (pantalla de victoria, preguntar si se
     quiere repetir...), de eso se encarga jugar().
     """
+    _validar_dificultad(huecos, rondas)
     for ronda in range(1, rondas + 1):
         balas = ronda
         posiciones_bala = colocar_balas(balas, huecos)
@@ -179,13 +204,10 @@ def jugar(huecos: int = HUECOS, rondas: int = RONDAS) -> None:
 
 
 def _parsear_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Define y valida las opciones de dificultad de la CLI.
+    """Define y valida (via _validar_dificultad) las opciones de la CLI.
 
     Separado de main() para poder testearlo pasandole `argv` a mano, sin
-    tocar el sys.argv real del proceso. Valida aqui (no en jugar_partida)
-    para que un valor invalido (--rondas mayor que --huecos) falle alto
-    con un mensaje claro antes de empezar, en vez de reventar con un
-    ValueError de colocar_balas a mitad de partida.
+    tocar el sys.argv real del proceso.
     """
     parser = argparse.ArgumentParser(
         prog="ruleta",
@@ -208,16 +230,14 @@ def _parsear_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     args = parser.parse_args(argv)
 
-    if args.huecos < 1:
-        parser.error("--huecos debe ser al menos 1.")
-    if args.rondas < 1:
-        parser.error("--rondas debe ser al menos 1.")
-    if args.rondas > args.huecos:
-        parser.error(
-            f"--rondas ({args.rondas}) no puede ser mayor que --huecos "
-            f"({args.huecos}): la ultima ronda necesitaria mas balas de "
-            "las que caben en el tambor."
-        )
+    try:
+        _validar_dificultad(args.huecos, args.rondas)
+    except ValueError as exc:
+        # parser.error() imprime "ruleta: error: ..." + uso y termina con
+        # exit code 2, igual que cualquier otro argumento invalido de
+        # argparse (--huecos abc, etc.) -- mismo idioma de error para
+        # todos los fallos de la CLI, en vez de un ValueError suelto.
+        parser.error(str(exc))
 
     return args
 
