@@ -19,16 +19,13 @@ def limpiar() -> None:
     os.system("cls" if os.name == "nt" else "clear")
 
 
-def dibujar_tambor(marcadas: set[int]) -> None:
-    """Imprime el tambor ASCII marcando los huecos ya probados."""
+def dibujar_tambor() -> None:
+    """Imprime el tambor ASCII con sus huecos numerados."""
     marco = "┌" + "─┬" * (HUECOS - 1) + "─┐"
     celdas = []
     etiquetas = []
     for i in range(1, HUECOS + 1):
-        if i in marcadas:
-            celdas.append(GRIS + "·" + RESET)
-        else:
-            celdas.append(CELESTE + "0" + RESET)
+        celdas.append(CELESTE + "0" + RESET)
         etiquetas.append(str(i))
     print("   " + NEGRITA + marco + RESET)
     print("   " + "   ".join(celdas))
@@ -61,8 +58,8 @@ def colocar_balas(cantidad: int) -> set[int]:
     return posiciones
 
 
-def elegir_posicion(marcadas: set[int]) -> int:
-    """Pide al jugador una posicion valida y aun no probada del tambor."""
+def elegir_posicion() -> int:
+    """Pide al jugador una posicion valida del tambor."""
     while True:
         entrada = input(f"{NEGRITA}   Elige una posicion (1-{HUECOS}): {RESET}").strip()
         try:
@@ -73,19 +70,16 @@ def elegir_posicion(marcadas: set[int]) -> int:
         if posicion < 1 or posicion > HUECOS:
             print(ROJO + "   Ese numero no esta en el tambor." + RESET)
             continue
-        if posicion in marcadas:
-            print(AMARILLO + "   Ya has probado esa posicion." + RESET)
-            continue
         return posicion
 
 
-def escena(ronda: int, balas: int, marcadas: set[int]) -> None:
+def escena(ronda: int, balas: int) -> None:
     """Limpia la pantalla y dibuja la cabecera y el tambor de la ronda."""
     limpiar()
     cabecera(ronda, balas)
     print()
     print(GRIS + "   La bala descansa en un hueco. Tu huella deja marcas." + RESET)
-    dibujar_tambor(marcadas)
+    dibujar_tambor()
     print()
 
 
@@ -115,10 +109,9 @@ def jugar() -> None:
         while ronda <= RONDAS:
             balas = ronda
             posiciones_bala = colocar_balas(balas)
-            marcadas = set()
 
-            escena(ronda, balas, marcadas)
-            elegida = elegir_posicion(marcadas)
+            escena(ronda, balas)
+            elegida = elegir_posicion()
 
             if elegida in posiciones_bala:
                 fracaso(ronda)
