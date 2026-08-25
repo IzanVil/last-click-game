@@ -20,20 +20,14 @@ class TestElegirPosicion(unittest.TestCase):
     def test_valida_fuera_de_rango(self):
         entradas = iter(["0", "11", "3"])
         with patch("builtins.input", side_effect=lambda _p="": next(entradas)):
-            elegida = ruleta.elegir_posicion(set())
+            elegida = ruleta.elegir_posicion()
         self.assertEqual(elegida, 3)
 
     def test_valida_no_numerico(self):
         entradas = iter(["abc", "5"])
         with patch("builtins.input", side_effect=lambda _p="": next(entradas)):
-            elegida = ruleta.elegir_posicion(set())
+            elegida = ruleta.elegir_posicion()
         self.assertEqual(elegida, 5)
-
-    def test_rechaza_repetida(self):
-        entradas = iter(["2", "2", "4"])
-        with patch("builtins.input", side_effect=lambda _p="": next(entradas)):
-            elegida = ruleta.elegir_posicion({1, 2, 3})
-        self.assertEqual(elegida, 4)
 
 
 class TestFlujoJuego(unittest.TestCase):
