@@ -14,13 +14,14 @@ authors = [
 ]
 
 [project.scripts]
-ruleta = "terminal.ruleta:jugar"
+ruleta = "terminal.ruleta:main"
 
 [project.optional-dependencies]
 dev = [
     "ruff>=0.16",
     "black>=24",
     "coverage>=7.4",
+    "mypy>=1.10",
 ]
 
 [tool.setuptools]
@@ -48,3 +49,15 @@ omit = ["terminal/test_ruleta.py"]
 
 [tool.coverage.report]
 show_missing = true
+
+[tool.mypy]
+python_version = "3.11"
+# Solo la app (terminal/ruleta.py), no el propio fichero de tests: igual
+# que [tool.coverage.run] mas arriba, exigirle anotaciones estrictas a
+# cada metodo de test (y a cada mock que reciben) seria ruido, no senal.
+files = ["terminal/ruleta.py"]
+# El codigo ya venia con type hints en (casi) todas las firmas: esto
+# solo hace explicito lo que se daba por hecho, no cambia el estilo.
+disallow_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
