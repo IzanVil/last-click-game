@@ -36,6 +36,44 @@ class TestElegirPosicion(unittest.TestCase):
         self.assertEqual(elegida, 4)
 
 
+class TestJugarPartida(unittest.TestCase):
+    # jugar_partida() juega una unica partida y devuelve True/False: a
+    # diferencia de jugar() (bucle exterior + pregunta de "jugar otra
+    # vez"), estos tests no necesitan simular esa pregunta para probar
+    # el resultado de una partida.
+    @patch("ruleta.time.sleep", return_value=None)
+    @patch("ruleta.limpiar", return_value=None)
+    @patch("ruleta.colocar_balas")
+    def test_devuelve_true_si_sobrevive_las_rondas(
+        self, mock_colocar_balas, mock_limpiar, mock_sleep
+    ):
+        mock_colocar_balas.side_effect = lambda cantidad: set(range(2, cantidad + 2))
+        entradas = iter(["1"] * ruleta.RONDAS)
+        with (
+            patch("builtins.input", side_effect=lambda _p="": next(entradas)),
+            patch("builtins.print"),
+        ):
+            resultado = ruleta.jugar_partida()
+        self.assertTrue(resultado)
+
+    @patch("ruleta.time.sleep", return_value=None)
+    @patch("ruleta.limpiar", return_value=None)
+    @patch("ruleta.fracaso")
+    @patch("ruleta.colocar_balas")
+    def test_devuelve_false_si_muere_antes_de_la_ultima_ronda(
+        self, mock_colocar_balas, mock_fracaso, mock_limpiar, mock_sleep
+    ):
+        mock_colocar_balas.side_effect = lambda cantidad: {1}
+        entradas = iter(["2", "2", "1", ""])  # click, click, BOOM ronda 3, Enter
+        with (
+            patch("builtins.input", side_effect=lambda _p="": next(entradas)),
+            patch("builtins.print"),
+        ):
+            resultado = ruleta.jugar_partida()
+        self.assertFalse(resultado)
+        mock_fracaso.assert_called_once_with(3)
+
+
 class TestFlujoJuego(unittest.TestCase):
     @patch("ruleta.time.sleep", return_value=None)
     @patch("ruleta.limpiar", return_value=None)

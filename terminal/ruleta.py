@@ -107,32 +107,42 @@ def victoria() -> None:
     time.sleep(2)
 
 
-def jugar() -> None:
-    """Ejecuta el bucle principal del juego hasta que el jugador se retira."""
-    while True:
-        ronda = 1
+def jugar_partida() -> bool:
+    """Juega una partida completa, ronda a ronda, hasta que el jugador
+    muere o sobrevive las RONDAS. Devuelve True si sobrevive (victoria),
+    False si muere en el camino (derrota) -- no decide que hacer con ese
+    resultado (pantalla de victoria, preguntar si se quiere repetir...),
+    de eso se encarga jugar().
+    """
+    for ronda in range(1, RONDAS + 1):
+        balas = ronda
+        posiciones_bala = colocar_balas(balas)
+        marcadas = set()
 
-        while ronda <= RONDAS:
-            balas = ronda
-            posiciones_bala = colocar_balas(balas)
-            marcadas = set()
+        escena(ronda, balas, marcadas)
+        elegida = elegir_posicion(marcadas)
 
-            escena(ronda, balas, marcadas)
-            elegida = elegir_posicion(marcadas)
+        if elegida in posiciones_bala:
+            fracaso(ronda)
+            input(NEGRITA + "   Pulsa Enter para volver a empezar..." + RESET)
+            return False
 
-            if elegida in posiciones_bala:
-                fracaso(ronda)
-                input(NEGRITA + "   Pulsa Enter para volver a empezar..." + RESET)
-                break
-
+        if ronda < RONDAS:
             print(
                 f"{VERDE}   Click. Cartucho vacio. Avanzas a la ronda "
                 f"{ronda + 1}.{RESET}"
             )
             time.sleep(1.5)
-            ronda += 1
 
-        if ronda > RONDAS:
+    return True
+
+
+def jugar() -> None:
+    """Ejecuta el bucle principal del juego hasta que el jugador se retira."""
+    while True:
+        gano = jugar_partida()
+
+        if gano:
             victoria()
             otra = input(NEGRITA + "   Volver a jugar? (s/n): " + RESET).strip().lower()
             if otra not in ("s", "si", "y", "yes"):
