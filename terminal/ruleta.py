@@ -3,6 +3,7 @@ import os
 import random
 import sys
 import time
+from importlib.metadata import PackageNotFoundError, version
 
 HUECOS = 10
 RONDAS = 8
@@ -203,6 +204,17 @@ def jugar(huecos: int = HUECOS, rondas: int = RONDAS) -> None:
                 break
 
 
+def _version_texto() -> str:
+    """Version del paquete instalado (la que declara pyproject.toml), o
+    un aviso claro si se ejecuta el script directamente sin instalar (no
+    hay metadata de paquete que leer en ese caso: PackageNotFoundError).
+    """
+    try:
+        return version("russian-roulette-2d")
+    except PackageNotFoundError:
+        return "sin instalar (ejecutado directamente)"
+
+
 def _parsear_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Define y valida (via _validar_dificultad) las opciones de la CLI.
 
@@ -215,6 +227,11 @@ def _parsear_args(argv: list[str] | None = None) -> argparse.Namespace:
             "Ruleta rusa de ficcion en la terminal: cada ronda anade una "
             "bala mas al tambor."
         ),
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {_version_texto()}",
     )
     parser.add_argument(
         "--huecos",
