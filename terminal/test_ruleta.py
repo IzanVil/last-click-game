@@ -286,6 +286,26 @@ class TestParsearArgs(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 ruleta._parsear_args(["--rondas", "0"])
 
+    def test_version_sale_con_exit_0_y_no_es_error(self):
+        # action="version" de argparse imprime en stdout (no en stderr,
+        # a diferencia de parser.error()) y termina con exit code 0.
+        with patch("sys.stdout"):
+            with self.assertRaises(SystemExit) as ctx:
+                ruleta._parsear_args(["--version"])
+        self.assertEqual(ctx.exception.code, 0)
+
+
+class TestVersionTexto(unittest.TestCase):
+    def test_version_instalada(self):
+        with patch("ruleta.version", return_value="9.9.9"):
+            self.assertEqual(ruleta._version_texto(), "9.9.9")
+
+    def test_sin_instalar_no_revienta(self):
+        # python3 ruleta.py directo (sin `pip install`) no tiene
+        # metadata de paquete que leer: debe avisar, no lanzar.
+        with patch("ruleta.version", side_effect=ruleta.PackageNotFoundError):
+            self.assertIn("sin instalar", ruleta._version_texto())
+
 
 if __name__ == "__main__":
     unittest.main()
