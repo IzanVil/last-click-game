@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/Godot-4.7%2B-478CBF?logo=godotengine&logoColor=white" alt="Godot">
   <img src="https://img.shields.io/badge/estado-en%20desarrollo-yellow" alt="Estado">
   <img src="https://img.shields.io/badge/licencia-MIT-green" alt="Licencia">
-  <img src="https://img.shields.io/badge/coverage-93%25-brightgreen" alt="Cobertura">
+  <img src="https://img.shields.io/badge/coverage-98%25-brightgreen" alt="Cobertura">
 </p>
 
 ---
@@ -76,6 +76,9 @@ Incluimos dos lanzadores para que el juego arranque directo sin teclear comandos
 # Ejecutar el juego en la terminal (Linux / macOS)
 ./run.sh
 
+# Con dificultad personalizada (reenvía los argumentos a ruleta.py)
+./run.sh --huecos 6 --rondas 4
+
 # O abrir el editor Godot
 ./run.sh -g
 ```
@@ -120,6 +123,21 @@ cd terminal && python3 ruleta.py
 ```
 
 > 💡 En Windows usa `run.bat`, o `python ruleta.py` en lugar de `python3`.
+
+### Dificultad personalizada
+
+El tambor por defecto tiene 10 huecos y 8 rondas, pero se puede ajustar por
+línea de comandos (`--rondas` no puede ser mayor que `--huecos`: la última
+ronda necesita una bala por ronda jugada):
+
+```bash
+cd terminal && python3 ruleta.py --huecos 6 --rondas 4
+python3 ruleta.py --help       # ver todas las opciones
+python3 ruleta.py --version    # version instalada (o aviso si se ejecuta sin instalar)
+```
+
+> 💡 Con `pip install -e .` el comando instalado es `ruleta`, con las mismas
+> opciones (`ruleta --huecos 6`).
 
 ### Ejemplo de partida
 
@@ -180,14 +198,16 @@ menos huecos vacíos. Sobrevive a las 8 rondas para coronarte como leyenda.
 - **Control de versiones**: Git.
 - **Empaquetado**: `pyproject.toml` con entry point instalable
   (`pip install -e .` deja disponible el comando `ruleta`).
-- **Lint y formato**: [ruff](https://docs.astral.sh/ruff/) y
-  [black](https://black.readthedocs.io/), configurados en `pyproject.toml`
-  (`line-length = 88`, `target-version = "py311"`):
+- **Lint, formato y tipos**: [ruff](https://docs.astral.sh/ruff/),
+  [black](https://black.readthedocs.io/) y [mypy](https://mypy.readthedocs.io/),
+  configurados en `pyproject.toml` (`line-length = 88`,
+  `target-version = "py311"`, `disallow_untyped_defs` para `ruleta.py`):
 
   ```bash
   pip install -e ".[dev]"
   ruff check .
   black --check .
+  mypy
   ```
 
 - **Pruebas y cobertura**: los juegos se pueden verificar desde línea de
@@ -211,18 +231,19 @@ menos huecos vacíos. Sobrevive a las 8 rondas para coronarte como leyenda.
 - [x] Sistema de **8 rondas** con dificultad creciente (1→8 balas)
 - [x] **Lanzadores** para Linux, macOS y Windows (`run.sh`, `run.bat`)
 - [x] **Instalador** con acceso directo en el escritorio (`instalar.sh`, `instalar.bat`)
-- [x] **Tests** automáticos de la versión Python, con cobertura medida (93%)
-- [x] **Empaquetado** con `pyproject.toml` (entry point instalable, config de lint/formato)
-- [x] **Integración continua** en GitHub Actions (tests + lint + smoke test de Godot)
+- [x] **Tests** automáticos de la versión Python, con cobertura medida (98%)
+- [x] **Empaquetado** con `pyproject.toml` (entry point instalable, config de lint/formato/tipos)
+- [x] **Integración continua** en GitHub Actions (tests + lint + tipos + smoke test de Godot)
 - [x] **Lógica separada de la UI** en la versión Godot (estado con señales, sin polling)
 - [x] **Feedback visual** por colores en la versión Godot
+- [x] **Selector de dificultad** por CLI (`--huecos`/`--rondas` en la versión terminal)
+- [x] **Efectos de sonido** de disparo, victoria y derrota (versión Godot)
+- [x] **Animación del tambor** girando y revelando el disparo (versión Godot)
 
 ### 🎯 Próximos pasos
 - [ ] Modo «borracho» 🍺 (menos suerte y más humor)
-- [ ] Selector de dificultad (tambores de 4, 6 u 8 huecos)
+- [ ] Selector de dificultad en la versión Godot (hoy solo en terminal)
 - [ ] Sistema de puntos, rachas y récords
-- [ ] Efectos de sonido de gatillo
-- [ ] Animación del tambor girando (Godot)
 - [ ] Empaquetado en un ejecutable único (`pyinstaller`)
 
 ## 🤝 Cómo contribuir
