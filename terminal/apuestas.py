@@ -30,3 +30,8 @@ class Apuesta:
     def retirarse(self) -> int:
         """Cierra la apuesta sin arriesgar mas. Devuelve lo que se cobra."""
         return self.en_juego
+
+    def sumar_bono(self, cantidad: int) -> int:
+        """Suma puntos extra sin doblar (p. ej. un farol acertado)."""
+        self.en_juego += cantidad
+        return self.en_juego

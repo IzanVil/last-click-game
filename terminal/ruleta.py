@@ -1,7 +1,8 @@
 """Interfaz de terminal de "El Tambor del Juicio".
 
 Este archivo solo se ocupa de entrada/salida (pantalla, teclado, colores y
-pausas); la logica del juego vive en estado.py, pistas.py y apuestas.py.
+pausas); la logica del juego vive en estado.py, pistas.py, apuestas.py,
+farol.py y eventos.py.
 
 El try/except de abajo permite que el modulo funcione tanto instalado como
 paquete (`terminal.ruleta`, con imports relativos) como ejecutado suelto
@@ -12,13 +13,16 @@ import os
 import time
 
 try:
-    from . import apuestas, estado, pistas
+    from . import apuestas, estado, eventos, farol, pistas
 except ImportError:  # pragma: no cover - ejecucion como script suelto
     import apuestas
     import estado
+    import eventos
+    import farol
     import pistas
 
 APUESTA_BASE = 100
+BONO_MARCA_ACERTADA = 50
 
 ROJO = "\033[91m"
 VERDE = "\033[92m"
@@ -55,8 +59,10 @@ def dibujar_tambor(marcadas: set[int], huecos: int) -> None:
     print("   " + "  ".join(etiquetas))
 
 
-def cabecera(disparos: int, apuesta: "apuestas.Apuesta") -> None:
-    """Imprime el marco superior con los disparos superados y lo apostado."""
+def cabecera(disparos: int, apuesta: "apuestas.Apuesta", marca: "farol.Farol") -> None:
+    """Imprime el marco superior con el dia actual, marcas y lo apostado."""
+    dia = estado.dias_sobrevividos(disparos) + 1
+    disparo_del_dia = disparos % estado.DISPAROS_POR_DIA + 1
     print(f"{NEGRITA}{CELESTE}╔{'═' * 44}╗{RESET}")
     print(
         f"{NEGRITA}{CELESTE}║{RESET}"
@@ -64,10 +70,15 @@ def cabecera(disparos: int, apuesta: "apuestas.Apuesta") -> None:
         f"{NEGRITA}{CELESTE}║{RESET}"
     )
     print(
-        f"{NEGRITA}{CELESTE}║{RESET}   Disparos superados "
-        f"{AMARILLO}{disparos:^2}{RESET}  ·  En juego "
-        f"{VERDE}{apuesta.en_juego:>5}{RESET} pts  "
+        f"{NEGRITA}{CELESTE}║{RESET}   Dia {AMARILLO}{dia:^2}{RESET}"
+        f" (disparo {disparo_del_dia}/{estado.DISPAROS_POR_DIA})"
+        f"  ·  Marcas {CELESTE}{marca.marcas_restantes}{RESET}  "
         f"{NEGRITA}{CELESTE}║{RESET}"
+    )
+    print(
+        f"{NEGRITA}{CELESTE}║{RESET}   En juego "
+        f"{VERDE}{apuesta.en_juego:>5}{RESET} pts"
+        f"{' ' * 20}{NEGRITA}{CELESTE}║{RESET}"
     )
     print(f"{NEGRITA}{CELESTE}╚{'═' * 44}╝{RESET}")
 
@@ -75,13 +86,14 @@ def cabecera(disparos: int, apuesta: "apuestas.Apuesta") -> None:
 def escena(
     disparos: int,
     apuesta: "apuestas.Apuesta",
+    marca: "farol.Farol",
     marcadas: set[int],
     pistas_reveladas: list[str],
     huecos: int,
 ) -> None:
     """Limpia la pantalla y dibuja la cabecera, las pistas y el tambor."""
     limpiar()
-    cabecera(disparos, apuesta)
+    cabecera(disparos, apuesta, marca)
     print()
     if pistas_reveladas:
         print(NEGRITA + "   Pistas del tambor:" + RESET)
@@ -94,17 +106,21 @@ def escena(
     print()
 
 
-def elegir_accion() -> str:
-    """Pide al jugador si dispara o se retira con los puntos actuales."""
+def elegir_accion(marcas_restantes: int) -> str:
+    """Pide al jugador si dispara, se retira o (si le quedan) marca."""
+    if marcas_restantes > 0:
+        opciones = f"(D)isparar, (R)etirarse o (M)arcar [{marcas_restantes}]"
+    else:
+        opciones = "(D)isparar o (R)etirarse"
     while True:
-        entrada = (
-            input(f"{NEGRITA}   (D)isparar o (R)etirarse: {RESET}").strip().lower()
-        )
+        entrada = input(f"{NEGRITA}   {opciones}: {RESET}").strip().lower()
         if entrada in ("d", "disparar"):
             return "disparar"
         if entrada in ("r", "retirarse"):
             return "retirarse"
-        print(ROJO + "   Responde 'd' para disparar o 'r' para retirarte." + RESET)
+        if marcas_restantes > 0 and entrada in ("m", "marcar"):
+            return "marcar"
+        print(ROJO + "   Esa respuesta no esta entre las opciones." + RESET)
 
 
 def elegir_posicion(huecos: int) -> int:
@@ -122,44 +138,64 @@ def elegir_posicion(huecos: int) -> int:
         return posicion
 
 
-def impacto(disparos: int, perdidos: int) -> None:
+def impacto(disparos: int, perdidos: int, dias: int) -> None:
     """Muestra la pantalla de derrota (BOOM) y lo que se pierde con ella."""
     limpiar()
     print(NEGRITA + ROJO + "\n      ▓▓▓   B O O M   ▓▓▓\n" + RESET)
     print(ROJO + "   La bala ha encontrado tu numero." + RESET)
     print(
-        f"{AMARILLO}   Caiste tras {disparos} disparo(s), "
-        f"perdiendo {perdidos} puntos.\n{RESET}"
+        f"{AMARILLO}   Caiste tras {disparos} disparo(s) ({dias} dia(s) "
+        f"sobrevivido(s)), perdiendo {perdidos} puntos.\n{RESET}"
     )
     time.sleep(2)
 
 
-def retirada(disparos: int, ganados: int) -> None:
+def retirada(disparos: int, ganados: int, dias: int) -> None:
     """Muestra la pantalla de retirada con lo que se cobra al salirse."""
     limpiar()
     print(NEGRITA + VERDE + "\n    ✦  TE RETIRAS A TIEMPO  ✦\n" + RESET)
-    print(CELESTE + f"   Cobras {ganados} puntos tras {disparos} disparo(s)." + RESET)
+    print(
+        f"{CELESTE}   Cobras {ganados} puntos tras {disparos} disparo(s) "
+        f"({dias} dia(s) sobrevivido(s)).{RESET}"
+    )
     print(VERDE + "   Vives para tentar a la suerte otro dia.\n" + RESET)
     time.sleep(2)
 
 
 def jugar() -> None:
-    """Ejecuta el bucle principal: doblar o retirarse hasta perder o cobrar."""
+    """Ejecuta el bucle principal: disparar, marcar o retirarse."""
     while True:
         tambor = estado.TamborJuicio()
         apuesta = apuestas.Apuesta(APUESTA_BASE)
+        marca = farol.Farol()
         disparos = 0
         marcadas: set[int] = set()
         pistas_reveladas: list[str] = []
 
         while True:
-            escena(disparos, apuesta, marcadas, pistas_reveladas, tambor.huecos)
-            accion = elegir_accion()
+            escena(disparos, apuesta, marca, marcadas, pistas_reveladas, tambor.huecos)
+            accion = elegir_accion(marca.marcas_restantes)
 
             if accion == "retirarse":
                 ganados = apuesta.retirarse()
-                retirada(disparos, ganados)
+                retirada(disparos, ganados, estado.dias_sobrevividos(disparos))
                 break
+
+            if accion == "marcar":
+                posicion = elegir_posicion(tambor.huecos)
+                if marca.marcar(posicion, tambor.posicion_bala):
+                    apuesta.sumar_bono(BONO_MARCA_ACERTADA)
+                    print(
+                        f"{VERDE}   Farol acertado: el hueco {posicion} estaba "
+                        f"vacio. +{BONO_MARCA_ACERTADA} puntos.{RESET}"
+                    )
+                else:
+                    print(
+                        f"{ROJO}   Farol fallido: ahi estaba la bala. "
+                        f"Pierdes la marca.{RESET}"
+                    )
+                time.sleep(1.5)
+                continue
 
             posicion = elegir_posicion(tambor.huecos)
             marcadas.add(posicion)
@@ -167,19 +203,34 @@ def jugar() -> None:
 
             if tambor.disparar(posicion):
                 perdidos = apuesta.perder()
-                impacto(disparos, perdidos)
+                impacto(disparos, perdidos, estado.dias_sobrevividos(disparos))
                 break
 
             apuesta.doblar()
+
+            evento = eventos.tirar_evento()
+            if evento == "clic_metalico":
+                tambor.mover_extra()
+            if evento is not None:
+                print(f"{GRIS}   {eventos.texto_de(evento)}{RESET}")
+
             pistas_reveladas.append(
                 pistas.generar_pista(
-                    tambor.posicion_bala, tambor.huecos, tambor.ultimo_disparo
+                    tambor.posicion_bala,
+                    tambor.huecos,
+                    tambor.ultimo_disparo,
+                    mentir=(evento == "tambor_caliente"),
                 )
             )
             print(
                 f"{VERDE}   Click. Cartucho vacio. Lo apostado se dobla "
                 f"a {apuesta.en_juego} puntos.{RESET}"
             )
+            if disparos % estado.DISPAROS_POR_DIA == 0:
+                print(
+                    f"{AMARILLO}   Sobrevives al dia "
+                    f"{estado.dias_sobrevividos(disparos)}.{RESET}"
+                )
             time.sleep(1.5)
 
         otra = input(NEGRITA + "   Jugar otra partida? (s/n): " + RESET).strip().lower()

@@ -6,24 +6,35 @@ repositorio, además de cómo ampliarlos y modificarlos.
 ## Mecánica de la ruleta rusa
 
 Las dos versiones ya no comparten mecánica: la terminal estrena un rediseño
-("El Tambor del Juicio", ver la Fase 1 de la hoja de ruta del `README.md`);
-la versión gráfica conserva por ahora el clásico de 8 rondas hasta que se
-porte el mismo rediseño.
+("El Tambor del Juicio", ver la hoja de ruta del `README.md`, Fases 1 y 2
+ya en la terminal); la versión gráfica conserva por ahora el clásico de 8
+rondas hasta que se porte el mismo rediseño.
 
 ### Terminal — El Tambor del Juicio
 
-1. El tambor tiene **8 huecos** y una única bala colocada al azar.
-2. Cada turno el jugador elige: **disparar** o **retirarse**.
+1. El tambor tiene **8 huecos** y una única bala colocada al azar. La
+   partida no termina en la primera muerte: el objetivo es acumular **días
+   de vida** (cada día son 3 disparos sobrevividos, `DISPAROS_POR_DIA`).
+2. Cada turno el jugador elige entre **disparar**, **retirarse** o, si le
+   quedan, **marcar**:
    - Retirarse cobra los puntos que hay en juego (la partida empieza con
      100) y termina la partida.
    - Disparar y fallar (cartucho vacío) dobla los puntos en juego, mueve la
-     bala a otro hueco según un patrón oculto y revela una pista veraz sobre
-     su nueva posición.
+     bala a otro hueco según un patrón oculto y revela una pista sobre su
+     nueva posición.
    - Disparar y acertar la bala es un **BOOM**: se pierden todos los puntos
-     en juego.
+     en juego y termina la partida.
+   - Marcar declara un hueco "seguro" sin disparar, gastando una de las **3
+     marcas** de la partida (se gasta acierte o falle). Acertar da un bono
+     de puntos sin doblar; fallar solo cuesta la marca, sin mover la bala
+     ni terminar la partida.
 3. El patrón de movimiento (avanza, retrocede, salta de dos en dos o
    espejo) se sortea al empezar la partida y no se le dice al jugador: se
    deduce comparando las pistas de varios disparos.
+4. Tras un disparo fallido puede ocurrir un **evento aleatorio**:
+   `clic_metalico` desplaza la bala un paso extra (fuera del patrón normal)
+   y `tambor_caliente` hace que la siguiente pista sea mentirosa (afirma lo
+   contrario de la posición real, con el mismo aspecto que una veraz).
 
 ### Gráfica (Godot) — el clásico de 8 rondas
 
@@ -51,33 +62,43 @@ porte el mismo rediseño.
 ## Versión de terminal (Python)
 
 - Archivos: `terminal/ruleta.py` (interfaz, sin lógica propia) +
-  `terminal/estado.py`, `terminal/pistas.py`, `terminal/apuestas.py` (lógica
-  pura, sin `input()`/`print()`, igual de fácil de testear que
-  `RuletaEstado.gd` en la versión Godot).
+  `terminal/estado.py`, `terminal/pistas.py`, `terminal/apuestas.py`,
+  `terminal/farol.py`, `terminal/eventos.py` (lógica pura, sin
+  `input()`/`print()`, igual de fácil de testear que `RuletaEstado.gd` en
+  la versión Godot).
 - Dependencias: **ninguna** (solo la librería estándar de Python 3.11+).
 - Ejecución: `./run.sh`, o directamente `python3 terminal/ruleta.py`.
 - Interactúa por entrada/salida estándar con interfaz en colores y tambor ASCII.
 
 ### Cómo modificar la lógica
 
-- `estado.HUECOS` (por defecto 8) y `estado.PATRONES` controlan el tamaño
-  del tambor y los patrones de movimiento de la bala disponibles. Añadir un
-  patrón nuevo implica sumarlo a `PATRONES` y a la función `_mover()` en
+- `estado.HUECOS` (por defecto 8), `estado.PATRONES` y
+  `estado.DISPAROS_POR_DIA` (por defecto 3) controlan el tamaño del tambor,
+  los patrones de movimiento disponibles y la duración de un "día". Añadir
+  un patrón nuevo implica sumarlo a `PATRONES` y a la función `_mover()` en
   `estado.py`.
 - `pistas.TIPOS_PISTA` en `pistas.py` define los tipos de pista disponibles
   (`paridad`, `mitad`, `relativa`); cada uno es una rama de
-  `generar_pista()`.
+  `generar_pista()`, que acepta `mentir=True` para invertir la respuesta
+  (lo usa el evento `tambor_caliente`).
 - `ruleta.APUESTA_BASE` (por defecto 100) es la apuesta inicial de cada
-  partida; la lógica de doblar/perder/retirarse vive en `apuestas.Apuesta`.
+  partida y `ruleta.BONO_MARCA_ACERTADA` (por defecto 50) el bono de un
+  farol acertado; la lógica de doblar/perder/retirarse/sumar bono vive en
+  `apuestas.Apuesta`.
+- `farol.MARCAS_INICIALES` (por defecto 3) son las marcas por partida;
+  `farol.Farol` resuelve si un hueco marcado estaba vacío.
+- `eventos.PROBABILIDAD` (por defecto 0.25) y `eventos.TIPOS_EVENTO`
+  controlan cuánto y qué tan a menudo interfieren los eventos aleatorios
+  tras un disparo fallido.
 
-`ruleta.py` importa estos tres módulos con un `try/except` (relativo si se
+`ruleta.py` importa estos cinco módulos con un `try/except` (relativo si se
 usa como paquete instalado, absoluto si se ejecuta como script suelto): si
-añades un cuarto módulo de lógica, sigue el mismo patrón de import.
+añades un módulo de lógica más, sigue el mismo patrón de import.
 
 ### Tests
 
 Hay una batería de pruebas por módulo (`test_estado.py`, `test_pistas.py`,
-`test_apuestas.py`, `test_ruleta.py`):
+`test_apuestas.py`, `test_farol.py`, `test_eventos.py`, `test_ruleta.py`):
 
 ```bash
 cd terminal && python3 -m unittest discover -s . -v
@@ -150,10 +171,14 @@ russian-roulette-2d/
 │   ├── estado.py
 │   ├── pistas.py
 │   ├── apuestas.py
+│   ├── farol.py
+│   ├── eventos.py
 │   ├── test_ruleta.py
 │   ├── test_estado.py
 │   ├── test_pistas.py
-│   └── test_apuestas.py
+│   ├── test_apuestas.py
+│   ├── test_farol.py
+│   └── test_eventos.py
 └── 2d/
     ├── project.godot
     ├── MainGame.gd

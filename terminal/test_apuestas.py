@@ -27,6 +27,12 @@ class TestApuesta(unittest.TestCase):
         self.assertEqual(cobrado, 200)
         self.assertEqual(apuesta.en_juego, 200)
 
+    def test_sumar_bono_no_dobla_solo_suma(self):
+        apuesta = apuestas.Apuesta(100)
+        apuesta.doblar()
+        self.assertEqual(apuesta.sumar_bono(50), 250)
+        self.assertEqual(apuesta.en_juego, 250)
+
     def test_rechaza_base_no_positiva(self):
         with self.assertRaises(ValueError):
             apuestas.Apuesta(0)

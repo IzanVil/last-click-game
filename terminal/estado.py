@@ -9,10 +9,22 @@ import random
 
 HUECOS = 8
 
+# Cuantos disparos sobrevividos forman un "dia de vida" (el objetivo de la
+# Fase 2: la partida no acaba al perder, se cuenta cuanto se ha aguantado).
+DISPAROS_POR_DIA = 3
+
 # Patrones de movimiento de la bala tras un disparo fallido (que no la
 # encuentra). Se sortea uno al iniciar la partida y se mantiene oculto:
 # el jugador debe deducirlo a partir de las pistas que va recibiendo.
 PATRONES = ("avanza", "retrocede", "salta_dos", "espejo")
+
+
+def dias_sobrevividos(
+    disparos_superados: int, disparos_por_dia: int = DISPAROS_POR_DIA
+) -> int:
+    """Cuenta cuantos dias completos (de `disparos_por_dia` disparos) se han
+    sobrevivido. Un dia en curso, aun sin terminar, no cuenta todavia."""
+    return disparos_superados // disparos_por_dia
 
 
 def _mover(posicion: int, patron: str, huecos: int) -> int:
@@ -74,3 +86,13 @@ class TamborJuicio:
         if not impacto:
             self.posicion_bala = _mover(self.posicion_bala, self.patron, self.huecos)
         return impacto
+
+    def mover_extra(self) -> int:
+        """Desplaza la bala una vez mas, fuera de un disparo.
+
+        Lo dispara un evento aleatorio (ver eventos.py) para simular que
+        el tambor se ha movido solo entre disparo y disparo. Reutiliza el
+        mismo patron de movimiento que un fallo normal.
+        """
+        self.posicion_bala = _mover(self.posicion_bala, self.patron, self.huecos)
+        return self.posicion_bala

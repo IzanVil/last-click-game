@@ -53,6 +53,28 @@ class TestPistaRelativa(unittest.TestCase):
             pistas.generar_pista(2, 8, ultimo_disparo=None, tipo="relativa")
 
 
+class TestPistaMentirosa(unittest.TestCase):
+    def test_paridad_mentirosa_dice_lo_contrario(self):
+        veraz = pistas.generar_pista(4, 8, None, tipo="paridad")
+        mentira = pistas.generar_pista(4, 8, None, tipo="paridad", mentir=True)
+        self.assertNotEqual(veraz, mentira)
+        self.assertIn("no esta en los huecos pares", mentira)
+
+    def test_mitad_mentirosa_dice_lo_contrario(self):
+        veraz = pistas.generar_pista(2, 8, None, tipo="mitad")
+        mentira = pistas.generar_pista(2, 8, None, tipo="mitad", mentir=True)
+        self.assertIn("izquierda", veraz)
+        self.assertIn("derecha", mentira)
+
+    def test_relativa_mentirosa_dice_lo_contrario(self):
+        veraz = pistas.generar_pista(2, 8, ultimo_disparo=5, tipo="relativa")
+        mentira = pistas.generar_pista(
+            2, 8, ultimo_disparo=5, tipo="relativa", mentir=True
+        )
+        self.assertIn("izquierda", veraz)
+        self.assertIn("derecha", mentira)
+
+
 class TestTipoAutomatico(unittest.TestCase):
     def test_excluye_relativa_sin_disparo_previo(self):
         rng = FakeRng("paridad")
