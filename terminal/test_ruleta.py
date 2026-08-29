@@ -113,7 +113,7 @@ class TestFlujoJuego(unittest.TestCase):
     def test_sobrevive_y_se_retira_con_la_apuesta_doblada(
         self, mock_tambor_cls, mock_retirada, mock_evento, mock_limpiar, mock_sleep
     ):
-        mock_tambor_cls.side_effect = lambda: FakeTambor([False])
+        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([False])
 
         entradas = iter(["d", "3", "r", "n"])
         with (
@@ -136,7 +136,7 @@ class TestFlujoJuego(unittest.TestCase):
     def test_impacto_pierde_todo_lo_apostado(
         self, mock_tambor_cls, mock_impacto, mock_evento, mock_limpiar, mock_sleep
     ):
-        mock_tambor_cls.side_effect = lambda: FakeTambor([False, True])
+        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([False, True])
 
         entradas = iter(["d", "3", "d", "4", "n"])
         with (
@@ -158,7 +158,7 @@ class TestFlujoJuego(unittest.TestCase):
         self, mock_tambor_cls, mock_retirada, mock_evento, mock_limpiar, mock_sleep
     ):
         # posicion_bala=5 por defecto: marcar el 3 acierta (no es la bala).
-        mock_tambor_cls.side_effect = lambda: FakeTambor([])
+        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([])
 
         entradas = iter(["m", "3", "r", "n"])
         with (
@@ -182,7 +182,7 @@ class TestFlujoJuego(unittest.TestCase):
         self, mock_tambor_cls, mock_retirada, mock_evento, mock_limpiar, mock_sleep
     ):
         # posicion_bala=5 por defecto: marcar justo el 5 falla.
-        mock_tambor_cls.side_effect = lambda: FakeTambor([])
+        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([])
 
         entradas = iter(["m", "5", "r", "n"])
         with (
@@ -204,7 +204,7 @@ class TestFlujoJuego(unittest.TestCase):
         self, mock_tambor_cls, mock_retirada, mock_evento, mock_limpiar, mock_sleep
     ):
         fake = FakeTambor([False])
-        mock_tambor_cls.side_effect = lambda: fake
+        mock_tambor_cls.side_effect = lambda huecos=None: fake
 
         entradas = iter(["d", "3", "r", "n"])
         with (
@@ -230,7 +230,7 @@ class TestFlujoJuego(unittest.TestCase):
         mock_limpiar,
         mock_sleep,
     ):
-        mock_tambor_cls.side_effect = lambda: FakeTambor([False])
+        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([False])
         mock_generar_pista.return_value = pistas.Pista(
             "pista falsa", frozenset({1, 2, 3})
         )
@@ -252,7 +252,9 @@ class TestFlujoJuego(unittest.TestCase):
     def test_completa_un_dia_cada_tres_disparos_sobrevividos(
         self, mock_tambor_cls, mock_retirada, mock_evento, mock_limpiar, mock_sleep
     ):
-        mock_tambor_cls.side_effect = lambda: FakeTambor([False, False, False])
+        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor(
+            [False, False, False]
+        )
 
         entradas = iter(["d", "1", "d", "2", "d", "3", "r", "n"])
         with (
@@ -301,6 +303,66 @@ class TestFlujoJuego(unittest.TestCase):
         )
         self.assertIn("400", mensajes)
         self.assertIn("Hoy sobreviviste 1 dia.", mensajes)
+
+
+class TestParsearArgs(unittest.TestCase):
+    def test_valores_por_defecto(self):
+        args = ruleta._parsear_args([])
+        self.assertEqual(args.huecos, ruleta.estado.HUECOS)
+
+    def test_acepta_huecos_personalizado(self):
+        args = ruleta._parsear_args(["--huecos", "6"])
+        self.assertEqual(args.huecos, 6)
+
+    def test_rechaza_huecos_insuficiente(self):
+        with self.assertRaises(SystemExit):
+            ruleta._parsear_args(["--huecos", "1"])
+
+    def test_version_sale_con_exit_0_y_no_es_error(self):
+        with self.assertRaises(SystemExit) as contexto:
+            ruleta._parsear_args(["--version"])
+        self.assertEqual(contexto.exception.code, 0)
+
+
+class TestVersionTexto(unittest.TestCase):
+    def test_version_instalada(self):
+        with patch("ruleta.version", return_value="1.2.3"):
+            self.assertEqual(ruleta._version_texto(), "1.2.3")
+
+    def test_sin_instalar_no_revienta(self):
+        with patch("ruleta.version", side_effect=ruleta.PackageNotFoundError):
+            self.assertIn("sin instalar", ruleta._version_texto())
+
+
+class TestMain(unittest.TestCase):
+    @patch("ruleta.jugar")
+    def test_pasa_huecos_a_jugar(self, mock_jugar):
+        ruleta.main(["--huecos", "6"])
+        mock_jugar.assert_called_once_with(huecos=6)
+
+    @patch("ruleta.jugar", side_effect=KeyboardInterrupt)
+    def test_ctrl_c_sale_con_mensaje_sin_traceback(self, mock_jugar):
+        with patch("builtins.print") as mock_print:
+            ruleta.main([])  # no debe propagar la excepcion
+
+        mensajes = " ".join(
+            str(llamada.args[0])
+            for llamada in mock_print.call_args_list
+            if llamada.args
+        )
+        self.assertIn("Hasta la proxima", mensajes)
+
+    @patch("ruleta.jugar")
+    def test_sin_interrupcion_no_imprime_despedida(self, mock_jugar):
+        with patch("builtins.print") as mock_print:
+            ruleta.main([])
+
+        mensajes = " ".join(
+            str(llamada.args[0])
+            for llamada in mock_print.call_args_list
+            if llamada.args
+        )
+        self.assertNotIn("Hasta la proxima", mensajes)
 
 
 if __name__ == "__main__":

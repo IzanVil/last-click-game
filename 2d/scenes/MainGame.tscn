@@ -1,6 +1,10 @@
-[gd_scene load_steps=2 format=3 uid="uid://xtcyy3hwjjdg"]
+[gd_scene load_steps=6 format=3 uid="uid://xtcyy3hwjjdg"]
 
 [ext_resource type="Script" path="res://MainGame.gd" id="1_game"]
+[ext_resource type="Script" path="res://TamborView.gd" id="2_tambor"]
+[ext_resource type="AudioStream" path="res://assets/audio/disparo.wav" id="3_disparo"]
+[ext_resource type="AudioStream" path="res://assets/audio/victoria.wav" id="4_victoria"]
+[ext_resource type="AudioStream" path="res://assets/audio/derrota.wav" id="5_derrota"]
 
 [node name="MainGame" type="Control"]
 layout_mode = 3
@@ -44,6 +48,11 @@ text = "El tambor esta cargado. Elige una posicion y dispara."
 horizontal_alignment = 1
 autowrap_mode = 2
 
+[node name="Tambor" type="Control" parent="Centro/Columnas"]
+layout_mode = 2
+size_flags_horizontal = 4
+script = ExtResource("2_tambor")
+
 [node name="EntradaNumero" type="LineEdit" parent="Centro/Columnas"]
 layout_mode = 2
 tooltip_text = "Elige una posicion del 1 al 10"
@@ -60,5 +69,14 @@ autowrap_mode = 3
 layout_mode = 2
 size_flags_horizontal = 4
 text = "Disparar"
+
+[node name="SonidoDisparo" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("3_disparo")
+
+[node name="SonidoVictoria" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("4_victoria")
+
+[node name="SonidoDerrota" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("5_derrota")
 
 [connection signal="pressed" from="Centro/Columnas/DispararBtn" to="." method="_on_disparar_btn_pressed"]

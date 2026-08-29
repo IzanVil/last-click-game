@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/Godot-4.7%2B-478CBF?logo=godotengine&logoColor=white" alt="Godot">
   <img src="https://img.shields.io/badge/estado-en%20desarrollo-yellow" alt="Estado">
   <img src="https://img.shields.io/badge/licencia-MIT-green" alt="Licencia">
-  <img src="https://img.shields.io/badge/coverage-97%25-brightgreen" alt="Cobertura">
+  <img src="https://img.shields.io/badge/coverage-99%25-brightgreen" alt="Cobertura">
 </p>
 
 ---
@@ -84,6 +84,9 @@ Incluimos dos lanzadores para que el juego arranque directo sin teclear comandos
 ```bash
 # Ejecutar el juego en la terminal (Linux / macOS)
 ./run.sh
+
+# Con dificultad personalizada (reenvía los argumentos a ruleta.py)
+./run.sh --huecos 6
 
 # O abrir el editor Godot
 ./run.sh -g
@@ -175,6 +178,20 @@ cd terminal && python3 ruleta.py
    narrativo de lo que ha pasado: días sobrevividos, faroles lanzados y
    acertados, y eventos que sufriste.
 
+### Dificultad personalizada
+
+El tambor tiene 8 huecos por defecto, pero se puede ajustar por línea de
+comandos:
+
+```bash
+cd terminal && python3 ruleta.py --huecos 6
+python3 ruleta.py --help       # ver todas las opciones
+python3 ruleta.py --version    # version instalada (o aviso si se ejecuta sin instalar)
+```
+
+> 💡 Con `pip install -e .` el comando instalado es `ruleta`, con las mismas
+> opciones (`ruleta --huecos 6`).
+
 ### Ejemplo de partida
 
 ```
@@ -250,14 +267,16 @@ menos huecos vacíos. Sobrevive a las 8 rondas para coronarte como leyenda.
 - **Control de versiones**: Git.
 - **Empaquetado**: `pyproject.toml` con entry point instalable
   (`pip install -e .` deja disponible el comando `ruleta`).
-- **Lint y formato**: [ruff](https://docs.astral.sh/ruff/) y
-  [black](https://black.readthedocs.io/), configurados en `pyproject.toml`
-  (`line-length = 88`, `target-version = "py311"`):
+- **Lint, formato y tipos**: [ruff](https://docs.astral.sh/ruff/),
+  [black](https://black.readthedocs.io/) y [mypy](https://mypy.readthedocs.io/),
+  configurados en `pyproject.toml` (`line-length = 88`,
+  `target-version = "py311"`, `disallow_untyped_defs` para `ruleta.py`):
 
   ```bash
   pip install -e ".[dev]"
   ruff check .
   black --check .
+  mypy
   ```
 
 - **Pruebas y cobertura**: los juegos se pueden verificar desde línea de
@@ -282,11 +301,14 @@ menos huecos vacíos. Sobrevive a las 8 rondas para coronarte como leyenda.
 - [x] Sistema de **8 rondas** con dificultad creciente (1→8 balas) en Godot
 - [x] **Lanzadores** para Linux, macOS y Windows (`run.sh`, `run.bat`)
 - [x] **Instalador** con acceso directo en el escritorio (`instalar.sh`, `instalar.bat`)
-- [x] **Tests** automáticos de la versión Python, con cobertura medida (97%)
-- [x] **Empaquetado** con `pyproject.toml` (entry point instalable, config de lint/formato)
-- [x] **Integración continua** en GitHub Actions (tests + lint + smoke test de Godot)
+- [x] **Tests** automáticos de la versión Python, con cobertura medida (99%)
+- [x] **Empaquetado** con `pyproject.toml` (entry point instalable, config de lint/formato/tipos)
+- [x] **Integración continua** en GitHub Actions (tests + lint + tipos + smoke test de Godot)
 - [x] **Lógica separada de la UI** en la versión Godot (estado con señales, sin polling)
 - [x] **Feedback visual** por colores en la versión Godot
+- [x] **Selector de dificultad** por CLI (`--huecos` en la versión terminal)
+- [x] **Efectos de sonido** de disparo, victoria y derrota (versión Godot)
+- [x] **Animación del tambor** girando y revelando el disparo (versión Godot)
 
 ### 🃏 Rediseño «El Tambor del Juicio» (en marcha)
 
@@ -306,14 +328,16 @@ roadmap:
   seguro / rojo peligro / amarillo candidato según el cruce de pistas
   vigentes / gris ya disparado, `pistas.interseccion`) e historial
   narrativo al terminar la partida (`historial.py`)
-- [ ] **Fase 3 — Godot:** ambientación noir/steampunk, tambor animado y
-  vibración en pantalla al fallar
+- [ ] **Fase 3 — Godot:** el tambor ya gira y se anima al revelar
+  (`TamborView.gd`) y hay sonido de disparo/victoria/derrota; queda la
+  paleta noir/steampunk y la vibración en pantalla al fallar
 - [ ] **Fase 4:** multijugador local por turnos, récords/estadísticas y
   opciones de dificultad (huecos y balas iniciales configurables)
 
 ### 🎯 Otros próximos pasos
 - [ ] Modo «borracho» 🍺 (menos suerte y más humor)
-- [ ] Efectos de sonido de gatillo
+- [ ] Selector de dificultad en la versión Godot (hoy solo en terminal)
+- [ ] Sistema de puntos, rachas y récords
 - [ ] Empaquetado en un ejecutable único (`pyinstaller`)
 
 ## 🤝 Cómo contribuir

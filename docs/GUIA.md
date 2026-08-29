@@ -75,7 +75,10 @@ rondas hasta que se porte el mismo rediseño.
   (lógica pura, sin `input()`/`print()`, igual de fácil de testear que
   `RuletaEstado.gd` en la versión Godot).
 - Dependencias: **ninguna** (solo la librería estándar de Python 3.11+).
-- Ejecución: `./run.sh`, o directamente `python3 terminal/ruleta.py`.
+- Ejecución: `./run.sh`, o directamente `python3 terminal/ruleta.py`. Admite
+  `--huecos N` (tamaño del tambor) y `--version`; `main()` es el entry point
+  real (`ruleta = "terminal.ruleta:main"` en `pyproject.toml`), que envuelve
+  `jugar()` para capturar Ctrl+C.
 - Interactúa por entrada/salida estándar con interfaz en colores y tambor ASCII.
 
 ### Cómo modificar la lógica

@@ -9,18 +9,25 @@ paquete (`terminal.ruleta`, con imports relativos) como ejecutado suelto
 (`python3 ruleta.py` desde dentro de `terminal/`, sin paquete que valga).
 """
 
+import argparse
 import os
 import time
+from importlib.metadata import PackageNotFoundError, version
 
 try:
     from . import apuestas, estado, eventos, farol, historial, pistas
 except ImportError:  # pragma: no cover - ejecucion como script suelto
-    import apuestas
-    import estado
-    import eventos
-    import farol
-    import historial
-    import pistas
+    # mypy resuelve el paquete via el `from .` de arriba y no encuentra
+    # estos como modulos sueltos de nivel superior (solo existen asi en
+    # tiempo de ejecucion, cuando este archivo corre como script suelto
+    # con `terminal/` en sys.path): son el mismo modulo por las dos vias,
+    # asi que ignorarlo aqui es correcto y no un error real.
+    import apuestas  # type: ignore[no-redef,import-not-found]
+    import estado  # type: ignore[no-redef,import-not-found]
+    import eventos  # type: ignore[no-redef,import-not-found]
+    import farol  # type: ignore[no-redef,import-not-found]
+    import historial  # type: ignore[no-redef,import-not-found]
+    import pistas  # type: ignore[no-redef,import-not-found]
 
 APUESTA_BASE = 100
 BONO_MARCA_ACERTADA = 50
@@ -41,6 +48,15 @@ COLORES_ESTADO = {
     "candidato": AMARILLO,
     "probado": GRIS,
 }
+
+
+if os.name == "nt":
+    # Habilita el procesamiento VT100 (codigos ANSI) en cmd.exe moderno:
+    # es un efecto secundario documentado de esta llamada "vacia", sin
+    # necesitar ninguna dependencia extra (colorama, etc.). Sin esto, en
+    # un cmd.exe "clasico" los codigos de color de abajo se verian
+    # literales en pantalla en vez de colorear.
+    os.system("")
 
 
 def limpiar() -> None:
@@ -75,7 +91,7 @@ def dibujar_tambor(estados: dict[int, str], huecos: int) -> None:
     celdas = []
     etiquetas = []
     for i in range(1, huecos + 1):
-        estado_hueco = estados.get(i)
+        estado_hueco = estados.get(i, "")
         color = COLORES_ESTADO.get(estado_hueco, CELESTE)
         glifo = GLIFOS_ESTADO.get(estado_hueco, "0")
         celdas.append(color + glifo + RESET)
@@ -190,10 +206,10 @@ def retirada(disparos: int, ganados: int, dias: int, resumen_texto: str) -> None
     time.sleep(2)
 
 
-def jugar() -> None:
+def jugar(huecos: int = estado.HUECOS) -> None:
     """Ejecuta el bucle principal: disparar, marcar o retirarse."""
     while True:
-        tambor = estado.TamborJuicio()
+        tambor = estado.TamborJuicio(huecos=huecos)
         apuesta = apuestas.Apuesta(APUESTA_BASE)
         marca = farol.Farol()
         bitacora = historial.Historial()
@@ -277,9 +293,69 @@ def jugar() -> None:
             break
 
 
-if __name__ == "__main__":
+def _version_texto() -> str:
+    """Version del paquete instalado (la que declara pyproject.toml), o
+    un aviso claro si se ejecuta el script directamente sin instalar (no
+    hay metadata de paquete que leer en ese caso: PackageNotFoundError).
+    """
     try:
-        jugar()
+        return version("russian-roulette-2d")
+    except PackageNotFoundError:
+        return "sin instalar (ejecutado directamente)"
+
+
+def _parsear_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Define y valida las opciones de la CLI.
+
+    Separado de main() para poder testearlo pasandole `argv` a mano, sin
+    tocar el sys.argv real del proceso.
+    """
+    parser = argparse.ArgumentParser(
+        prog="ruleta",
+        description=(
+            "El Tambor del Juicio: dispara, marca faroles o retirate, "
+            "deduce el patron de la bala y sobrevive tantos dias como "
+            "te atrevas."
+        ),
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {_version_texto()}",
+    )
+    parser.add_argument(
+        "--huecos",
+        type=int,
+        default=estado.HUECOS,
+        help=f"Huecos del tambor (por defecto: {estado.HUECOS}).",
+    )
+    args = parser.parse_args(argv)
+
+    if args.huecos < 2:
+        # Mismo mensaje que TamborJuicio.__init__, pero convertido al
+        # idioma de error de argparse (exit code 2) en vez de dejar que
+        # un ValueError suelto reviente a mitad de partida.
+        parser.error(f"huecos debe ser al menos 2 (recibido: {args.huecos}).")
+
+    return args
+
+
+def main(argv: list[str] | None = None) -> None:
+    """Punto de entrada real del juego (usado por `run.sh`/`run.bat` via
+    `__main__` y por el comando `ruleta` instalable via pyproject.toml):
+    envuelve jugar() para que Ctrl+C siempre salga con el mensaje de
+    despedida en vez de un traceback, sin importar por cual de las dos
+    vias se haya lanzado. `argv=None` hace que argparse lea sys.argv
+    real (comportamiento normal); se le puede pasar una lista para
+    lanzar el juego con otros parametros sin pasar por la terminal.
+    """
+    args = _parsear_args(argv)
+    try:
+        jugar(huecos=args.huecos)
     except KeyboardInterrupt:
         print()
         print(AMARILLO + "   Hasta la proxima. El tambor siempre espera." + RESET)
+
+
+if __name__ == "__main__":
+    main()
