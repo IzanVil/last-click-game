@@ -13,23 +13,30 @@
   <img src="https://img.shields.io/badge/Godot-4.7%2B-478CBF?logo=godotengine&logoColor=white" alt="Godot">
   <img src="https://img.shields.io/badge/estado-en%20desarrollo-yellow" alt="Estado">
   <img src="https://img.shields.io/badge/licencia-MIT-green" alt="Licencia">
-  <img src="https://img.shields.io/badge/coverage-93%25-brightgreen" alt="Cobertura">
+  <img src="https://img.shields.io/badge/coverage-96%25-brightgreen" alt="Cobertura">
 </p>
 
 ---
 
 Una colección de minijuegos de ruleta rusa en **dos sabores**: un clásico de
 **terminal** escrito en Python y una versión **gráfica 2D** hecha con Godot.
-Elige una posición del tambor, aprieta el gatillo y deja que el azar decida.
+Desde esta beta, ambas versiones ya no juegan igual: la terminal estrena
+**El Tambor del Juicio**, un rediseño centrado en la gestión de riesgo y el
+farol; la versión gráfica conserva por ahora la mecánica clásica de 8 rondas
+mientras se planea su propio port (ver [Hoja de ruta](#hoja-de-ruta)).
 
 ## 🧠 La idea
 
-La eterna apuesta de la ruleta rusa, llevada a la consola y a la pantalla:
-
-1. El tambor tiene **10 huecos**, cargados con un número variable de balas.
-2. El jugador elige una posición del tambor y **aprieta el gatillo**.
-3. Si el hueco es una bala → 💥 *BOOM* (pierde). Si está vacío → 😅 *Click* (sobrevive).
-4. En la versión gráfica cada **ronda añade más balas**, subiendo la tensión hasta el final.
+- **🐍 Terminal — El Tambor del Juicio.** El tambor tiene **8 huecos** y una
+  única bala que **se desplaza** tras cada disparo que la falla, siguiendo un
+  patrón oculto que debes deducir. En cada turno recibes una **pista veraz**
+  sobre dónde está ahora y decides: **te retiras** con los puntos que llevas
+  en juego, o **disparas** arriesgando que se **doblen** (o perderlos todos
+  si aciertas la bala en vez de un cartucho vacío).
+- **🎮 Gráfica (Godot) — el clásico de 8 rondas.** El tambor tiene **10
+  huecos** cargados con un número variable de balas. Eliges una posición y
+  aprietas el gatillo: si es bala → 💥 *BOOM* (pierdes); si está vacío → 😅
+  *Click* (avanzas). Cada ronda se añaden más balas hasta la ronda 8.
 
 > ⚠️ **Descargo de responsabilidad:** es solo un juego de ficción. No existe
 > ninguna arma real. Solo diversión para la terminal y la pantalla.
@@ -94,9 +101,12 @@ russian-roulette-2d/
 ├── .github/workflows/   ← CI (tests Python + smoke test Godot)
 ├── docs/
 │   └── GUIA.md          ← guía técnica del proyecto
-├── terminal/            ← versión de consola
-│   ├── ruleta.py        ← juego en Python puro
-│   └── test_ruleta.py   ← pruebas unitarias
+├── terminal/            ← versión de consola: El Tambor del Juicio
+│   ├── ruleta.py        ← interfaz de terminal (pantalla, teclado, colores)
+│   ├── estado.py        ← tambor y bala: posición, patrón de movimiento
+│   ├── pistas.py        ← generación de pistas veraces sobre la bala
+│   ├── apuestas.py      ← apuesta doblar-o-retirarse
+│   └── test_*.py        ← pruebas unitarias de los cuatro módulos
 └── 2d/                  ← versión gráfica
     ├── project.godot    ← proyecto Godot
     ├── RuletaEstado.gd  ← estado y reglas del juego (sin UI)
@@ -105,9 +115,10 @@ russian-roulette-2d/
     └── assets/          ← recursos visuales
 ```
 
-## 🐍 Versión de terminal (Python)
+## 🐍 Versión de terminal (Python) — El Tambor del Juicio
 
-La versión más pura: abre una terminal, escribe un número y deja que el azar decida.
+Ya no es solo elegir un número: gestionas pistas y una apuesta que se dobla
+mientras te atrevas a seguir.
 
 ### Cómo jugar
 
@@ -121,27 +132,45 @@ cd terminal && python3 ruleta.py
 
 > 💡 En Windows usa `run.bat`, o `python ruleta.py` en lugar de `python3`.
 
+### Reglas
+
+1. El tambor tiene **8 huecos** y una única bala colocada al azar.
+2. En cada turno eliges: **(D)isparar** o **(R)etirarte**.
+   - Si te retiras, **cobras** los puntos que llevas en juego (empiezas con
+     100) y la partida termina ahí.
+   - Si disparas y **fallas** (cartucho vacío) → 😅 los puntos en juego se
+     **doblan**, la bala **se desplaza** a otro hueco siguiendo un patrón
+     oculto y recibes una **pista veraz** sobre dónde está ahora.
+   - Si disparas y **aciertas** la bala → 💥 *BOOM*, pierdes todo lo que
+     tenías en juego.
+3. Las pistas se acumulan partida a partida: compáralas para deducir el
+   patrón de movimiento (avanza, retrocede, salta de dos en dos o rebota en
+   espejo) y decide con más información cuándo merece la pena seguir.
+
 ### Ejemplo de partida
 
 ```
 ╔════════════════════════════════════════════╗
-║            RULETA RUSA              ║
-║   Ronda 3 /8  ·  Balas 3   ·  Vacios 7   ║
+║        EL TAMBOR DEL JUICIO         ║
+║   Disparos superados 2   ·  En juego   400 pts  ║
 ╚════════════════════════════════════════════╝
 
-   La bala descansa en un hueco. Tu huella deja marcas.
-   ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
-   0   0   0   0   0   0   0   0   0   0
-   └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
-   1  2  3  4  5  6  7  8  9  10
+   Pistas del tambor:
+   #1 La bala no esta en los huecos pares.
+   #2 La bala esta en la mitad izquierda del tambor.
 
-   Elige una posicion (1-10): 4
-   Click. Cartucho vacio. Avanzas a la ronda 4.
+   ┌─┬─┬─┬─┬─┬─┬─┬─┐
+   ·   ·   0   0   0   0   0   0
+   └─┴─┴─┴─┴─┴─┴─┴─┘
+   1  2  3  4  5  6  7  8
+
+   (D)isparar o (R)etirarse: r
+   Cobras 400 puntos tras 2 disparo(s).
 ```
 
-- 💀 Si eliges un hueco con bala → **BOOM, pierdes.**
-- 😅 Si eliges un hueco vacío → **Click, avanzas a la siguiente ronda.**
-- 🏆 Sobrevive a las 8 rondas para ganar.
+- 💀 Aciertas la bala → **BOOM**, pierdes todo lo apostado.
+- 😅 Fallas → los puntos en juego se **doblan** y sigues con una pista más.
+- 🏳️ Te retiras cuando quieras y te llevas lo que llevabas en juego.
 
 ## 🎮 Versión gráfica (Godot 2D)
 
@@ -208,21 +237,34 @@ menos huecos vacíos. Sobrevive a las 8 rondas para coronarte como leyenda.
 ## 🧭 Hoja de ruta
 
 ### ✅ Hecho en esta beta `v0.1.0`
-- [x] Sistema de **8 rondas** con dificultad creciente (1→8 balas)
+- [x] Sistema de **8 rondas** con dificultad creciente (1→8 balas) en Godot
 - [x] **Lanzadores** para Linux, macOS y Windows (`run.sh`, `run.bat`)
 - [x] **Instalador** con acceso directo en el escritorio (`instalar.sh`, `instalar.bat`)
-- [x] **Tests** automáticos de la versión Python, con cobertura medida (93%)
+- [x] **Tests** automáticos de la versión Python, con cobertura medida (96%)
 - [x] **Empaquetado** con `pyproject.toml` (entry point instalable, config de lint/formato)
 - [x] **Integración continua** en GitHub Actions (tests + lint + smoke test de Godot)
 - [x] **Lógica separada de la UI** en la versión Godot (estado con señales, sin polling)
 - [x] **Feedback visual** por colores en la versión Godot
 
-### 🎯 Próximos pasos
+### 🃏 Rediseño «El Tambor del Juicio» (en marcha)
+
+La versión de terminal está migrando de "elige un número" a un juego de
+gestión de riesgo y farol. Fase 1 (mecánica central) ya está en la terminal;
+el resto sigue el orden de este roadmap:
+
+- [x] **Fase 1 — Terminal:** bala móvil con patrón oculto, pistas veraces y
+  apuesta doblar-o-retirarse (`estado.py`, `pistas.py`, `apuestas.py`)
+- [ ] **Fase 1 — Godot:** portar la misma mecánica a `RuletaEstado.gd`
+- [ ] **Fase 2:** sistema de farol (marcar huecos), eventos aleatorios y
+  objetivo de "días de vida" (rondas de 3 disparos)
+- [ ] **Fase 3:** ambientación noir/steampunk, tambor animado en Godot y
+  colores por estado de hueco en la terminal, historial narrativo al acabar
+- [ ] **Fase 4:** multijugador local por turnos, récords/estadísticas y
+  opciones de dificultad (huecos y balas iniciales configurables)
+
+### 🎯 Otros próximos pasos
 - [ ] Modo «borracho» 🍺 (menos suerte y más humor)
-- [ ] Selector de dificultad (tambores de 4, 6 u 8 huecos)
-- [ ] Sistema de puntos, rachas y récords
 - [ ] Efectos de sonido de gatillo
-- [ ] Animación del tambor girando (Godot)
 - [ ] Empaquetado en un ejecutable único (`pyinstaller`)
 
 ## 🤝 Cómo contribuir

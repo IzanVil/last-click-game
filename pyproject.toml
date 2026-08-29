@@ -41,10 +41,10 @@ line-length = 88
 target-version = ["py311"]
 
 [tool.coverage.run]
-# Solo interesa medir el codigo de la app (ruleta.py), no el propio
-# fichero de tests: su "cobertura" no dice nada util.
+# Solo interesa medir el codigo de la app, no los propios ficheros de
+# tests: su "cobertura" no dice nada util.
 source = ["terminal"]
-omit = ["terminal/test_ruleta.py"]
+omit = ["terminal/test_*.py"]
 
 [tool.coverage.report]
 show_missing = true

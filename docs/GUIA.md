@@ -5,7 +5,27 @@ repositorio, además de cómo ampliarlos y modificarlos.
 
 ## Mecánica de la ruleta rusa
 
-La idea se repite en ambas versiones, subiendo la tensión ronda a ronda:
+Las dos versiones ya no comparten mecánica: la terminal estrena un rediseño
+("El Tambor del Juicio", ver la Fase 1 de la hoja de ruta del `README.md`);
+la versión gráfica conserva por ahora el clásico de 8 rondas hasta que se
+porte el mismo rediseño.
+
+### Terminal — El Tambor del Juicio
+
+1. El tambor tiene **8 huecos** y una única bala colocada al azar.
+2. Cada turno el jugador elige: **disparar** o **retirarse**.
+   - Retirarse cobra los puntos que hay en juego (la partida empieza con
+     100) y termina la partida.
+   - Disparar y fallar (cartucho vacío) dobla los puntos en juego, mueve la
+     bala a otro hueco según un patrón oculto y revela una pista veraz sobre
+     su nueva posición.
+   - Disparar y acertar la bala es un **BOOM**: se pierden todos los puntos
+     en juego.
+3. El patrón de movimiento (avanza, retrocede, salta de dos en dos o
+   espejo) se sortea al empezar la partida y no se le dice al jugador: se
+   deduce comparando las pistas de varios disparos.
+
+### Gráfica (Godot) — el clásico de 8 rondas
 
 1. El tambor tiene **10 huecos**, numerados del 1 al 10.
 2. El juego consta de **8 rondas**. En cada ronda se cargan más balas que en la
@@ -15,7 +35,7 @@ La idea se repite en ambas versiones, subiendo la tensión ronda a ronda:
    Si está **vacío** → **Click** (sobrevive y avanza a la siguiente ronda).
 5. Sobrevivir a las 8 rondas supone la **victoria**.
 
-### Tabla de dificultad por ronda
+#### Tabla de dificultad por ronda
 
 | Ronda | Huecos | Balas | Vacíos |
 |:-----:|:------:|:-----:|:------:|
@@ -30,31 +50,37 @@ La idea se repite en ambas versiones, subiendo la tensión ronda a ronda:
 
 ## Versión de terminal (Python)
 
-- Archivo: `terminal/ruleta.py`
+- Archivos: `terminal/ruleta.py` (interfaz, sin lógica propia) +
+  `terminal/estado.py`, `terminal/pistas.py`, `terminal/apuestas.py` (lógica
+  pura, sin `input()`/`print()`, igual de fácil de testear que
+  `RuletaEstado.gd` en la versión Godot).
 - Dependencias: **ninguna** (solo la librería estándar de Python 3.11+).
 - Ejecución: `./run.sh`, o directamente `python3 terminal/ruleta.py`.
 - Interactúa por entrada/salida estándar con interfaz en colores y tambor ASCII.
 
 ### Cómo modificar la lógica
 
-Los valores clave están al comienzo del archivo:
+- `estado.HUECOS` (por defecto 8) y `estado.PATRONES` controlan el tamaño
+  del tambor y los patrones de movimiento de la bala disponibles. Añadir un
+  patrón nuevo implica sumarlo a `PATRONES` y a la función `_mover()` en
+  `estado.py`.
+- `pistas.TIPOS_PISTA` en `pistas.py` define los tipos de pista disponibles
+  (`paridad`, `mitad`, `relativa`); cada uno es una rama de
+  `generar_pista()`.
+- `ruleta.APUESTA_BASE` (por defecto 100) es la apuesta inicial de cada
+  partida; la lógica de doblar/perder/retirarse vive en `apuestas.Apuesta`.
 
-```python
-HUECOS = 10
-RONDAS = 8
-```
-
-- `HUECOS` controla el tamaño del tambor.
-- La dificultad por ronda se deriva del número de ronda (ronda N → N balas).
-  Si quieres una curva distinta, basta con cambiar el cálculo en `jugar()`
-  (por ejemplo, `balas = min(balas + 2, HUECOS)` para que suba más rápido).
+`ruleta.py` importa estos tres módulos con un `try/except` (relativo si se
+usa como paquete instalado, absoluto si se ejecuta como script suelto): si
+añades un cuarto módulo de lógica, sigue el mismo patrón de import.
 
 ### Tests
 
-La batería de pruebas se encuentra en `terminal/test_ruleta.py`:
+Hay una batería de pruebas por módulo (`test_estado.py`, `test_pistas.py`,
+`test_apuestas.py`, `test_ruleta.py`):
 
 ```bash
-cd terminal && python3 -m unittest test_ruleta -v
+cd terminal && python3 -m unittest discover -s . -v
 ```
 
 ## Versión gráfica (Godot)
@@ -97,13 +123,10 @@ en `_flash(color)`.
 
 ## Ampliaciones sugeridas
 
-Consulta la **Hoja de ruta** del `README.md` para más ideas:
-
-- Modo «borracho».
-- Selector de dificultad (tambores de otros tamaños).
-- Sistema de puntos, rachas y récords.
-- Efectos de sonido de gatillo.
-- Animación del tambor girando en Godot.
+Consulta la **Hoja de ruta** del `README.md` para el detalle completo del
+rediseño «El Tambor del Juicio» (farol, eventos, días de vida, port a
+Godot, multijugador, récords...) y otras ideas sueltas como el modo
+«borracho» o los efectos de sonido de gatillo.
 
 ## Estructura de carpetas
 
@@ -124,7 +147,13 @@ russian-roulette-2d/
 ├── terminal/
 │   ├── __init__.py
 │   ├── ruleta.py
-│   └── test_ruleta.py
+│   ├── estado.py
+│   ├── pistas.py
+│   ├── apuestas.py
+│   ├── test_ruleta.py
+│   ├── test_estado.py
+│   ├── test_pistas.py
+│   └── test_apuestas.py
 └── 2d/
     ├── project.godot
     ├── MainGame.gd
