@@ -35,6 +35,14 @@ rondas hasta que se porte el mismo rediseño.
    `clic_metalico` desplaza la bala un paso extra (fuera del patrón normal)
    y `tambor_caliente` hace que la siguiente pista sea mentirosa (afirma lo
    contrario de la posición real, con el mismo aspecto que una veraz).
+5. El tambor ASCII colorea cada hueco según lo que se sabe de él: **verde**
+   si un farol confirmó que estaba vacío, **rojo** si un farol reveló la
+   bala ahí, **amarillo** si es un candidato que cumple con el cruce de
+   *todas* las pistas vigentes, **gris** si ya se disparó ahí alguna vez.
+   Si el cruce de pistas se queda sin candidatos, es señal de que alguna
+   pista reciente mentía.
+6. Al terminar la partida se resume en una frase lo ocurrido (días
+   sobrevividos, faroles lanzados/acertados, eventos sufridos).
 
 ### Gráfica (Godot) — el clásico de 8 rondas
 
@@ -63,9 +71,9 @@ rondas hasta que se porte el mismo rediseño.
 
 - Archivos: `terminal/ruleta.py` (interfaz, sin lógica propia) +
   `terminal/estado.py`, `terminal/pistas.py`, `terminal/apuestas.py`,
-  `terminal/farol.py`, `terminal/eventos.py` (lógica pura, sin
-  `input()`/`print()`, igual de fácil de testear que `RuletaEstado.gd` en
-  la versión Godot).
+  `terminal/farol.py`, `terminal/eventos.py`, `terminal/historial.py`
+  (lógica pura, sin `input()`/`print()`, igual de fácil de testear que
+  `RuletaEstado.gd` en la versión Godot).
 - Dependencias: **ninguna** (solo la librería estándar de Python 3.11+).
 - Ejecución: `./run.sh`, o directamente `python3 terminal/ruleta.py`.
 - Interactúa por entrada/salida estándar con interfaz en colores y tambor ASCII.
@@ -80,7 +88,9 @@ rondas hasta que se porte el mismo rediseño.
 - `pistas.TIPOS_PISTA` en `pistas.py` define los tipos de pista disponibles
   (`paridad`, `mitad`, `relativa`); cada uno es una rama de
   `generar_pista()`, que acepta `mentir=True` para invertir la respuesta
-  (lo usa el evento `tambor_caliente`).
+  (lo usa el evento `tambor_caliente`) y devuelve una `Pista(texto,
+  candidatos)`: `candidatos` son los huecos consistentes con esa
+  afirmación. `pistas.interseccion()` los cruza para pintar el tambor.
 - `ruleta.APUESTA_BASE` (por defecto 100) es la apuesta inicial de cada
   partida y `ruleta.BONO_MARCA_ACERTADA` (por defecto 50) el bono de un
   farol acertado; la lógica de doblar/perder/retirarse/sumar bono vive en
@@ -90,15 +100,20 @@ rondas hasta que se porte el mismo rediseño.
 - `eventos.PROBABILIDAD` (por defecto 0.25) y `eventos.TIPOS_EVENTO`
   controlan cuánto y qué tan a menudo interfieren los eventos aleatorios
   tras un disparo fallido.
+- `historial.Historial` acumula faroles y eventos de la partida;
+  `historial.resumen()` genera la frase final. `ruleta.calcular_estados()`
+  combina marcadas/resultados de farol/candidatos en el diccionario que
+  colorea el tambor (`ruleta.COLORES_ESTADO`, `ruleta.GLIFOS_ESTADO`).
 
-`ruleta.py` importa estos cinco módulos con un `try/except` (relativo si se
+`ruleta.py` importa estos seis módulos con un `try/except` (relativo si se
 usa como paquete instalado, absoluto si se ejecuta como script suelto): si
 añades un módulo de lógica más, sigue el mismo patrón de import.
 
 ### Tests
 
 Hay una batería de pruebas por módulo (`test_estado.py`, `test_pistas.py`,
-`test_apuestas.py`, `test_farol.py`, `test_eventos.py`, `test_ruleta.py`):
+`test_apuestas.py`, `test_farol.py`, `test_eventos.py`, `test_historial.py`,
+`test_ruleta.py`):
 
 ```bash
 cd terminal && python3 -m unittest discover -s . -v
@@ -173,12 +188,14 @@ russian-roulette-2d/
 │   ├── apuestas.py
 │   ├── farol.py
 │   ├── eventos.py
+│   ├── historial.py
 │   ├── test_ruleta.py
 │   ├── test_estado.py
 │   ├── test_pistas.py
 │   ├── test_apuestas.py
 │   ├── test_farol.py
-│   └── test_eventos.py
+│   ├── test_eventos.py
+│   └── test_historial.py
 └── 2d/
     ├── project.godot
     ├── MainGame.gd

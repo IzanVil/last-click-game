@@ -2,7 +2,7 @@
 
 Este archivo solo se ocupa de entrada/salida (pantalla, teclado, colores y
 pausas); la logica del juego vive en estado.py, pistas.py, apuestas.py,
-farol.py y eventos.py.
+farol.py, eventos.py e historial.py.
 
 El try/except de abajo permite que el modulo funcione tanto instalado como
 paquete (`terminal.ruleta`, con imports relativos) como ejecutado suelto
@@ -13,12 +13,13 @@ import os
 import time
 
 try:
-    from . import apuestas, estado, eventos, farol, pistas
+    from . import apuestas, estado, eventos, farol, historial, pistas
 except ImportError:  # pragma: no cover - ejecucion como script suelto
     import apuestas
     import estado
     import eventos
     import farol
+    import historial
     import pistas
 
 APUESTA_BASE = 100
@@ -32,26 +33,52 @@ GRIS = "\033[90m"
 NEGRITA = "\033[1m"
 RESET = "\033[0m"
 
+# Como se ve cada hueco segun lo que se sabe de el (ver calcular_estados).
+GLIFOS_ESTADO = {"seguro": "✓", "peligro": "✗", "candidato": "?", "probado": "·"}
+COLORES_ESTADO = {
+    "seguro": VERDE,
+    "peligro": ROJO,
+    "candidato": AMARILLO,
+    "probado": GRIS,
+}
+
 
 def limpiar() -> None:
     """Limpia la pantalla de la terminal segun el sistema operativo."""
     os.system("cls" if os.name == "nt" else "clear")
 
 
-def dibujar_tambor(marcadas: set[int], huecos: int) -> None:
-    """Imprime el tambor ASCII marcando los huecos ya disparados alguna vez.
+def calcular_estados(
+    marcadas: set[int], resultados_farol: dict[int, str], candidatos: frozenset[int]
+) -> dict[int, str]:
+    """Combina lo que se sabe de cada hueco en un unico estado para pintarlo.
 
-    Marcar un hueco es solo un recordatorio de "ya probaste aqui": como la
-    bala se mueve, no implica que ahora mismo este vacio.
+    Prioridad, de menos a mas fiable: ser candidato segun las pistas
+    actuales, haber sido ya disparado, y por encima de todo un resultado
+    de farol (seguro/peligro), que es la unica confirmacion directa.
+    """
+    estados: dict[int, str] = {hueco: "candidato" for hueco in candidatos}
+    for hueco in marcadas:
+        estados[hueco] = "probado"
+    estados.update(resultados_farol)
+    return estados
+
+
+def dibujar_tambor(estados: dict[int, str], huecos: int) -> None:
+    """Imprime el tambor ASCII coloreando cada hueco segun `estados`.
+
+    Verde = farol acertado ahi, rojo = farol fallido ahi (la bala estuvo
+    en ese momento), amarillo = candidato segun las pistas actuales, gris
+    = ya disparado. Sin ninguna marca, se muestra sin colorear.
     """
     marco = "┌" + "─┬" * (huecos - 1) + "─┐"
     celdas = []
     etiquetas = []
     for i in range(1, huecos + 1):
-        if i in marcadas:
-            celdas.append(GRIS + "·" + RESET)
-        else:
-            celdas.append(CELESTE + "0" + RESET)
+        estado_hueco = estados.get(i)
+        color = COLORES_ESTADO.get(estado_hueco, CELESTE)
+        glifo = GLIFOS_ESTADO.get(estado_hueco, "0")
+        celdas.append(color + glifo + RESET)
         etiquetas.append(str(i))
     print("   " + NEGRITA + marco + RESET)
     print("   " + "   ".join(celdas))
@@ -87,8 +114,8 @@ def escena(
     disparos: int,
     apuesta: "apuestas.Apuesta",
     marca: "farol.Farol",
-    marcadas: set[int],
-    pistas_reveladas: list[str],
+    estados: dict[int, str],
+    pistas_reveladas: list["pistas.Pista"],
     huecos: int,
 ) -> None:
     """Limpia la pantalla y dibuja la cabecera, las pistas y el tambor."""
@@ -97,12 +124,12 @@ def escena(
     print()
     if pistas_reveladas:
         print(NEGRITA + "   Pistas del tambor:" + RESET)
-        for indice, texto in enumerate(pistas_reveladas, start=1):
-            print(f"   {AMARILLO}#{indice}{RESET} {texto}")
+        for indice, pista in enumerate(pistas_reveladas, start=1):
+            print(f"   {AMARILLO}#{indice}{RESET} {pista.texto}")
     else:
         print(GRIS + "   La bala descansa en algun hueco. Aun no hay pistas." + RESET)
     print()
-    dibujar_tambor(marcadas, huecos)
+    dibujar_tambor(estados, huecos)
     print()
 
 
@@ -138,27 +165,28 @@ def elegir_posicion(huecos: int) -> int:
         return posicion
 
 
-def impacto(disparos: int, perdidos: int, dias: int) -> None:
-    """Muestra la pantalla de derrota (BOOM) y lo que se pierde con ella."""
+def impacto(disparos: int, perdidos: int, dias: int, resumen_texto: str) -> None:
+    """Muestra la pantalla de derrota (BOOM), lo perdido y el resumen final."""
     limpiar()
     print(NEGRITA + ROJO + "\n      ▓▓▓   B O O M   ▓▓▓\n" + RESET)
     print(ROJO + "   La bala ha encontrado tu numero." + RESET)
     print(
         f"{AMARILLO}   Caiste tras {disparos} disparo(s) ({dias} dia(s) "
-        f"sobrevivido(s)), perdiendo {perdidos} puntos.\n{RESET}"
+        f"sobrevivido(s)), perdiendo {perdidos} puntos.{RESET}"
     )
+    print(f"{CELESTE}   {resumen_texto}\n{RESET}")
     time.sleep(2)
 
 
-def retirada(disparos: int, ganados: int, dias: int) -> None:
-    """Muestra la pantalla de retirada con lo que se cobra al salirse."""
+def retirada(disparos: int, ganados: int, dias: int, resumen_texto: str) -> None:
+    """Muestra la pantalla de retirada, lo cobrado y el resumen final."""
     limpiar()
     print(NEGRITA + VERDE + "\n    ✦  TE RETIRAS A TIEMPO  ✦\n" + RESET)
     print(
         f"{CELESTE}   Cobras {ganados} puntos tras {disparos} disparo(s) "
         f"({dias} dia(s) sobrevivido(s)).{RESET}"
     )
-    print(VERDE + "   Vives para tentar a la suerte otro dia.\n" + RESET)
+    print(f"{VERDE}   {resumen_texto}\n{RESET}")
     time.sleep(2)
 
 
@@ -168,22 +196,30 @@ def jugar() -> None:
         tambor = estado.TamborJuicio()
         apuesta = apuestas.Apuesta(APUESTA_BASE)
         marca = farol.Farol()
+        bitacora = historial.Historial()
         disparos = 0
         marcadas: set[int] = set()
-        pistas_reveladas: list[str] = []
+        resultados_farol: dict[int, str] = {}
+        pistas_reveladas: list[pistas.Pista] = []
 
         while True:
-            escena(disparos, apuesta, marca, marcadas, pistas_reveladas, tambor.huecos)
+            candidatos = pistas.interseccion(pistas_reveladas)
+            estados = calcular_estados(marcadas, resultados_farol, candidatos)
+            escena(disparos, apuesta, marca, estados, pistas_reveladas, tambor.huecos)
             accion = elegir_accion(marca.marcas_restantes)
 
             if accion == "retirarse":
                 ganados = apuesta.retirarse()
-                retirada(disparos, ganados, estado.dias_sobrevividos(disparos))
+                dias = estado.dias_sobrevividos(disparos)
+                retirada(disparos, ganados, dias, historial.resumen(bitacora, dias))
                 break
 
             if accion == "marcar":
                 posicion = elegir_posicion(tambor.huecos)
-                if marca.marcar(posicion, tambor.posicion_bala):
+                acierto = marca.marcar(posicion, tambor.posicion_bala)
+                bitacora.registrar_farol(acierto)
+                resultados_farol[posicion] = "seguro" if acierto else "peligro"
+                if acierto:
                     apuesta.sumar_bono(BONO_MARCA_ACERTADA)
                     print(
                         f"{VERDE}   Farol acertado: el hueco {posicion} estaba "
@@ -203,7 +239,8 @@ def jugar() -> None:
 
             if tambor.disparar(posicion):
                 perdidos = apuesta.perder()
-                impacto(disparos, perdidos, estado.dias_sobrevividos(disparos))
+                dias = estado.dias_sobrevividos(disparos)
+                impacto(disparos, perdidos, dias, historial.resumen(bitacora, dias))
                 break
 
             apuesta.doblar()
@@ -212,6 +249,7 @@ def jugar() -> None:
             if evento == "clic_metalico":
                 tambor.mover_extra()
             if evento is not None:
+                bitacora.registrar_evento(evento)
                 print(f"{GRIS}   {eventos.texto_de(evento)}{RESET}")
 
             pistas_reveladas.append(

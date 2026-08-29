@@ -6,11 +6,26 @@ y deduciendo el patron de movimiento del tambor a partir de como cambian
 de una pista a la siguiente. El evento "tambor_caliente" (ver eventos.py)
 puede pedir una pista mentirosa con `mentir=True`: el texto es el mismo,
 pero describe justo lo contrario de donde esta la bala.
+
+Cada pista lleva ademas, en `candidatos`, el conjunto de huecos que esa
+misma afirmacion deja como posibles (los que no descarta). No indica
+donde esta la bala: son solo los huecos consistentes con lo que la pista
+dice, para poder resaltarlos en el tambor (ver ruleta.py). Cruzando los
+candidatos de varias pistas se acota el rango... o, si una es mentira, se
+nota que algo no cuadra cuando el cruce se queda vacio.
 """
 
 import random
+from typing import NamedTuple
 
 TIPOS_PISTA = ("paridad", "mitad", "relativa")
+
+
+class Pista(NamedTuple):
+    """Una pista: su texto y los huecos que esa afirmacion deja en pie."""
+
+    texto: str
+    candidatos: frozenset[int]
 
 
 def generar_pista(
@@ -20,17 +35,18 @@ def generar_pista(
     tipo: str | None = None,
     mentir: bool = False,
     rng: random.Random | None = None,
-) -> str:
-    """Devuelve un texto de pista sobre `posicion_bala`.
+) -> Pista:
+    """Devuelve una `Pista` sobre `posicion_bala`.
 
     Si no se indica `tipo`, se sortea uno entre los disponibles; la pista
     "relativa" (respecto al ultimo disparo) solo puede salir si ya hubo
     algun disparo previo en la partida. Con `mentir=True` la pista afirma
-    lo opuesto de lo que es cierto (sigue siendo del mismo tipo y con el
-    mismo aspecto: no hay forma de distinguirla salvo por el evento que la
-    provoco).
+    lo opuesto de lo que es cierto (mismo tipo y aspecto; sus candidatos
+    tambien cambian, porque son los huecos que esa afirmacion respalda,
+    no los que de verdad son ciertos).
     """
     generador = rng or random
+    rango = range(1, huecos + 1)
 
     if tipo is None:
         disponibles = list(TIPOS_PISTA)
@@ -43,16 +59,29 @@ def generar_pista(
         if mentir:
             par = not par
         if par:
-            return "La bala descansa en un hueco par."
-        return "La bala no esta en los huecos pares."
+            return Pista(
+                "La bala descansa en un hueco par.",
+                frozenset(h for h in rango if h % 2 == 0),
+            )
+        return Pista(
+            "La bala no esta en los huecos pares.",
+            frozenset(h for h in rango if h % 2 != 0),
+        )
 
     if tipo == "mitad":
-        izquierda = posicion_bala <= huecos // 2
+        mitad = huecos // 2
+        izquierda = posicion_bala <= mitad
         if mentir:
             izquierda = not izquierda
         if izquierda:
-            return "La bala esta en la mitad izquierda del tambor."
-        return "La bala esta en la mitad derecha del tambor."
+            return Pista(
+                "La bala esta en la mitad izquierda del tambor.",
+                frozenset(h for h in rango if h <= mitad),
+            )
+        return Pista(
+            "La bala esta en la mitad derecha del tambor.",
+            frozenset(h for h in rango if h > mitad),
+        )
 
     if tipo == "relativa":
         if ultimo_disparo is None:
@@ -61,12 +90,36 @@ def generar_pista(
             # No deberia ocurrir en la practica: si coincidieran habria
             # sido un impacto y la partida ya habria terminado antes de
             # pedir pista. `mentir` no tiene un opuesto claro aqui.
-            return "La bala esta justo donde acabas de disparar."
+            return Pista(
+                "La bala esta justo donde acabas de disparar.",
+                frozenset({ultimo_disparo}),
+            )
         izquierda = posicion_bala < ultimo_disparo
         if mentir:
             izquierda = not izquierda
         if izquierda:
-            return "La bala esta a la izquierda de tu ultimo disparo."
-        return "La bala esta a la derecha de tu ultimo disparo."
+            return Pista(
+                "La bala esta a la izquierda de tu ultimo disparo.",
+                frozenset(h for h in rango if h < ultimo_disparo),
+            )
+        return Pista(
+            "La bala esta a la derecha de tu ultimo disparo.",
+            frozenset(h for h in rango if h > ultimo_disparo),
+        )
 
     raise ValueError(f"Tipo de pista desconocido: {tipo}")
+
+
+def interseccion(pistas_reveladas: list[Pista]) -> frozenset[int]:
+    """Cruza los candidatos de varias pistas.
+
+    Vacio si todavia no hay ninguna pista, o si las que hay se contradicen
+    entre si (senal de que alguna, por un evento "tambor_caliente", pudo
+    ser mentira).
+    """
+    if not pistas_reveladas:
+        return frozenset()
+    resultado = pistas_reveladas[0].candidatos
+    for pista in pistas_reveladas[1:]:
+        resultado = resultado & pista.candidatos
+    return resultado

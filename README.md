@@ -110,7 +110,8 @@ russian-roulette-2d/
 │   ├── apuestas.py      ← apuesta doblar-o-retirarse
 │   ├── farol.py         ← marcar un hueco como seguro sin disparar
 │   ├── eventos.py       ← eventos aleatorios (clic metálico, tambor caliente)
-│   └── test_*.py        ← pruebas unitarias de los seis módulos
+│   ├── historial.py     ← contadores de la partida y resumen narrativo
+│   └── test_*.py        ← pruebas unitarias de los siete módulos
 └── 2d/                  ← versión gráfica
     ├── project.godot    ← proyecto Godot
     ├── RuletaEstado.gd  ← estado y reglas del juego (sin UI)
@@ -163,31 +164,47 @@ cd terminal && python3 ruleta.py
      patrón habitual.
    - *"El tambor se calienta"* → la siguiente pista **miente** (dice justo
      lo contrario de la verdad), sin avisar cuál fue.
+5. El tambor ASCII colorea cada hueco con lo que sabes de él:
+   - 🟡 **amarillo** `?` — candidato: cumple con **todas** las pistas
+     vigentes (se cruzan entre sí). Si de repente no queda ninguno en
+     amarillo, alguna pista reciente no encajaba... quizá te mintieron.
+   - 🟢 **verde** `✓` / 🔴 **rojo** `✗` — resultado de un farol: confirmaste
+     que ahí no había bala, o que sí la había, en ese momento.
+   - ⚪ **gris** `·` — ya disparaste ahí alguna vez.
+6. Al terminar la partida (mueras o te retires) se muestra un resumen
+   narrativo de lo que ha pasado: días sobrevividos, faroles lanzados y
+   acertados, y eventos que sufriste.
 
 ### Ejemplo de partida
 
 ```
 ╔════════════════════════════════════════════╗
 ║        EL TAMBOR DEL JUICIO         ║
-║   Dia 1  (disparo 3/3)  ·  Marcas 1  ║
-║   En juego   800 pts                    ║
+║   Dia 2  (disparo 1/3)  ·  Marcas 2  ║
+║   En juego   900 pts                    ║
 ╚════════════════════════════════════════════╝
 
    Pistas del tambor:
-   #1 La bala esta a la derecha de tu ultimo disparo.
-   #2 La bala descansa en un hueco par.
+   #1 La bala esta en la mitad derecha del tambor.
+   #2 La bala no esta en los huecos pares.
+   #3 La bala no esta en los huecos pares.
 
    ┌─┬─┬─┬─┬─┬─┬─┬─┐
-   0   0   ·   ·   0   0   0   0
+   ·   ·   ·   0   ?   0   ✓   0
    └─┴─┴─┴─┴─┴─┴─┴─┘
    1  2  3  4  5  6  7  8
 
-   (D)isparar, (R)etirarse o (M)arcar [1]: d
-   Elige una posicion (1-8): 5
-   Se oye un clic metalico. El tambor se ha movido solo.
-   Click. Cartucho vacio. Lo apostado se dobla a 1600 puntos.
-   Sobrevives al dia 1.
+   (D)isparar, (R)etirarse o (M)arcar [2]: r
+
+    ✦  TE RETIRAS A TIEMPO  ✦
+
+   Cobras 900 puntos tras 3 disparo(s) (1 dia(s) sobrevivido(s)).
+   Hoy sobreviviste 1 dia y faroleaste 1 vez (1 acertado).
 ```
+
+En este tambor de 8, cruzar "mitad derecha" (5-8) con "no par" (1,3,5,7) deja
+solo el 5 y el 7 como candidatos (amarillo `?`); el 7 ya se marcó y salió
+seguro (verde `✓`); el 1, 2 y 3 son huecos por los que ya se disparó (gris `·`).
 
 - 💀 Aciertas la bala → **BOOM**, pierdes todo lo apostado (fin de la partida).
 - 😅 Fallas un disparo → los puntos en juego se **doblan** y sigues con una
@@ -285,8 +302,12 @@ roadmap:
   aleatorios que mueven la bala o falsean una pista (`eventos.py`) y
   objetivo de "días de vida" (`estado.dias_sobrevividos`, 3 disparos/día)
 - [ ] **Fase 2 — Godot:** portar farol, eventos y días de vida
-- [ ] **Fase 3:** ambientación noir/steampunk, tambor animado en Godot y
-  colores por estado de hueco en la terminal, historial narrativo al acabar
+- [x] **Fase 3 — Terminal:** tambor coloreado por estado de hueco (verde
+  seguro / rojo peligro / amarillo candidato según el cruce de pistas
+  vigentes / gris ya disparado, `pistas.interseccion`) e historial
+  narrativo al terminar la partida (`historial.py`)
+- [ ] **Fase 3 — Godot:** ambientación noir/steampunk, tambor animado y
+  vibración en pantalla al fallar
 - [ ] **Fase 4:** multijugador local por turnos, récords/estadísticas y
   opciones de dificultad (huecos y balas iniciales configurables)
 
