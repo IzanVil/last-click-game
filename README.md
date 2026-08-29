@@ -20,25 +20,24 @@
 
 Una colección de minijuegos de ruleta rusa en **dos sabores**: un clásico de
 **terminal** escrito en Python y una versión **gráfica 2D** hecha con Godot.
-Desde esta beta, ambas versiones ya no juegan igual: la terminal estrena
+Desde esta beta, las dos versiones juegan **la misma mecánica**:
 **El Tambor del Juicio**, un rediseño centrado en la gestión de riesgo y el
-farol; la versión gráfica conserva por ahora la mecánica clásica de 8 rondas
-mientras se planea su propio port (ver [Hoja de ruta](#hoja-de-ruta)).
+farol (ver [Hoja de ruta](#hoja-de-ruta) para el detalle fase a fase).
 
 ## 🧠 La idea
 
-- **🐍 Terminal — El Tambor del Juicio.** El tambor tiene **8 huecos** y una
-  única bala que **se desplaza** tras cada disparo que la falla, siguiendo un
-  patrón oculto que debes deducir a partir de las pistas (a veces
-  mentirosas) y de eventos aleatorios. En cada turno decides: **te retiras**
-  con los puntos que llevas en juego, **disparas** arriesgando que se
-  **doblen** (o perderlo todo), o gastas una de tus 3 **marcas** para
-  declarar un hueco seguro sin arriesgar el pellejo. El objetivo ya no es
-  una única partida: es acumular **días de vida**.
-- **🎮 Gráfica (Godot) — el clásico de 8 rondas.** El tambor tiene **10
-  huecos** cargados con un número variable de balas. Eliges una posición y
-  aprietas el gatillo: si es bala → 💥 *BOOM* (pierdes); si está vacío → 😅
-  *Click* (avanzas). Cada ronda se añaden más balas hasta la ronda 8.
+El tambor tiene **8 huecos** y una única bala que **se desplaza** tras cada
+disparo que la falla, siguiendo un patrón oculto que debes deducir a partir
+de las pistas (a veces mentirosas) y de eventos aleatorios. En cada turno
+decides: **te retiras** con los puntos que llevas en juego, **disparas**
+arriesgando que se **doblen** (o perderlo todo), o gastas una de tus 3
+**marcas** para declarar un hueco seguro sin arriesgar el pellejo. El
+objetivo no es una única partida: es acumular **días de vida**.
+
+- **🐍 Terminal** — interfaz de teclado y colores ANSI en un tambor ASCII.
+- **🎮 Gráfica (Godot)** — misma mecánica con tambor animado, sonido y una
+  ambientación noir/steampunk (metal envejecido, latón, vibración de
+  pantalla al morir).
 
 > ⚠️ **Descargo de responsabilidad:** es solo un juego de ficción. No existe
 > ninguna arma real. Solo diversión para la terminal y la pantalla.
@@ -115,12 +114,20 @@ russian-roulette-2d/
 │   ├── eventos.py       ← eventos aleatorios (clic metálico, tambor caliente)
 │   ├── historial.py     ← contadores de la partida y resumen narrativo
 │   └── test_*.py        ← pruebas unitarias de los siete módulos
-└── 2d/                  ← versión gráfica
+└── 2d/                  ← versión gráfica: El Tambor del Juicio
     ├── project.godot    ← proyecto Godot
-    ├── RuletaEstado.gd  ← estado y reglas del juego (sin UI)
-    ├── MainGame.gd      ← vista: Label/ColorRect/Tween
+    ├── RuletaEstado.gd  ← orquestador: conecta la lógica y emite señales
+    ├── TamborJuicio.gd  ← tambor y bala: posición, patrón de movimiento
+    ├── Pistas.gd        ← generación de pistas (veraces o mentirosas)
+    ├── Apuesta.gd       ← apuesta doblar-o-retirarse
+    ├── Farol.gd         ← marcar un hueco como seguro sin disparar
+    ├── Eventos.gd       ← eventos aleatorios (clic metálico, tambor caliente)
+    ├── Historial.gd     ← contadores de la partida y resumen narrativo
+    ├── MainGame.gd      ← vista: Label/Button/Tween
+    ├── TamborView.gd    ← dibuja el tambor y sus animaciones
+    ├── tests/           ← scripts headless (lógica + integración de escena)
     ├── scenes/          ← escenas (UI)
-    └── assets/          ← recursos visuales
+    └── assets/          ← recursos visuales y de audio
 ```
 
 ## 🐍 Versión de terminal (Python) — El Tambor del Juicio
@@ -230,36 +237,50 @@ seguro (verde `✓`); el 1, 2 y 3 son huecos por los que ya se disparó (gris `�
   solo pierdes la marca si fallas.
 - 🏳️ Te retiras cuando quieras y te llevas lo que llevabas en juego.
 
-## 🎮 Versión gráfica (Godot 2D)
+## 🎮 Versión gráfica (Godot 2D) — El Tambor del Juicio
 
-Una adaptación visual con el motor **Godot 4.7**, con interfaz completa:
-campo de número, botón para disparar y mensaje de resultado en pantalla.
+Desde esta beta, la versión gráfica juega **la misma mecánica que la
+terminal** (Fases 1-3 del rediseño): tambor de bala móvil, pistas, apuesta
+doblar-o-retirarse, farol y días de vida, con ambientación noir/steampunk,
+tambor animado y vibración en pantalla al morir.
 
 ### Cómo jugar
 
 1. Abre Godot e importa el proyecto desde `2d/project.godot`.
 2. Pulsa **▶ Play** (o la tecla **F5**).
-3. Escribe un número del 1 al 10 (posición del tambor).
-4. Pulsa **Enter** o el botón **Disparar**.
+3. Escribe una posición del tambor (1-8) y pulsa **Enter** o uno de los
+   tres botones: **Disparar**, **Marcar** o **Retirarse** (las mismas
+   acciones que en la terminal, ver [Reglas](#reglas) más arriba).
 
-En pantalla verás si sobrevives (`Click`) o si te ha tocado la bala (`BOOM`).
+El tambor se colorea igual que en la terminal: 🟡 amarillo = candidato
+según las pistas vigentes, 🟢 verde / 🔴 rojo = resultado de un farol, ⚪
+gris = ya disparado.
 
-### Sistema de 8 rondas
+### Arquitectura: lógica pura + señales, igual que en Python
 
-Cada partida tiene 8 rondas. El tambor tiene **10 huecos** y, ronda a ronda,
-el número de balas **aumenta** (1, 2, 3, 4, 5, 6, 7 y 8), dejando cada vez
-menos huecos vacíos. Sobrevive a las 8 rondas para coronarte como leyenda.
+`2d/RuletaEstado.gd` orquesta `TamborJuicio.gd`, `Apuesta.gd`, `Farol.gd`,
+`Eventos.gd` e `Historial.gd` — sin conocer nodos ni UI, igual que
+`terminal/estado.py` y compañía — y emite señales (`disparo_sobrevivido`,
+`pista_nueva`, `evento_ocurrido`, `farol_resuelto`, `dia_completado`,
+`impacto`, `retirada`...) que `MainGame.gd` escucha para actualizar
+Label/Button/Tween. `TamborView.gd` solo sabe pintar el estado que le pasa
+`MainGame.gd`, sin conocer ninguna regla del juego.
 
-| Ronda | Balas | Vacíos |
-|:-----:|:-----:|:------:|
-| 1 | 1 | 9 |
-| 2 | 2 | 8 |
-| 3 | 3 | 7 |
-| 4 | 4 | 6 |
-| 5 | 5 | 5 |
-| 6 | 6 | 4 |
-| 7 | 7 | 3 |
-| 8 | 8 | 2 |
+### Tests
+
+Godot no trae un framework de tests instalado en el proyecto (ni
+[GUT](https://github.com/bitwes/Gut) ni similar); en su lugar hay dos
+scripts headless en `2d/tests/`, a modo de arnés mínimo:
+
+```bash
+cd 2d
+godot --headless --script res://tests/test_logica.gd --path .    # RuletaEstado y sus módulos, sin nodos
+godot --headless --script res://tests/test_escena.gd --path .    # MainGame.tscn real: dispara/marca/retírate
+```
+
+Ambos salen con exit code 0 si todo pasa, 1 si algo falla (y lo imprime);
+la CI (`godot-smoke-test`) los ejecuta en cada push/PR, junto al
+`--check-only` que ya había.
 
 ## 🧰 Herramientas de desarrollo
 
@@ -298,45 +319,56 @@ menos huecos vacíos. Sobrevive a las 8 rondas para coronarte como leyenda.
 ## 🧭 Hoja de ruta
 
 ### ✅ Hecho en esta beta `v0.1.0`
-- [x] Sistema de **8 rondas** con dificultad creciente (1→8 balas) en Godot
+- [x] **El Tambor del Juicio** en las dos versiones (terminal y Godot):
+  bala móvil, pistas, apuesta doblar-o-retirarse, farol, eventos y días
+  de vida — ver el detalle fase a fase más abajo
 - [x] **Lanzadores** para Linux, macOS y Windows (`run.sh`, `run.bat`)
 - [x] **Instalador** con acceso directo en el escritorio (`instalar.sh`, `instalar.bat`)
-- [x] **Tests** automáticos de la versión Python, con cobertura medida (99%)
+- [x] **Tests** automáticos de la versión Python (99% de cobertura) y dos
+  scripts headless para la versión Godot (lógica + integración de escena)
 - [x] **Empaquetado** con `pyproject.toml` (entry point instalable, config de lint/formato/tipos)
-- [x] **Integración continua** en GitHub Actions (tests + lint + tipos + smoke test de Godot)
-- [x] **Lógica separada de la UI** en la versión Godot (estado con señales, sin polling)
-- [x] **Feedback visual** por colores en la versión Godot
+- [x] **Integración continua** en GitHub Actions (tests + lint + tipos de
+  Python, `--check-only` + tests headless de Godot)
+- [x] **Lógica separada de la UI** en ambas versiones (estado con señales
+  o retorno de valores, sin polling)
+- [x] **Feedback visual** por colores en la versión Godot, ahora también
+  por estado de hueco (paleta noir/steampunk)
 - [x] **Selector de dificultad** por CLI (`--huecos` en la versión terminal)
 - [x] **Efectos de sonido** de disparo, victoria y derrota (versión Godot)
-- [x] **Animación del tambor** girando y revelando el disparo (versión Godot)
+- [x] **Animación del tambor** — giro al empezar partida, tensión antes de
+  revelar un disparo o farol, y vibración de pantalla al morir (Godot)
 
-### 🃏 Rediseño «El Tambor del Juicio» (en marcha)
+### 🃏 Rediseño «El Tambor del Juicio»
 
-La versión de terminal está migrando de "elige un número" a un juego de
-gestión de riesgo y farol. Fases 1 y 2 (mecánica central y profundidad
-estratégica) ya están en la terminal; el resto sigue el orden de este
-roadmap:
+Las dos versiones migraron de "elige un número" a un juego de gestión de
+riesgo y farol, y ya juegan **la misma mecánica** (Fases 1-3 completas en
+ambas):
 
 - [x] **Fase 1 — Terminal:** bala móvil con patrón oculto, pistas veraces y
   apuesta doblar-o-retirarse (`estado.py`, `pistas.py`, `apuestas.py`)
-- [ ] **Fase 1 — Godot:** portar la misma mecánica a `RuletaEstado.gd`
+- [x] **Fase 1 — Godot:** la misma mecánica en `TamborJuicio.gd`,
+  `Pistas.gd` y `Apuesta.gd`, orquestados por `RuletaEstado.gd`
 - [x] **Fase 2 — Terminal:** farol (marcar huecos, `farol.py`), eventos
   aleatorios que mueven la bala o falsean una pista (`eventos.py`) y
   objetivo de "días de vida" (`estado.dias_sobrevividos`, 3 disparos/día)
-- [ ] **Fase 2 — Godot:** portar farol, eventos y días de vida
+- [x] **Fase 2 — Godot:** lo mismo en `Farol.gd`, `Eventos.gd` y
+  `RuletaEstado.dias_sobrevividos()`, con botón de Marcar en la UI
 - [x] **Fase 3 — Terminal:** tambor coloreado por estado de hueco (verde
   seguro / rojo peligro / amarillo candidato según el cruce de pistas
   vigentes / gris ya disparado, `pistas.interseccion`) e historial
   narrativo al terminar la partida (`historial.py`)
-- [ ] **Fase 3 — Godot:** el tambor ya gira y se anima al revelar
-  (`TamborView.gd`) y hay sonido de disparo/victoria/derrota; queda la
-  paleta noir/steampunk y la vibración en pantalla al fallar
+- [x] **Fase 3 — Godot:** mismos cuatro colores en `TamborView.gd` (paleta
+  noir/steampunk: metal envejecido y laton en vez de rojo/verde "de
+  manual"), vibración de pantalla al morir y `Historial.gd` con el mismo
+  resumen narrativo. Pendiente solo la tipografía: sigue la fuente por
+  defecto de Godot, no se ha añadido una de máquina de escribir
 - [ ] **Fase 4:** multijugador local por turnos, récords/estadísticas y
-  opciones de dificultad (huecos y balas iniciales configurables)
+  opciones de dificultad (huecos y balas iniciales configurables, también
+  en Godot)
 
 ### 🎯 Otros próximos pasos
 - [ ] Modo «borracho» 🍺 (menos suerte y más humor)
-- [ ] Selector de dificultad en la versión Godot (hoy solo en terminal)
+- [ ] Fuente de máquina de escribir para rematar la ambientación de Godot
 - [ ] Sistema de puntos, rachas y récords
 - [ ] Empaquetado en un ejecutable único (`pyinstaller`)
 

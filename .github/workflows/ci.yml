@@ -91,3 +91,15 @@ jobs:
             grep -E "SCRIPT ERROR|ERROR:" godot-check.log
             exit 1
           fi
+
+      - name: Tests de logica de El Tambor del Juicio (2d/tests/test_logica.gd)
+        # Godot no trae un framework de tests de serie (ni GUT ni similar
+        # esta instalado en el proyecto): este script hace de arnes minimo
+        # -- ver su docstring -- y sale con exit code 1 si algo falla.
+        run: ./godot --headless --script res://tests/test_logica.gd --path 2d
+
+      - name: Test de integracion de la escena (2d/tests/test_escena.gd)
+        # Carga MainGame.tscn de verdad y simula disparar/marcar/retirarse
+        # esperando a las animaciones (Tween) entre cada accion: cubre el
+        # cableado de señales de MainGame.gd que test_logica.gd no toca.
+        run: ./godot --headless --script res://tests/test_escena.gd --path 2d

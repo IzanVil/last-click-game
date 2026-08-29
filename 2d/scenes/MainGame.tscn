@@ -23,7 +23,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(0.15, 0.15, 0.2, 1)
+color = Color(0.09, 0.08, 0.07, 1)
 
 [node name="Centro" type="CenterContainer" parent="."]
 layout_mode = 1
@@ -35,16 +35,19 @@ grow_vertical = 2
 
 [node name="Columnas" type="VBoxContainer" parent="Centro"]
 layout_mode = 2
-theme_override_constants/separation = 20
+theme_override_constants/separation = 14
 
 [node name="Titulo" type="Label" parent="Centro/Columnas"]
 layout_mode = 2
-text = "RULETA RUSA"
+theme_override_colors/font_color = Color(0.78, 0.58, 0.16, 1)
+theme_override_font_sizes/font_size = 22
+text = "EL TAMBOR DEL JUICIO"
 horizontal_alignment = 1
 
-[node name="Instrucciones" type="Label" parent="Centro/Columnas"]
+[node name="Cabecera" type="Label" parent="Centro/Columnas"]
 layout_mode = 2
-text = "El tambor esta cargado. Elige una posicion y dispara."
+theme_override_colors/font_color = Color(0.92, 0.86, 0.74, 1)
+text = "Dia 1 (disparo 1/3)  ·  Marcas 3  ·  En juego 100 pts"
 horizontal_alignment = 1
 autowrap_mode = 2
 
@@ -53,22 +56,46 @@ layout_mode = 2
 size_flags_horizontal = 4
 script = ExtResource("2_tambor")
 
+[node name="Pistas" type="Label" parent="Centro/Columnas"]
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.63, 0.5, 1)
+text = "La bala descansa en algun hueco. Aun no hay pistas."
+horizontal_alignment = 1
+autowrap_mode = 2
+
 [node name="EntradaNumero" type="LineEdit" parent="Centro/Columnas"]
 layout_mode = 2
-tooltip_text = "Elige una posicion del 1 al 10"
-placeholder_text = "Posicion del 1 al 10"
+tooltip_text = "Elige una posicion del 1 al 8"
+placeholder_text = "Posicion del 1 al 8"
 size_flags_horizontal = 4
+horizontal_alignment = 1
 
 [node name="Resultado" type="Label" parent="Centro/Columnas"]
+custom_minimum_size = Vector2(320, 0)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.86, 0.74, 1)
 text = "La partida va a empezar..."
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="DispararBtn" type="Button" parent="Centro/Columnas"]
+[node name="Botones" type="HBoxContainer" parent="Centro/Columnas"]
 layout_mode = 2
 size_flags_horizontal = 4
+alignment = 1
+theme_override_constants/separation = 10
+
+[node name="DispararBtn" type="Button" parent="Centro/Columnas/Botones"]
+layout_mode = 2
 text = "Disparar"
+
+[node name="MarcarBtn" type="Button" parent="Centro/Columnas/Botones"]
+layout_mode = 2
+text = "Marcar (3)"
+
+[node name="RetirarseBtn" type="Button" parent="Centro/Columnas/Botones"]
+layout_mode = 2
+text = "Retirarse"
 
 [node name="SonidoDisparo" type="AudioStreamPlayer" parent="."]
 stream = ExtResource("3_disparo")
@@ -79,4 +106,6 @@ stream = ExtResource("4_victoria")
 [node name="SonidoDerrota" type="AudioStreamPlayer" parent="."]
 stream = ExtResource("5_derrota")
 
-[connection signal="pressed" from="Centro/Columnas/DispararBtn" to="." method="_on_disparar_btn_pressed"]
+[connection signal="pressed" from="Centro/Columnas/Botones/DispararBtn" to="." method="_on_disparar_btn_pressed"]
+[connection signal="pressed" from="Centro/Columnas/Botones/MarcarBtn" to="." method="_on_marcar_btn_pressed"]
+[connection signal="pressed" from="Centro/Columnas/Botones/RetirarseBtn" to="." method="_on_retirarse_btn_pressed"]

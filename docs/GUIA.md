@@ -5,12 +5,12 @@ repositorio, además de cómo ampliarlos y modificarlos.
 
 ## Mecánica de la ruleta rusa
 
-Las dos versiones ya no comparten mecánica: la terminal estrena un rediseño
-("El Tambor del Juicio", ver la hoja de ruta del `README.md`, Fases 1 y 2
-ya en la terminal); la versión gráfica conserva por ahora el clásico de 8
-rondas hasta que se porte el mismo rediseño.
+Las dos versiones juegan la misma mecánica: "El Tambor del Juicio" (ver la
+hoja de ruta del `README.md`). Está descrita una sola vez aquí porque el
+diseño es idéntico en ambas; donde cambia el nombre de algo entre Python y
+GDScript se indica entre paréntesis.
 
-### Terminal — El Tambor del Juicio
+### El Tambor del Juicio
 
 1. El tambor tiene **8 huecos** y una única bala colocada al azar. La
    partida no termina en la primera muerte: el objetivo es acumular **días
@@ -44,28 +44,9 @@ rondas hasta que se porte el mismo rediseño.
 6. Al terminar la partida se resume en una frase lo ocurrido (días
    sobrevividos, faroles lanzados/acertados, eventos sufridos).
 
-### Gráfica (Godot) — el clásico de 8 rondas
-
-1. El tambor tiene **10 huecos**, numerados del 1 al 10.
-2. El juego consta de **8 rondas**. En cada ronda se cargan más balas que en la
-   anterior: de 1 bala en la ronda 1 hasta 8 balas en la ronda 8.
-3. El jugador elige una posición del tambor y «dispara».
-4. Si el hueco elegido es una **bala** → **BOOM** (pierde y la partida se reinicia).
-   Si está **vacío** → **Click** (sobrevive y avanza a la siguiente ronda).
-5. Sobrevivir a las 8 rondas supone la **victoria**.
-
-#### Tabla de dificultad por ronda
-
-| Ronda | Huecos | Balas | Vacíos |
-|:-----:|:------:|:-----:|:------:|
-| 1 | 10 | 1 | 9 |
-| 2 | 10 | 2 | 8 |
-| 3 | 10 | 3 | 7 |
-| 4 | 10 | 4 | 6 |
-| 5 | 10 | 5 | 5 |
-| 6 | 10 | 6 | 4 |
-| 7 | 10 | 7 | 3 |
-| 8 | 10 | 8 | 2 |
+En la versión gráfica, además, el tambor se ve girar al empezar la
+partida, pulsa con tensión antes de revelar un disparo o un farol, y la
+pantalla vibra al morir; ver "Versión gráfica (Godot)" más abajo.
 
 ## Versión de terminal (Python)
 
@@ -127,31 +108,96 @@ cd terminal && python3 -m unittest discover -s . -v
 - Carpeta: `2d/`
 - Motor: **Godot 4.7+**
 - Escena principal: `2d/scenes/MainGame.tscn`
-- Lógica del juego (sin UI): `2d/RuletaEstado.gd`
-- Vista (Label/ColorRect/Tween): `2d/MainGame.gd`
+- Lógica del juego (sin UI): `2d/RuletaEstado.gd` (orquestador) +
+  `TamborJuicio.gd`, `Pista.gd`, `Pistas.gd`, `Apuesta.gd`, `Farol.gd`,
+  `Eventos.gd`, `Historial.gd` (lógica pura, sin nodos ni Tween — hermanas
+  1 a 1 de `terminal/estado.py` y compañía, mismo vocabulario en español).
+- Vista: `2d/MainGame.gd` (Label/Button/Tween) + `2d/TamborView.gd`
+  (dibuja el tambor con `_draw()`).
 
-`RuletaEstado.gd` no conoce nodos ni UI: solo lleva la ronda actual y las
-balas del tambor, y emite señales (`ronda_preparada`, `entrada_invalida`,
-`impacto`, `click_seguro`, `partida_ganada`). `MainGame.gd` se limita a
-escuchar esas señales y traducirlas a texto en pantalla y animaciones.
+Ningún script de lógica conoce nodos ni UI: `RuletaEstado.gd` orquesta los
+demás y emite señales (`partida_iniciada`, `entrada_invalida`,
+`evento_ocurrido`, `pista_nueva`, `disparo_sobrevivido`, `dia_completado`,
+`farol_resuelto`, `impacto`, `retirada`) cuando pasa algo relevante.
+`MainGame.gd` se limita a escucharlas y traducirlas a texto, colores y
+animaciones; `TamborView.gd` ni siquiera sabe que existen: solo pinta el
+diccionario de estados que le pasa `MainGame.gd` via `aplicar_estados()`,
+espejo de `calcular_estados()`/`dibujar_tambor()` en `terminal/ruleta.py`.
+
+Todos los scripts de lógica llevan `class_name` (`TamborJuicio`, `Pista`,
+`Pistas`, `Apuesta`, `Farol`, `Eventos`, `Historial`, `RuletaEstado`): se
+usan directamente por su nombre desde cualquier script del proyecto, sin
+`preload()`.
 
 ### Cómo modificar la lógica
 
-La configuración clave está al principio de `RuletaEstado.gd`:
+- `RuletaEstado.HUECOS` (por defecto 8) y `RuletaEstado.DISPAROS_POR_DIA`
+  (por defecto 3) controlan el tamaño del tambor y la duración de un
+  "día". `TamborJuicio.PATRONES` define los patrones de movimiento de la
+  bala; añadir uno implica sumarlo ahí y a `TamborJuicio._mover()`.
+- `Pistas.TIPOS_PISTA` define los tipos de pista disponibles (`paridad`,
+  `mitad`, `relativa`); `Pistas.generar_pista()` acepta `mentir = true`
+  para invertir la respuesta (lo usa el evento `tambor_caliente`) y
+  devuelve una `Pista` (`texto` + `candidatos`); `Pistas.interseccion()`
+  los cruza para pintar el tambor.
+- `RuletaEstado.APUESTA_BASE` (100) y `RuletaEstado.BONO_MARCA_ACERTADA`
+  (50) son las mismas constantes que `ruleta.APUESTA_BASE`/
+  `BONO_MARCA_ACERTADA` en la terminal; la lógica de doblar/perder/
+  retirarse/sumar bono vive en `Apuesta.gd`.
+- `Farol.MARCAS_INICIALES` (3) son las marcas por partida; `Eventos.
+  PROBABILIDAD` (0.25) y `Eventos.TIPOS_EVENTO` controlan los eventos
+  aleatorios. `RuletaEstado.probabilidad_eventos` existe *además* de
+  `Eventos.PROBABILIDAD` solo para poder desactivar los eventos en tests
+  deterministas (poniéndola a `0.0`): GDScript no tiene un equivalente a
+  `unittest.mock.patch` para sustituir `Eventos.tirar_evento()` por fuera.
+- `Historial.gd` acumula faroles y eventos y genera el resumen final;
+  `MainGame._calcular_estados()` combina huecos ya disparados, resultados
+  de farol y candidatos de `Pistas.interseccion()` en el diccionario que
+  pinta `TamborView.aplicar_estados()`.
 
-```gdscript
-const HUECOS := 10
-const RONDAS := 8
-const BALAS_POR_RONDA := [1, 2, 3, 4, 5, 6, 7, 8]
+### Cómo modificar la vista
+
+- La paleta noir/steampunk (`COLOR_DESCONOCIDO`, `COLOR_CANDIDATO`,
+  `COLOR_SEGURO`, `COLOR_PELIGRO`, `COLOR_PROBADO`, `COLOR_ANILLO`,
+  `COLOR_TEXTO`...) está al principio de `TamborView.gd`.
+- El feedback de fondo (flash de color tras cada acción) se gestiona en
+  `MainGame.gd`, en `_flash(color)`; los colores (`COLOR_BOOM`,
+  `COLOR_SUPERVIVENCIA`, `COLOR_FAROL_ACIERTO`/`_FALLO`, `COLOR_RETIRADA`)
+  están al principio del archivo.
+- La vibración de pantalla al morir es `MainGame._vibrar_pantalla()`
+  (sacude `rotation`, no `position`: con los anchors a pantalla completa
+  de `Centro`, mover `position` deformaría el layout en vez de
+  desplazarlo — el mismo motivo por el que `TamborView.girar()` rota en
+  vez de mover).
+- El tambor **ya no gira en cada disparo** (a diferencia de la mecánica
+  de 8 rondas anterior): la bala no se re-sortea en cada turno, solo se
+  desplaza según su patrón, así que un giro completo por turno sugeriría
+  un azar que no existe. Solo gira una vez, al empezar la partida
+  (`TamborView.girar()` desde `MainGame._on_partida_iniciada()`); antes de
+  revelar un disparo o un farol se usa `TamborView.tension()` en su lugar.
+
+### Tests
+
+Godot no trae un framework de tests instalado en el proyecto (ni
+[GUT](https://github.com/bitwes/Gut) ni similar); en su lugar hay dos
+scripts headless en `2d/tests/`:
+
+- `test_logica.gd` — prueba `RuletaEstado` y los módulos que orquesta,
+  sin nodos ni escena, igual que `terminal/test_estado.py` y compañía.
+- `test_escena.gd` — carga `MainGame.tscn` de verdad y simula una partida
+  completa (marcar acierto y fallo, disparo seguro, impacto, retirada),
+  esperando a que terminen los `Tween` entre una acción y la siguiente:
+  cubre el cableado de señales de `MainGame.gd` que el anterior no toca.
+
+```bash
+cd 2d
+godot --headless --script res://tests/test_logica.gd --path .
+godot --headless --script res://tests/test_escena.gd --path .
 ```
 
-- `HUECOS` cambia el tamaño del tambor.
-- `RONDAS` cambia el número de rondas.
-- `BALAS_POR_RONDA` define cuántas balas hay en cada ronda; puedes editarlo
-  para diseñar tu propia curva de dificultad.
-
-El feedback visual (flash rojo/verde/dorado) se gestiona en `MainGame.gd`,
-en `_flash(color)`.
+Ambos imprimen que test ha fallado y por qué, y salen con exit code 1 si
+algo falla (0 si todo pasa) — es el criterio que usa la CI para marcar el
+job en rojo, igual que hace `coverage report --fail-under=90` en Python.
 
 ## Lanzadores
 
@@ -162,10 +208,11 @@ en `_flash(color)`.
 
 ## Ampliaciones sugeridas
 
-Consulta la **Hoja de ruta** del `README.md` para el detalle completo del
-rediseño «El Tambor del Juicio» (farol, eventos, días de vida, port a
-Godot, multijugador, récords...) y otras ideas sueltas como el modo
-«borracho» o los efectos de sonido de gatillo.
+Consulta la **Hoja de ruta** del `README.md` para el detalle completo:
+las Fases 1-3 de «El Tambor del Juicio» (farol, eventos, días de vida,
+ambientación) ya están en ambas versiones; queda la Fase 4 (multijugador,
+récords, dificultad configurable también en Godot) y sueltas como el modo
+«borracho» o una fuente de máquina de escribir para Godot.
 
 ## Estructura de carpetas
 
@@ -201,8 +248,19 @@ russian-roulette-2d/
 │   └── test_historial.py
 └── 2d/
     ├── project.godot
-    ├── MainGame.gd
     ├── RuletaEstado.gd
+    ├── TamborJuicio.gd
+    ├── Pista.gd
+    ├── Pistas.gd
+    ├── Apuesta.gd
+    ├── Farol.gd
+    ├── Eventos.gd
+    ├── Historial.gd
+    ├── MainGame.gd
+    ├── TamborView.gd
+    ├── tests/
+    │   ├── test_logica.gd
+    │   └── test_escena.gd
     ├── scenes/
     │   └── MainGame.tscn
     └── assets/
