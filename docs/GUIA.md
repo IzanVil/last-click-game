@@ -235,6 +235,17 @@ función estática pura, testeable sin montar una partida.
 - La paleta noir/steampunk (`COLOR_DESCONOCIDO`, `COLOR_CANDIDATO`,
   `COLOR_SEGURO`, `COLOR_PELIGRO`, `COLOR_PROBADO`, `COLOR_ANILLO`,
   `COLOR_TEXTO`...) está al principio de `TamborView.gd`.
+- La **tipografía** sale de `assets/fonts/tipografia.tres`, un `Theme` con
+  Courier Prime como `default_font` asignado al nodo raíz de la escena:
+  toda la interfaz lo hereda sin overrides nodo por nodo, `TamborView`
+  incluido (dibuja sus números con `get_theme_default_font()`). El título
+  es la única excepción, con Special Elite en un `theme_override_fonts`.
+  Para cambiar la fuente de todo el juego basta con tocar ese `.tres`.
+  Ojo con dos cosas: las licencias de ambas fuentes obligan a
+  redistribuir su texto (ver `assets/fonts/README.md`), y como solo
+  cubren alfabeto latino, `MainGame._encadenar_respaldo_de_fuentes()`
+  encadena la del motor por detrás para los nombres de jugador que se
+  salgan de ahí.
 - El feedback de fondo (flash de color tras cada acción) se gestiona en
   `MainGame.gd`, en `_flash(color)`; los colores (`COLOR_BOOM`,
   `COLOR_SUPERVIVENCIA`, `COLOR_FAROL_ACIERTO`/`_FALLO`, `COLOR_RETIRADA`)
@@ -293,9 +304,8 @@ récords reales** de quien los ejecute. Si añades un test que llame a
 Consulta la **Hoja de ruta** del `README.md` para el detalle completo:
 las cuatro fases de «El Tambor del Juicio» (mecánica, farol y eventos,
 ambientación, y dificultad/récords/duelo) ya están en las dos versiones.
-Quedan ideas sueltas como el modo «borracho», una fuente de máquina de
-escribir para rematar la ambientación de Godot, o empaquetar la versión
-de terminal en un ejecutable único.
+Quedan ideas sueltas como el modo «borracho» o empaquetar la versión de
+terminal en un ejecutable único.
 
 ## Estructura de carpetas
 
@@ -352,4 +362,6 @@ russian-roulette-2d/
     ├── scenes/
     │   └── MainGame.tscn
     └── assets/
+        ├── audio/          (sintetizado con synth_sfx.py)
+        └── fonts/          (Courier Prime + Special Elite, con licencias)
 ```

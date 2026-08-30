@@ -36,8 +36,8 @@ objetivo no es una única partida: es acumular **días de vida**.
 
 - **🐍 Terminal** — interfaz de teclado y colores ANSI en un tambor ASCII.
 - **🎮 Gráfica (Godot)** — misma mecánica con tambor animado, sonido y una
-  ambientación noir/steampunk (metal envejecido, latón, vibración de
-  pantalla al morir).
+  ambientación noir/steampunk (metal envejecido, latón, tipografía de
+  máquina de escribir y vibración de pantalla al morir).
 
 > ⚠️ **Descargo de responsabilidad:** es solo un juego de ficción. No existe
 > ninguna arma real. Solo diversión para la terminal y la pantalla.
@@ -131,7 +131,7 @@ russian-roulette-2d/
     ├── TamborView.gd    ← dibuja el tambor y sus animaciones
     ├── tests/           ← scripts headless (lógica + integración de escena)
     ├── scenes/          ← escenas (UI)
-    └── assets/          ← recursos visuales y de audio
+    └── assets/          ← audio, y las fuentes de máquina de escribir
 ```
 
 ## 🐍 Versión de terminal (Python) — El Tambor del Juicio
@@ -283,8 +283,8 @@ seguro (verde `✓`); el 1, 2 y 3 son huecos por los que ya se disparó (gris `�
 La versión gráfica juega **la misma mecánica que la terminal** (las
 cuatro fases del rediseño): tambor de bala móvil, pistas, apuesta
 doblar-o-retirarse, farol, días de vida, dificultad, récords y modo
-duelo — con ambientación noir/steampunk, tambor animado y vibración en
-pantalla al morir.
+duelo — con ambientación noir/steampunk, tipografía de máquina de
+escribir, tambor animado y vibración en pantalla al morir.
 
 ### Cómo jugar
 
@@ -421,9 +421,9 @@ ambas):
   narrativo al terminar la partida (`historial.py`)
 - [x] **Fase 3 — Godot:** mismos cuatro colores en `TamborView.gd` (paleta
   noir/steampunk: metal envejecido y laton en vez de rojo/verde "de
-  manual"), vibración de pantalla al morir y `Historial.gd` con el mismo
-  resumen narrativo. Pendiente solo la tipografía: sigue la fuente por
-  defecto de Godot, no se ha añadido una de máquina de escribir
+  manual"), vibración de pantalla al morir, `Historial.gd` con el mismo
+  resumen narrativo y **tipografía de máquina de escribir** (Courier Prime
+  en toda la interfaz, Special Elite en el título)
 - [x] **Fase 4 — Terminal:** opciones de dificultad por preset
   (`--dificultad facil|normal|dificil`, o `--huecos`/`--marcas` sueltos),
   récords persistidos entre partidas (`records.py`,
@@ -437,9 +437,11 @@ ambas):
   turnos con `Jugador.gd` + `RuletaEstado.jugadores`/`turno` — donde una
   partida en solitario es, internamente, un duelo de un solo jugador
 
+Con eso, **las cuatro fases del rediseño están completas en las dos
+versiones**.
+
 ### 🎯 Otros próximos pasos
 - [ ] Modo «borracho» 🍺 (menos suerte y más humor)
-- [ ] Fuente de máquina de escribir para rematar la ambientación de Godot
 - [ ] Empaquetado en un ejecutable único (`pyinstaller`)
 
 ## 🤝 Cómo contribuir

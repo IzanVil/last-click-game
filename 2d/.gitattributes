@@ -1,2 +1,10 @@
 # Normalize EOL for all files that Git considers text files.
 * text=auto eol=lf
+
+# Binarios: que git no intente normalizar saltos de linea dentro de
+# ellos. `text=auto` de arriba lo autodetecta, pero con un .ttf o un
+# .wav corrupto el sintoma (una fuente que no importa, un sonido mudo)
+# es lo bastante confuso como para no dejarlo a la deteccion.
+*.ttf binary
+*.otf binary
+*.wav binary

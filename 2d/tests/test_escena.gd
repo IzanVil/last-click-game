@@ -32,6 +32,7 @@ func _init() -> void:
 	root.add_child(_main)
 	await process_frame  # deja que corra _ready() y sus @onready
 
+	_comprobar_tipografia()
 	await _comprobar_menu_inicial()
 	await _empezar_partida("dificil")
 	await _comprobar_dificultad_aplicada()
@@ -66,6 +67,55 @@ func _afirmar(condicion: bool, descripcion: String) -> void:
 func _borrar_records_test() -> void:
 	if FileAccess.file_exists(RUTA_RECORDS_TEST):
 		DirAccess.remove_absolute(RUTA_RECORDS_TEST)
+
+
+## La tipografia de maquina de escribir se aplica via Theme, y un fallo
+## ahi (un .tres mal referenciado, un .ttf que no importa) no da error:
+## la interfaz simplemente saldria con la fuente por defecto de Godot y
+## en headless no se notaria. De ahi que se compruebe explicitamente.
+func _comprobar_tipografia() -> void:
+	var courier: FontFile = load("res://assets/fonts/CourierPrime-Regular.ttf")
+	var elite: FontFile = load("res://assets/fonts/SpecialElite-Regular.ttf")
+	_afirmar(courier != null, "la fuente de la interfaz (Courier Prime) se importa")
+	_afirmar(elite != null, "la fuente del titulo (Special Elite) se importa")
+	if courier == null or elite == null:
+		return
+
+	_afirmar(_main.theme != null, "la escena raiz tiene tema")
+	if _main.theme == null:
+		return  # sin tema, las comprobaciones de abajo no tienen sentido
+	_afirmar(
+		_main.theme.default_font == courier,
+		"el tema pone Courier Prime como fuente por defecto",
+	)
+	# Los nodos la heredan del tema, sin override nodo por nodo.
+	for nodo in [_main.etiqueta_cabecera, _main.disparar_btn, _main.dificultad_opt]:
+		_afirmar(
+			nodo.get_theme_font("font") == courier,
+			"%s hereda la tipografia del tema" % nodo.name,
+		)
+	# TamborView pinta los numeros con get_theme_default_font().
+	_afirmar(
+		_main.tambor.get_theme_default_font() == courier,
+		"el tambor dibuja sus numeros con la tipografia del tema",
+	)
+	# El titulo es la excepcion deliberada.
+	var titulo: Label = _main.get_node("Centro/Columnas/Titulo")
+	_afirmar(
+		titulo.get_theme_font("font") == elite, "el titulo usa Special Elite, no la del tema"
+	)
+
+	# Glifos que la interfaz usa de verdad y que no son ASCII: si la
+	# fuente no los tuviera, saldrian como recuadros en pantalla.
+	for glifo in ["·", "¡"]:
+		_afirmar(courier.has_char(glifo.unicode_at(0)), "Courier Prime tiene el glifo '%s'" % glifo)
+
+	# Un nombre de jugador es texto libre: lo que la fuente no cubra debe
+	# caer en el respaldo del motor (ver MainGame._encadenar_respaldo_de_fuentes).
+	_afirmar(
+		courier.fallbacks.has(ThemeDB.fallback_font),
+		"la fuente de la interfaz encadena el respaldo del motor",
+	)
 
 
 func _comprobar_menu_inicial() -> void:

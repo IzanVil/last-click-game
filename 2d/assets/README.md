@@ -4,7 +4,7 @@ Esta carpeta aloja los **recursos visuales y de audio** del juego gráfico (Godo
 
 - **Imágenes**: iconos, texturas, sprites.
 - **Sonidos**: efectos de gatillo, disparo, click vacío.
-- **Fuentes**: tipografías personalizadas.
+- **Fuentes**: tipografías de máquina de escribir (ver `fonts/README.md`).
 
 ## audio/
 
@@ -18,3 +18,10 @@ mismo sitio), no grabaciones ni assets de terceros: sirven de placeholder
 limpio, sin licencia que gestionar, y se pueden sustituir por SFX grabados
 más adelante sin tocar nada del lado de Godot (mismos nombres de archivo,
 mismos `AudioStreamPlayer` en `MainGame.tscn`).
+
+## fonts/
+
+Courier Prime (interfaz) y Special Elite (título), más el `Theme` que las
+aplica. A diferencia del audio, estas **sí son de terceros**: su
+procedencia, sus licencias (OFL 1.1 y Apache 2.0) y las obligaciones que
+implican al redistribuir están en [`fonts/README.md`](fonts/README.md).

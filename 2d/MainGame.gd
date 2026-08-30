@@ -83,6 +83,7 @@ var _ultimo_disparo := -1
 
 func _ready() -> void:
 	randomize()
+	_encadenar_respaldo_de_fuentes()
 	_estado.partida_iniciada.connect(_on_partida_iniciada)
 	_estado.entrada_invalida.connect(_on_entrada_invalida)
 	_estado.evento_ocurrido.connect(_on_evento_ocurrido)
@@ -106,6 +107,33 @@ func _ready() -> void:
 
 	_records = Records.cargar(ruta_records)
 	_mostrar_menu()
+
+
+## Encadena la fuente por defecto del motor como respaldo de las dos
+## tipografias del juego.
+##
+## Courier Prime y Special Elite solo cubren alfabeto latino, y el nombre
+## de un jugador es texto libre: sin respaldo, alguien que escriba su
+## nombre en cirilico (o con un emoji) veria un recuadro de sustitucion
+## en vez de sus letras. Se hace aqui en codigo, y no en el .tres del
+## tema, porque `fallbacks` es una propiedad de la FontFile importada y
+## una escena solo puede referenciarla, no añadirle propiedades.
+func _encadenar_respaldo_de_fuentes() -> void:
+	var respaldo := ThemeDB.fallback_font
+	# Si el tema no cargase, la interfaz saldria con la tipografia por
+	# defecto del motor: feo, pero jugable. No merece tumbar el juego
+	# entero en _ready() por un problema puramente cosmetico.
+	if respaldo == null or theme == null:
+		return
+
+	var fuentes: Array[Font] = [theme.default_font]
+	var titulo := $Centro/Columnas/Titulo as Label
+	if titulo.has_theme_font_override("font"):
+		fuentes.append(titulo.get_theme_font("font"))
+
+	for fuente in fuentes:
+		if fuente != null and not fuente.fallbacks.has(respaldo):
+			fuente.fallbacks = fuente.fallbacks + [respaldo]
 
 
 # --- Menu previo a la partida -------------------------------------------------
