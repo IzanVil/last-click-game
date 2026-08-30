@@ -1,12 +1,18 @@
-[gd_scene load_steps=8 format=3 uid="uid://xtcyy3hwjjdg"]
+[gd_scene load_steps=14 format=3 uid="uid://xtcyy3hwjjdg"]
 
 [ext_resource type="Script" path="res://MainGame.gd" id="1_game"]
 [ext_resource type="Script" path="res://TamborView.gd" id="2_tambor"]
 [ext_resource type="AudioStream" path="res://assets/audio/disparo.wav" id="3_disparo"]
 [ext_resource type="AudioStream" path="res://assets/audio/victoria.wav" id="4_victoria"]
 [ext_resource type="AudioStream" path="res://assets/audio/derrota.wav" id="5_derrota"]
-[ext_resource type="Theme" path="res://assets/fonts/tipografia.tres" id="6_tema"]
+[ext_resource type="Theme" path="res://assets/tema/juicio.tres" id="6_tema"]
 [ext_resource type="FontFile" path="res://assets/fonts/SpecialElite-Regular.ttf" id="7_elite"]
+[ext_resource type="Script" path="res://FondoTaller.gd" id="8_fondo"]
+[ext_resource type="Script" path="res://Vineta.gd" id="9_vineta"]
+[ext_resource type="AudioStream" path="res://assets/audio/engranaje.wav" id="10_engranaje"]
+[ext_resource type="AudioStream" path="res://assets/audio/marca.wav" id="11_marca"]
+[ext_resource type="AudioStream" path="res://assets/audio/fallo.wav" id="12_fallo"]
+[ext_resource type="AudioStream" path="res://assets/audio/ambiente.wav" id="13_ambiente"]
 
 [node name="MainGame" type="Control"]
 layout_mode = 3
@@ -28,6 +34,16 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.09, 0.08, 0.07, 1)
 
+[node name="FondoTaller" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("8_fondo")
+
 [node name="Centro" type="CenterContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
@@ -36,11 +52,14 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Columnas" type="VBoxContainer" parent="Centro"]
+[node name="Marco" type="PanelContainer" parent="Centro"]
+layout_mode = 2
+
+[node name="Columnas" type="VBoxContainer" parent="Centro/Marco"]
 layout_mode = 2
 theme_override_constants/separation = 14
 
-[node name="Titulo" type="Label" parent="Centro/Columnas"]
+[node name="Titulo" type="Label" parent="Centro/Marco/Columnas"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.78, 0.58, 0.16, 1)
 theme_override_fonts/font = ExtResource("7_elite")
@@ -48,64 +67,110 @@ theme_override_font_sizes/font_size = 32
 text = "EL TAMBOR DEL JUICIO"
 horizontal_alignment = 1
 
-[node name="Menu" type="VBoxContainer" parent="Centro/Columnas"]
-custom_minimum_size = Vector2(360, 0)
+[node name="Menu" type="VBoxContainer" parent="Centro/Marco/Columnas"]
+custom_minimum_size = Vector2(400, 0)
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Records" type="Label" parent="Centro/Columnas/Menu"]
-custom_minimum_size = Vector2(360, 0)
+[node name="Records" type="Label" parent="Centro/Marco/Columnas/Menu"]
+custom_minimum_size = Vector2(400, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7, 0.63, 0.5, 1)
 text = "Todavia no hay recuerdos del tambor: esta sera tu primera partida."
 horizontal_alignment = 1
 autowrap_mode = 2
 
-[node name="DificultadFila" type="HBoxContainer" parent="Centro/Columnas/Menu"]
+[node name="DificultadFila" type="HBoxContainer" parent="Centro/Marco/Columnas/Menu"]
 layout_mode = 2
 alignment = 1
 theme_override_constants/separation = 10
 
-[node name="DificultadLabel" type="Label" parent="Centro/Columnas/Menu/DificultadFila"]
+[node name="DificultadLabel" type="Label" parent="Centro/Marco/Columnas/Menu/DificultadFila"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.92, 0.86, 0.74, 1)
 text = "Dificultad"
 
-[node name="DificultadOpt" type="OptionButton" parent="Centro/Columnas/Menu/DificultadFila"]
+[node name="DificultadOpt" type="OptionButton" parent="Centro/Marco/Columnas/Menu/DificultadFila"]
 layout_mode = 2
 
-[node name="DueloCheck" type="CheckBox" parent="Centro/Columnas/Menu"]
+[node name="DueloCheck" type="CheckBox" parent="Centro/Marco/Columnas/Menu"]
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_colors/font_color = Color(0.92, 0.86, 0.74, 1)
 text = "Modo duelo (2 jugadores por turnos)"
 
-[node name="Nombres" type="VBoxContainer" parent="Centro/Columnas/Menu"]
+[node name="Nombres" type="VBoxContainer" parent="Centro/Marco/Columnas/Menu"]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="Nombre1" type="LineEdit" parent="Centro/Columnas/Menu/Nombres"]
+[node name="Nombre1" type="LineEdit" parent="Centro/Marco/Columnas/Menu/Nombres"]
 layout_mode = 2
 placeholder_text = "Nombre del jugador 1"
 alignment = 1
 
-[node name="Nombre2" type="LineEdit" parent="Centro/Columnas/Menu/Nombres"]
+[node name="Nombre2" type="LineEdit" parent="Centro/Marco/Columnas/Menu/Nombres"]
 layout_mode = 2
 placeholder_text = "Nombre del jugador 2"
 alignment = 1
 
-[node name="EmpezarBtn" type="Button" parent="Centro/Columnas/Menu"]
+[node name="EmpezarBtn" type="Button" parent="Centro/Marco/Columnas/Menu"]
 layout_mode = 2
 size_flags_horizontal = 4
 text = "Empezar"
 
-[node name="Juego" type="VBoxContainer" parent="Centro/Columnas"]
+[node name="SeparadorAjustes" type="HSeparator" parent="Centro/Marco/Columnas/Menu"]
+layout_mode = 2
+
+[node name="Ajustes" type="VBoxContainer" parent="Centro/Marco/Columnas/Menu"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="AjustesTitulo" type="Label" parent="Centro/Marco/Columnas/Menu/Ajustes"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.63, 0.5, 1)
+theme_override_font_sizes/font_size = 14
+text = "Accesibilidad"
+horizontal_alignment = 1
+
+[node name="EfectosCheck" type="CheckBox" parent="Centro/Marco/Columnas/Menu/Ajustes"]
+layout_mode = 2
+size_flags_horizontal = 4
+tooltip_text = "Deja quietos los engranajes, el latido de los huecos, la vibracion de la pantalla y el tecleo del texto."
+theme_override_colors/font_color = Color(0.92, 0.86, 0.74, 1)
+theme_override_font_sizes/font_size = 14
+text = "Efectos visuales reducidos"
+
+[node name="TextoCheck" type="CheckBox" parent="Centro/Marco/Columnas/Menu/Ajustes"]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_colors/font_color = Color(0.92, 0.86, 0.74, 1)
+theme_override_font_sizes/font_size = 14
+text = "Texto grande"
+
+[node name="ContrasteCheck" type="CheckBox" parent="Centro/Marco/Columnas/Menu/Ajustes"]
+layout_mode = 2
+size_flags_horizontal = 4
+tooltip_text = "Sube el tono de los colores del tambor y de los textos, a costa de la penumbra."
+theme_override_colors/font_color = Color(0.92, 0.86, 0.74, 1)
+theme_override_font_sizes/font_size = 14
+text = "Alto contraste"
+
+[node name="SonidoCheck" type="CheckBox" parent="Centro/Marco/Columnas/Menu/Ajustes"]
+layout_mode = 2
+size_flags_horizontal = 4
+tooltip_text = "Efectos y ambiente sonoro."
+theme_override_colors/font_color = Color(0.92, 0.86, 0.74, 1)
+theme_override_font_sizes/font_size = 14
+button_pressed = true
+text = "Sonido"
+
+[node name="Juego" type="VBoxContainer" parent="Centro/Marco/Columnas"]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 14
 
-[node name="Turno" type="Label" parent="Centro/Columnas/Juego"]
+[node name="Turno" type="Label" parent="Centro/Marco/Columnas/Juego"]
 visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(0.78, 0.58, 0.16, 1)
@@ -113,58 +178,74 @@ text = "Turno de Jugador 1"
 horizontal_alignment = 1
 autowrap_mode = 2
 
-[node name="Cabecera" type="Label" parent="Centro/Columnas/Juego"]
+[node name="Cabecera" type="Label" parent="Centro/Marco/Columnas/Juego"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.92, 0.86, 0.74, 1)
 text = "Dia 1 (disparo 1/3)  ·  Marcas 3  ·  En juego 100 pts"
 horizontal_alignment = 1
 autowrap_mode = 2
 
-[node name="Tambor" type="Control" parent="Centro/Columnas/Juego"]
+[node name="Tambor" type="Control" parent="Centro/Marco/Columnas/Juego"]
 layout_mode = 2
 size_flags_horizontal = 4
 script = ExtResource("2_tambor")
 
-[node name="Pistas" type="Label" parent="Centro/Columnas/Juego"]
-custom_minimum_size = Vector2(360, 0)
+[node name="PistasScroll" type="ScrollContainer" parent="Centro/Marco/Columnas/Juego"]
+custom_minimum_size = Vector2(400, 116)
 layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="Pistas" type="Label" parent="Centro/Marco/Columnas/Juego/PistasScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.7, 0.63, 0.5, 1)
 text = "La bala descansa en algun hueco. Aun no hay pistas."
 horizontal_alignment = 1
 autowrap_mode = 2
 
-[node name="EntradaNumero" type="LineEdit" parent="Centro/Columnas/Juego"]
+[node name="EntradaNumero" type="LineEdit" parent="Centro/Marco/Columnas/Juego"]
+custom_minimum_size = Vector2(260, 0)
 layout_mode = 2
 tooltip_text = "Elige una posicion del 1 al 8"
 placeholder_text = "Posicion del 1 al 8"
 size_flags_horizontal = 4
 alignment = 1
 
-[node name="Resultado" type="Label" parent="Centro/Columnas/Juego"]
-custom_minimum_size = Vector2(360, 0)
+[node name="Resultado" type="Label" parent="Centro/Marco/Columnas/Juego"]
+custom_minimum_size = Vector2(400, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.92, 0.86, 0.74, 1)
 text = "La partida va a empezar..."
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="Botones" type="HBoxContainer" parent="Centro/Columnas/Juego"]
+[node name="Botones" type="HBoxContainer" parent="Centro/Marco/Columnas/Juego"]
 layout_mode = 2
 size_flags_horizontal = 4
 alignment = 1
 theme_override_constants/separation = 10
 
-[node name="DispararBtn" type="Button" parent="Centro/Columnas/Juego/Botones"]
+[node name="DispararBtn" type="Button" parent="Centro/Marco/Columnas/Juego/Botones"]
 layout_mode = 2
 text = "Disparar"
 
-[node name="MarcarBtn" type="Button" parent="Centro/Columnas/Juego/Botones"]
+[node name="MarcarBtn" type="Button" parent="Centro/Marco/Columnas/Juego/Botones"]
 layout_mode = 2
 text = "Marcar (3)"
 
-[node name="RetirarseBtn" type="Button" parent="Centro/Columnas/Juego/Botones"]
+[node name="RetirarseBtn" type="Button" parent="Centro/Marco/Columnas/Juego/Botones"]
 layout_mode = 2
 text = "Retirarse"
+
+[node name="Vineta" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("9_vineta")
 
 [node name="SonidoDisparo" type="AudioStreamPlayer" parent="."]
 stream = ExtResource("3_disparo")
@@ -175,7 +256,22 @@ stream = ExtResource("4_victoria")
 [node name="SonidoDerrota" type="AudioStreamPlayer" parent="."]
 stream = ExtResource("5_derrota")
 
-[connection signal="pressed" from="Centro/Columnas/Menu/EmpezarBtn" to="." method="_on_empezar_btn_pressed"]
-[connection signal="pressed" from="Centro/Columnas/Juego/Botones/DispararBtn" to="." method="_on_disparar_btn_pressed"]
-[connection signal="pressed" from="Centro/Columnas/Juego/Botones/MarcarBtn" to="." method="_on_marcar_btn_pressed"]
-[connection signal="pressed" from="Centro/Columnas/Juego/Botones/RetirarseBtn" to="." method="_on_retirarse_btn_pressed"]
+[node name="SonidoEngranaje" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("10_engranaje")
+volume_db = -6.0
+
+[node name="SonidoMarca" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("11_marca")
+volume_db = -3.0
+
+[node name="SonidoFallo" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("12_fallo")
+
+[node name="SonidoAmbiente" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("13_ambiente")
+volume_db = -80.0
+
+[connection signal="pressed" from="Centro/Marco/Columnas/Menu/EmpezarBtn" to="." method="_on_empezar_btn_pressed"]
+[connection signal="pressed" from="Centro/Marco/Columnas/Juego/Botones/DispararBtn" to="." method="_on_disparar_btn_pressed"]
+[connection signal="pressed" from="Centro/Marco/Columnas/Juego/Botones/MarcarBtn" to="." method="_on_marcar_btn_pressed"]
+[connection signal="pressed" from="Centro/Marco/Columnas/Juego/Botones/RetirarseBtn" to="." method="_on_retirarse_btn_pressed"]

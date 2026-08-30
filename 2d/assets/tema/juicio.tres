@@ -1,0 +1,210 @@
+; Tema de "El Tambor del Juicio": la tipografia de maquina de escribir y la
+; chapa de laton y metal envejecido de botones, campos y paneles.
+;
+; Courier Prime es la fuente por defecto de toda la interfaz (Label, Button,
+; LineEdit, OptionButton, CheckBox...), que la heredan sin necesidad de tocar
+; nodo por nodo. El titulo es la excepcion: usa Special Elite via
+; theme_override_fonts en MainGame.tscn, porque es una tipografia "golpeada"
+; preciosa para un rotulo pero incomoda de leer en textos largos o en
+; numeros pequenos. Ver assets/fonts/README.md para licencias y procedencia.
+;
+; Los StyleBox son todos StyleBoxFlat (color plano, borde y esquinas): sin
+; texturas ni nine-patch, por lo mismo que el tambor se dibuja con _draw() y
+; los sonidos se sintetizan con Python. El aspecto de metal sale del color
+; (marron oscuro casi negro) mas un filete de laton, y del contraste entre
+; los cuatro estados del boton, no de una imagen.
+;
+; OptionButton repite los estilos del boton a proposito: en el sistema de
+; temas de Godot cada tipo de control busca los suyos y no hereda los de
+; Button, asi que sin estas entradas el desplegable saldria con el aspecto
+; por defecto del motor en medio del resto.
+;
+; CheckBox es el caso contrario: al heredar de Button si coge sus estilos,
+; y una casilla con chapa y filete parece un boton pulsable. De ahi los
+; StyleBoxEmpty, que la dejan como lo que es (una marca y una etiqueta) y
+; le reservan el recuadro solo para el foco de teclado.
+[gd_resource type="Theme" load_steps=12 format=3 uid="uid://bqxvt3n8kmwyf"]
+
+[ext_resource type="FontFile" path="res://assets/fonts/CourierPrime-Regular.ttf" id="1_courier"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_boton"]
+content_margin_left = 16.0
+content_margin_top = 8.0
+content_margin_right = 16.0
+content_margin_bottom = 8.0
+bg_color = Color(0.15, 0.13, 0.11, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 2
+border_color = Color(0.45, 0.34, 0.15, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_boton_hover"]
+content_margin_left = 16.0
+content_margin_top = 8.0
+content_margin_right = 16.0
+content_margin_bottom = 8.0
+bg_color = Color(0.23, 0.19, 0.13, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 2
+border_color = Color(0.78, 0.58, 0.16, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_boton_pulsado"]
+content_margin_left = 16.0
+content_margin_top = 9.0
+content_margin_right = 16.0
+content_margin_bottom = 7.0
+bg_color = Color(0.09, 0.08, 0.06, 1)
+border_width_left = 1
+border_width_top = 2
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.62, 0.46, 0.14, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_boton_apagado"]
+content_margin_left = 16.0
+content_margin_top = 8.0
+content_margin_right = 16.0
+content_margin_bottom = 8.0
+bg_color = Color(0.12, 0.11, 0.1, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.26, 0.23, 0.18, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_foco"]
+draw_center = false
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.95, 0.75, 0.25, 0.85)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_campo"]
+content_margin_left = 12.0
+content_margin_top = 7.0
+content_margin_right = 12.0
+content_margin_bottom = 7.0
+bg_color = Color(0.06, 0.055, 0.05, 1)
+border_width_bottom = 2
+border_color = Color(0.45, 0.34, 0.15, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_campo_foco"]
+content_margin_left = 12.0
+content_margin_top = 7.0
+content_margin_right = 12.0
+content_margin_bottom = 7.0
+bg_color = Color(0.09, 0.08, 0.06, 1)
+border_width_bottom = 2
+border_color = Color(0.95, 0.75, 0.25, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_placa"]
+content_margin_left = 30.0
+content_margin_top = 24.0
+content_margin_right = 30.0
+content_margin_bottom = 24.0
+bg_color = Color(0.11, 0.1, 0.09, 0.88)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.4, 0.31, 0.15, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+shadow_color = Color(0, 0, 0, 0.5)
+shadow_size = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_desplegable"]
+content_margin_left = 8.0
+content_margin_top = 8.0
+content_margin_right = 8.0
+content_margin_bottom = 8.0
+bg_color = Color(0.1, 0.09, 0.08, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.45, 0.34, 0.15, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_desplegable_hover"]
+bg_color = Color(0.23, 0.19, 0.13, 1)
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_casilla"]
+content_margin_left = 4.0
+content_margin_top = 4.0
+content_margin_right = 4.0
+content_margin_bottom = 4.0
+
+[resource]
+default_font = ExtResource("1_courier")
+default_font_size = 16
+Button/colors/font_color = Color(0.92, 0.86, 0.74, 1)
+Button/colors/font_disabled_color = Color(0.45, 0.42, 0.37, 1)
+Button/colors/font_focus_color = Color(0.98, 0.92, 0.78, 1)
+Button/colors/font_hover_color = Color(1, 0.92, 0.72, 1)
+Button/colors/font_pressed_color = Color(0.95, 0.75, 0.25, 1)
+Button/styles/disabled = SubResource("StyleBoxFlat_boton_apagado")
+Button/styles/focus = SubResource("StyleBoxFlat_foco")
+Button/styles/hover = SubResource("StyleBoxFlat_boton_hover")
+Button/styles/normal = SubResource("StyleBoxFlat_boton")
+Button/styles/pressed = SubResource("StyleBoxFlat_boton_pulsado")
+CheckBox/colors/font_color = Color(0.92, 0.86, 0.74, 1)
+CheckBox/colors/icon_hover_color = Color(1, 0.92, 0.72, 1)
+CheckBox/colors/icon_normal_color = Color(0.85, 0.78, 0.62, 1)
+CheckBox/colors/icon_pressed_color = Color(0.95, 0.75, 0.25, 1)
+CheckBox/constants/h_separation = 10
+CheckBox/colors/font_hover_color = Color(1, 0.92, 0.72, 1)
+CheckBox/colors/font_pressed_color = Color(0.95, 0.75, 0.25, 1)
+CheckBox/styles/focus = SubResource("StyleBoxFlat_foco")
+CheckBox/styles/hover = SubResource("StyleBoxEmpty_casilla")
+CheckBox/styles/normal = SubResource("StyleBoxEmpty_casilla")
+CheckBox/styles/pressed = SubResource("StyleBoxEmpty_casilla")
+LineEdit/colors/caret_color = Color(0.95, 0.75, 0.25, 1)
+LineEdit/colors/font_color = Color(0.92, 0.86, 0.74, 1)
+LineEdit/colors/font_placeholder_color = Color(0.55, 0.5, 0.42, 1)
+LineEdit/colors/font_selected_color = Color(0.09, 0.08, 0.07, 1)
+LineEdit/colors/selection_color = Color(0.78, 0.58, 0.16, 0.75)
+LineEdit/styles/focus = SubResource("StyleBoxFlat_campo_foco")
+LineEdit/styles/normal = SubResource("StyleBoxFlat_campo")
+OptionButton/colors/font_color = Color(0.92, 0.86, 0.74, 1)
+OptionButton/colors/font_focus_color = Color(0.98, 0.92, 0.78, 1)
+OptionButton/colors/font_hover_color = Color(1, 0.92, 0.72, 1)
+OptionButton/colors/font_pressed_color = Color(0.95, 0.75, 0.25, 1)
+OptionButton/styles/focus = SubResource("StyleBoxFlat_foco")
+OptionButton/styles/hover = SubResource("StyleBoxFlat_boton_hover")
+OptionButton/styles/normal = SubResource("StyleBoxFlat_boton")
+OptionButton/styles/pressed = SubResource("StyleBoxFlat_boton_pulsado")
+PanelContainer/styles/panel = SubResource("StyleBoxFlat_placa")
+PopupMenu/colors/font_color = Color(0.92, 0.86, 0.74, 1)
+PopupMenu/colors/font_hover_color = Color(1, 0.92, 0.72, 1)
+PopupMenu/styles/hover = SubResource("StyleBoxFlat_desplegable_hover")
+PopupMenu/styles/panel = SubResource("StyleBoxFlat_desplegable")

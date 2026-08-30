@@ -29,11 +29,13 @@ Fonts](https://github.com/google/fonts) (`ofl/courierprime` y
 
 ## Cómo se aplican
 
-`tipografia.tres` es un `Theme` con Courier Prime como `default_font`, y se
-asigna al nodo raíz de `scenes/MainGame.tscn`, así que **toda** la interfaz
-la hereda sin tocar nodo por nodo (`Label`, `Button`, `LineEdit`,
+`../tema/juicio.tres` es un `Theme` con Courier Prime como `default_font`, y
+se asigna al nodo raíz de `scenes/MainGame.tscn`, así que **toda** la
+interfaz la hereda sin tocar nodo por nodo (`Label`, `Button`, `LineEdit`,
 `OptionButton`, `CheckBox`... y también `TamborView`, que dibuja los números
-del tambor con `get_theme_default_font()`).
+del tambor con `get_theme_default_font()`). Ese mismo tema lleva además los
+`StyleBoxFlat` de chapa y latón: la tipografía y el aspecto de los controles
+van juntos porque un `Control` solo admite un tema.
 
 El título es la única excepción: lleva Special Elite en un
 `theme_override_fonts/font`.

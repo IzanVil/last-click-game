@@ -15,6 +15,22 @@ run/main_scene="uid://xtcyy3hwjjdg"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
+; El fondo dibuja engranajes en movimiento: sin tope, los repintaria tan
+; rapido como diera la maquina sin que se viera mejor.
+run/max_fps=60
+
+[display]
+
+; La interfaz es una columna alta (titulo, tambor, pistas, resultado y
+; botones), asi que la ventana por defecto es mas alta que ancha de lo
+; habitual. Y con el lienzo escalado (canvas_items) la partida se ve entera
+; aunque la ventana sea mas pequena: se encoge en vez de recortarse, que es
+; justo lo que hace falta en una pantalla modesta.
+window/size/viewport_width=1152
+window/size/viewport_height=864
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
 [physics]
 
 3d/physics_engine="Jolt Physics"

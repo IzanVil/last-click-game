@@ -15,9 +15,11 @@ extends SceneTree
 
 const ESCENA := preload("res://scenes/MainGame.tscn")
 
-## Los records se redirigen a un archivo aparte (ver MainGame.ruta_records)
-## para no pisar los del jugador que ejecute los tests.
+## Los records y los ajustes se redirigen a archivos aparte (ver
+## MainGame.ruta_records y MainGame.ruta_ajustes) para no pisar los del
+## jugador que ejecute los tests.
 const RUTA_RECORDS_TEST := "user://test_escena_records_tmp.json"
+const RUTA_AJUSTES_TEST := "user://test_escena_ajustes_tmp.json"
 
 var _main
 var _fallos: Array[String] = []
@@ -29,11 +31,14 @@ func _init() -> void:
 	_main = ESCENA.instantiate()
 	# Antes de add_child(), o sea antes de que corra _ready() y cargue.
 	_main.ruta_records = RUTA_RECORDS_TEST
+	_main.ruta_ajustes = RUTA_AJUSTES_TEST
 	root.add_child(_main)
 	await process_frame  # deja que corra _ready() y sus @onready
 
 	_comprobar_tipografia()
+	_comprobar_chapa_del_tema()
 	await _comprobar_menu_inicial()
+	await _comprobar_ajustes()
 	await _empezar_partida("dificil")
 	await _comprobar_dificultad_aplicada()
 
@@ -45,12 +50,20 @@ func _init() -> void:
 	_comprobar_records_guardados()
 
 	await _simular_duelo_completo()
+	await _simular_pista_dudosa()
 	await _simular_impacto()
 
 	_borrar_records_test()
+	# Desmontaje: la escena se libera a mano porque este script no es la
+	# escena principal y nadie mas lo haria, y despues se le da al servidor
+	# de audio un rato de reloj (no basta con un fotograma) para descartar
+	# los sonidos que quedasen sonando. Sin las dos cosas, Godot avisa al
+	# salir de instancias y recursos sin liberar.
+	_main.free()
+	await create_timer(0.3).timeout
 
 	if _fallos.is_empty():
-		print("OK: la escena responde a menu/disparar/marcar/retirarse/duelo sin errores.")
+		print("OK: la escena responde a menu/ajustes/disparar/marcar/retirarse/duelo sin errores.")
 		quit(0)
 	else:
 		print("FALLARON %d comprobacion(es):" % _fallos.size())
@@ -65,8 +78,9 @@ func _afirmar(condicion: bool, descripcion: String) -> void:
 
 
 func _borrar_records_test() -> void:
-	if FileAccess.file_exists(RUTA_RECORDS_TEST):
-		DirAccess.remove_absolute(RUTA_RECORDS_TEST)
+	for ruta in [RUTA_RECORDS_TEST, RUTA_AJUSTES_TEST]:
+		if FileAccess.file_exists(ruta):
+			DirAccess.remove_absolute(ruta)
 
 
 ## La tipografia de maquina de escribir se aplica via Theme, y un fallo
@@ -100,7 +114,7 @@ func _comprobar_tipografia() -> void:
 		"el tambor dibuja sus numeros con la tipografia del tema",
 	)
 	# El titulo es la excepcion deliberada.
-	var titulo: Label = _main.get_node("Centro/Columnas/Titulo")
+	var titulo: Label = _main.get_node("Centro/Marco/Columnas/Titulo")
 	_afirmar(
 		titulo.get_theme_font("font") == elite, "el titulo usa Special Elite, no la del tema"
 	)
@@ -115,6 +129,63 @@ func _comprobar_tipografia() -> void:
 	_afirmar(
 		courier.fallbacks.has(ThemeDB.fallback_font),
 		"la fuente de la interfaz encadena el respaldo del motor",
+	)
+
+
+## El aspecto de chapa y laton (botones, campos, panel) vive en el mismo
+## Theme que la tipografia, y como ella falla en silencio: sin los
+## StyleBox, la interfaz saldria con el gris por defecto del motor y en
+## headless no se notaria.
+func _comprobar_chapa_del_tema() -> void:
+	if _main.theme == null:
+		return
+	for tipo in ["Button", "LineEdit", "OptionButton", "PanelContainer"]:
+		_afirmar(
+			_main.theme.has_stylebox("normal", tipo) or _main.theme.has_stylebox("panel", tipo),
+			"el tema viste los controles de tipo %s" % tipo,
+		)
+	_afirmar(
+		_main.disparar_btn.get_theme_stylebox("normal")
+		== _main.theme.get_stylebox("normal", "Button"),
+		"los botones cogen su chapa del tema",
+	)
+
+
+## Las tres casillas de accesibilidad: que se guarden en disco y que
+## lleguen a quien las obedece (fondo, viñeta y tambor). El sonido se
+## comprueba solo a nivel de ajuste guardado: en headless no hay
+## dispositivo de audio con el que verificar nada mas.
+func _comprobar_ajustes() -> void:
+	_afirmar(not _main.efectos_check.button_pressed, "los efectos empiezan activados")
+
+	_main.efectos_check.button_pressed = true
+	_main.contraste_check.button_pressed = true
+	_main.texto_check.button_pressed = true
+	await process_frame
+
+	_afirmar(_main.fondo_taller.efectos_reducidos, "los efectos reducidos llegan al fondo")
+	_afirmar(_main.vineta.efectos_reducidos, "los efectos reducidos llegan a la viñeta")
+	_afirmar(_main.tambor.efectos_reducidos, "los efectos reducidos llegan al tambor")
+	_afirmar(not _main.fondo_taller.is_processing(), "con efectos reducidos el fondo no se repinta")
+	_afirmar(_main.tambor.alto_contraste, "el alto contraste llega al tambor")
+	_afirmar(
+		_main.theme.default_font_size == _main.TAMANO_TEXTO + _main.AUMENTO_TEXTO,
+		"el texto grande sube el cuerpo de la tipografia del tema",
+	)
+
+	var guardados := Ajustes.cargar(RUTA_AJUSTES_TEST)
+	_afirmar(guardados.efectos_reducidos, "marcar una casilla la guarda en disco")
+	_afirmar(guardados.alto_contraste, "y tambien las demas")
+
+	# Se dejan como estaban: las animaciones siguen probandose en el resto
+	# del test, y el tema es un recurso compartido con el resto del juego.
+	_main.efectos_check.button_pressed = false
+	_main.contraste_check.button_pressed = false
+	_main.texto_check.button_pressed = false
+	await process_frame
+	_afirmar(
+		_main.theme.default_font_size == _main.TAMANO_TEXTO,
+		"desmarcarlo devuelve el cuerpo original",
 	)
 
 
@@ -277,6 +348,40 @@ func _simular_duelo_completo() -> void:
 
 	await create_timer(_main.PAUSA_FIN_PARTIDA + 0.6).timeout
 	_afirmar(_main.menu.visible, "tras el duelo tambien se vuelve al menu")
+
+
+## Tras un "tambor_caliente", la pista siguiente queda marcada como dudosa
+## en la lista. Las dos señales se emiten a mano porque el evento sale por
+## sorteo (ver Eventos.tirar_evento) y esperar a que toque haria el test
+## dependiente del azar; lo que se prueba aqui es el cableado de la vista,
+## no el sorteo, que ya cubre test_logica.gd.
+func _simular_pista_dudosa() -> void:
+	await _empezar_partida("normal")
+	_main._estado.tambor = TamborJuicio.new(8, "avanza", 8)
+	_main._estado.probabilidad_eventos = 0.0
+
+	_main.entrada_numero.text = "1"
+	_main._on_disparar_btn_pressed()
+	await process_frame
+	await create_timer(0.6).timeout
+	_afirmar(
+		_main.etiqueta_pistas.text.find("(dudosa)") == -1,
+		"una pista normal no se marca como dudosa",
+	)
+
+	_main._on_evento_ocurrido("tambor_caliente", Eventos.texto_de("tambor_caliente"))
+	_afirmar(_main._proxima_pista_dudosa, "el tambor caliente deja la proxima pista bajo sospecha")
+	_main._on_pista_nueva("La bala esta en un hueco par.", [2, 4, 6, 8])
+	_afirmar(
+		_main.etiqueta_pistas.text.find("(dudosa)") != -1,
+		"la pista que llega despues sale marcada como dudosa",
+	)
+	_afirmar(
+		not _main._proxima_pista_dudosa, "y la sospecha no se arrastra a la pista siguiente"
+	)
+
+	_main._on_retirarse_btn_pressed()
+	await create_timer(_main.PAUSA_FIN_PARTIDA + 0.8).timeout
 
 
 func _simular_impacto() -> void:

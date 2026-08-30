@@ -35,9 +35,12 @@ arriesgando que se **doblen** (o perderlo todo), o gastas una de tus 3
 objetivo no es una única partida: es acumular **días de vida**.
 
 - **🐍 Terminal** — interfaz de teclado y colores ANSI en un tambor ASCII.
-- **🎮 Gráfica (Godot)** — misma mecánica con tambor animado, sonido y una
-  ambientación noir/steampunk (metal envejecido, latón, tipografía de
-  máquina de escribir y vibración de pantalla al morir).
+- **🎮 Gráfica (Godot)** — misma mecánica en un taller en penumbra:
+  engranajes girando al fondo, tambor de chapa y latón con los huecos
+  candidatos **latiendo**, texto tecleado a máquina, viñeta que se cierra
+  en iris al terminar, bordón sonoro que **acelera** cuando el tambor se
+  calienta, y ajustes de accesibilidad (efectos reducidos, texto grande,
+  alto contraste y sonido).
 
 > ⚠️ **Descargo de responsabilidad:** es solo un juego de ficción. No existe
 > ninguna arma real. Solo diversión para la terminal y la pantalla.
@@ -127,11 +130,15 @@ russian-roulette-2d/
     ├── Jugador.gd       ← apuesta/marcas/disparos de un jugador y desempate
     ├── Dificultad.gd    ← presets fácil/normal/difícil
     ├── Records.gd       ← récords persistidos en user://records.json
+    ├── Ajustes.gd       ← accesibilidad persistida en user://ajustes.json
     ├── MainGame.gd      ← vista: menú, Label/Button/Tween
     ├── TamborView.gd    ← dibuja el tambor y sus animaciones
+    ├── FondoTaller.gd   ← engranajes y luz del fondo
+    ├── Vineta.gd        ← viñeta, resplandores de evento y cierre en iris
+    ├── Maquina.gd       ← texto tecleado letra a letra
     ├── tests/           ← scripts headless (lógica + integración de escena)
     ├── scenes/          ← escenas (UI)
-    └── assets/          ← audio, y las fuentes de máquina de escribir
+    └── assets/          ← audio y tema (sintetizados/dibujados) + fuentes
 ```
 
 ## 🐍 Versión de terminal (Python) — El Tambor del Juicio
@@ -283,8 +290,14 @@ seguro (verde `✓`); el 1, 2 y 3 son huecos por los que ya se disparó (gris `�
 La versión gráfica juega **la misma mecánica que la terminal** (las
 cuatro fases del rediseño): tambor de bala móvil, pistas, apuesta
 doblar-o-retirarse, farol, días de vida, dificultad, récords y modo
-duelo — con ambientación noir/steampunk, tipografía de máquina de
-escribir, tambor animado y vibración en pantalla al morir.
+duelo — puesta en un taller noir/steampunk en penumbra.
+
+La partida entera está **dibujada por código** (`_draw()`) y **sonada por
+código** (WAV sintetizados con la librería estándar de Python): no hay
+sprites ni samples de terceros, solo las dos tipografías. Eso incluye los
+engranajes que giran al fondo, la luz cálida sobre el tambor, la chapa y
+los remaches del propio tambor, la viñeta de los bordes y el aspecto de
+latón de botones y campos.
 
 ### Cómo jugar
 
@@ -296,9 +309,25 @@ escribir, tambor animado y vibración en pantalla al morir.
    botones: **Disparar**, **Marcar** o **Retirarse** (las mismas
    acciones que en la terminal, ver [Reglas](#reglas) más arriba).
 
+En el mismo menú hay cuatro casillas de **accesibilidad**, que se recuerdan
+entre partidas (`user://ajustes.json`):
+
+| Casilla | Qué hace |
+|---------|----------|
+| **Efectos visuales reducidos** | Para en seco todo lo que se mueve solo: engranajes, latido de los huecos, parpadeo de la luz, vibración de pantalla y tecleo del texto. De paso, con ella el juego no repinta nada por fotograma: es la opción para una máquina modesta. |
+| **Texto grande** | Sube el cuerpo de toda la tipografía. |
+| **Alto contraste** | Aclara los textos y sube el tono de los colores del tambor, a costa de la penumbra. |
+| **Sonido** | Efectos y ambiente (el equivalente de `--sin-sonido` en la terminal). |
+
 El tambor se colorea igual que en la terminal: 🟡 amarillo = candidato
-según las pistas vigentes, 🟢 verde / 🔴 rojo = resultado de un farol, ⚪
-gris = ya disparado.
+según las pistas vigentes (y además **late**), 🟢 verde / 🔴 rojo =
+resultado de un farol, ⚪ gris = ya disparado.
+
+Los dos eventos aleatorios se ven y se oyen: el **clic metálico** suena a
+engranaje y sacude la pantalla, y el **tambor caliente** enrojece la luz
+del taller, acelera el bordón de fondo, hace destellar los huecos que
+señala la pista siguiente y la deja marcada como `(dudosa)` en la lista,
+que es justo lo que el evento acaba de anunciar por escrito.
 
 Donde la terminal usa opciones de línea de comandos (`--dificultad`,
 `--duelo`, `--records`), aquí están en ese menú previo, que además
@@ -316,7 +345,10 @@ tocar disco, igual que `terminal/estado.py` y compañía — y emite señales
 `farol_resuelto`, `dia_completado`, `impacto`, `retirada`,
 `turno_cambiado`, `duelo_terminado`...) que `MainGame.gd` escucha para
 actualizar Label/Button/Tween. `TamborView.gd` solo sabe pintar el estado
-que le pasa `MainGame.gd`, sin conocer ninguna regla del juego.
+que le pasa `MainGame.gd`, sin conocer ninguna regla del juego, y lo mismo
+vale para los nodos de ambientación (`FondoTaller.gd`, `Vineta.gd`) y para
+el tecleo del texto (`Maquina.gd`): son decorado que recibe órdenes, no
+piezas que sepan lo que está pasando en la partida.
 
 Una partida en solitario es, internamente, **un duelo de un solo
 jugador**: los dos modos comparten la misma lógica de turnos
@@ -399,6 +431,11 @@ de quien los ejecuta**.
 - [x] **Efectos de sonido** de disparo, victoria y derrota (versión Godot)
 - [x] **Animación del tambor** — giro al empezar partida, tensión antes de
   revelar un disparo o farol, y vibración de pantalla al morir (Godot)
+- [x] **Ambientación completa de la versión gráfica** — taller con
+  engranajes, luz que reacciona a los eventos, texto tecleado, bordón
+  sonoro en bucle y tema de chapa y latón (ver el detalle más abajo)
+- [x] **Accesibilidad** en la versión gráfica: efectos reducidos, texto
+  grande, alto contraste y sonido, recordados entre partidas
 
 ### 🃏 Rediseño «El Tambor del Juicio»
 
@@ -439,6 +476,36 @@ ambas):
 
 Con eso, **las cuatro fases del rediseño están completas en las dos
 versiones**.
+
+### 🕯️ Ambientación de la versión gráfica
+
+Con la mecánica ya igualada, la versión de Godot se puso a la altura de la
+terminal en atmósfera. Todo dibujado y sintetizado por código, sin assets
+de terceros más allá de las dos tipografías:
+
+- [x] **Un taller, no un fondo liso** — engranajes girando a distinta
+  velocidad y profundidad (`FondoTaller.gd`), luz cálida sobre el tambor
+  que parpadea como una lámpara de gas, y viñeta que oscurece los bordes
+  (`Vineta.gd`)
+- [x] **Tambor con volumen** — chapa, aros de latón, remaches, eje y
+  sombra bajo cada hueco; los candidatos **laten** mientras las pistas los
+  señalen (`TamborView.gd`)
+- [x] **Eventos que se ven y se oyen** — el clic metálico suena a
+  engranaje y sacude la pantalla; el tambor caliente enrojece la luz,
+  acelera el bordón, hace destellar los huecos de la pista siguiente y la
+  marca como `(dudosa)`
+- [x] **Texto de máquina de escribir de verdad** — los mensajes se teclean
+  letra a letra (`Maquina.gd`), y una línea añadida no reescribe lo que ya
+  se estaba leyendo
+- [x] **Final de partida con cierre en iris** — la pantalla se cierra
+  sobre el resultado antes de volver al menú, dentro de la misma pausa de
+  siempre
+- [x] **Sonido nuevo**: `engranaje`, `marca`, `fallo` y un `ambiente` en
+  bucle de 6 s hecho para encadenar sin costura, que sube de volumen en
+  partida y acelera con el tambor caliente
+- [x] **Chapa y latón en la interfaz** — `Theme` propio
+  (`assets/tema/juicio.tres`) para botones, campos, desplegable y el panel
+  que enmarca el juego, con las casillas marcadas a máquina (`[X]`/`[ ]`)
 
 ### 🎯 Otros próximos pasos
 - [ ] Modo «borracho» 🍺 (menos suerte y más humor)

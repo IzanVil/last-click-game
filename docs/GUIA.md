@@ -153,6 +153,11 @@ cd terminal && python3 -m unittest discover -s . -v
   `terminal/estado.py` y compañía, mismo vocabulario en español).
 - Vista: `2d/MainGame.gd` (menú + Label/Button/Tween) + `2d/TamborView.gd`
   (dibuja el tambor con `_draw()`).
+- Ambientación (decorado puro, sin reglas): `2d/FondoTaller.gd`
+  (engranajes y luz del fondo), `2d/Vineta.gd` (viñeta, resplandores de
+  evento y cierre en iris) y `2d/Maquina.gd` (texto tecleado letra a letra).
+- Ajustes de accesibilidad: `2d/Ajustes.gd` (efectos reducidos, texto
+  grande, alto contraste y sonido, guardados en `user://ajustes.json`).
 
 Ningún script de lógica conoce nodos ni UI: `RuletaEstado.gd` orquesta los
 demás y emite señales (`partida_iniciada`, `entrada_invalida`,
@@ -170,8 +175,10 @@ lo hace `jugar()`, no los módulos de lógica).
 
 Todos los scripts de lógica llevan `class_name` (`TamborJuicio`, `Pista`,
 `Pistas`, `Apuesta`, `Farol`, `Eventos`, `Historial`, `Jugador`,
-`Dificultad`, `Records`, `RuletaEstado`): se usan directamente por su
-nombre desde cualquier script del proyecto, sin `preload()`.
+`Dificultad`, `Records`, `Ajustes`, `RuletaEstado`): se usan directamente
+por su nombre desde cualquier script del proyecto, sin `preload()`. Lo
+mismo vale para los de vista que se referencian desde la escena o desde
+`MainGame.gd` (`TamborView`, `FondoTaller`, `Vineta`, `Maquina`).
 
 ### Solitario y duelo: la misma lógica
 
@@ -235,12 +242,15 @@ función estática pura, testeable sin montar una partida.
 - La paleta noir/steampunk (`COLOR_DESCONOCIDO`, `COLOR_CANDIDATO`,
   `COLOR_SEGURO`, `COLOR_PELIGRO`, `COLOR_PROBADO`, `COLOR_ANILLO`,
   `COLOR_TEXTO`...) está al principio de `TamborView.gd`.
-- La **tipografía** sale de `assets/fonts/tipografia.tres`, un `Theme` con
-  Courier Prime como `default_font` asignado al nodo raíz de la escena:
+- La **tipografía y la chapa** salen de `assets/tema/juicio.tres`, un
+  `Theme` con Courier Prime como `default_font` y con los `StyleBoxFlat`
+  (metal oscuro con filete de latón) de botones, campos, desplegables y del
+  panel que enmarca la interfaz, asignado al nodo raíz de la escena:
   toda la interfaz lo hereda sin overrides nodo por nodo, `TamborView`
   incluido (dibuja sus números con `get_theme_default_font()`). El título
   es la única excepción, con Special Elite en un `theme_override_fonts`.
-  Para cambiar la fuente de todo el juego basta con tocar ese `.tres`.
+  Para cambiar la fuente o el aspecto de los controles de todo el juego
+  basta con tocar ese `.tres`.
   Ojo con dos cosas: las licencias de ambas fuentes obligan a
   redistribuir su texto (ver `assets/fonts/README.md`), y como solo
   cubren alfabeto latino, `MainGame._encadenar_respaldo_de_fuentes()`
@@ -261,6 +271,62 @@ función estática pura, testeable sin montar una partida.
   un azar que no existe. Solo gira una vez, al empezar la partida
   (`TamborView.girar()` desde `MainGame._on_partida_iniciada()`); antes de
   revelar un disparo o un farol se usa `TamborView.tension()` en su lugar.
+
+### La ambientación
+
+Tres nodos de decorado, ninguno de los cuales sabe nada del juego: reciben
+órdenes de `MainGame.gd` igual que las recibe un `Label`.
+
+- `FondoTaller.gd` dibuja los engranajes del fondo (a distinta velocidad y
+  tono según la profundidad, para dar sensación de máquina viva) y la luz
+  cálida sobre el tambor. `calentar()` la vuelve rojiza y nerviosa mientras
+  dura el evento «tambor caliente», y se enfría sola.
+- `Vineta.gd` va **por encima** de la interfaz (el orden entre hermanos
+  manda al dibujar) y no captura el ratón. Aporta la viñeta de los bordes,
+  `resplandor(color)` para teñirlos en un evento y `cerrar()`/`abrir()`,
+  el cierre en iris con el que termina una partida. El iris es un arco
+  negro de trazo grueso cuyo radio mengua, con la viñeta encima para
+  suavizarle el borde.
+- `Maquina.gd` teclea el texto letra a letra animando `visible_ratio`. El
+  `text` de la etiqueta se pone entero desde el primer fotograma (solo se
+  anima cuánto se ve), y por eso los tests pueden leerlo sin esperar. El
+  `Tween` en curso se guarda en un meta de la propia etiqueta para poder
+  cancelarlo si llega un mensaje nuevo antes de terminar el anterior.
+
+Los sonidos siguen el mismo reparto: `MainGame.gd` decide cuándo suena
+qué, y todo pasa por `_sonar()`, que respeta el ajuste de sonido. El
+bordón de ambiente sube de volumen al empezar la partida y acelera
+(`pitch_scale`) mientras el tambor está caliente.
+
+### Accesibilidad
+
+`Ajustes.gd` es hermano de `Records.gd` en forma (mismo JSON en `user://`,
+misma tolerancia a un archivo ausente o corrupto) y equivale a las opciones
+`--sin-animaciones`/`--sin-sonido` de la versión de terminal, salvo que
+aquí se recuerdan entre partidas. Son cuatro casillas del menú:
+
+- **Efectos visuales reducidos** — para en seco todo lo que se mueve solo:
+  engranajes, latido de los huecos candidatos, parpadeo de la luz,
+  vibración de pantalla y tecleo del texto (que pasa a salir de golpe). El
+  flash de fondo no desaparece, porque informa, pero entra y sale despacio
+  en vez de parpadear. De paso es la opción para una máquina modesta: con
+  ella no se repinta nada por fotograma.
+- **Texto grande** — sube `theme.default_font_size` y, con él, los
+  `theme_override_font_sizes` que la escena traía.
+- **Alto contraste** — acerca al blanco cada color de texto (mezcla, no
+  sustitución, para no perder el código de color) y cambia la paleta del
+  tambor por `TamborView.PALETA_CONTRASTE`.
+- **Sonido** — efectos y ambiente.
+
+`MainGame._recordar_estilos()` recorre el árbol una sola vez al arrancar y
+se apunta el color y el cuerpo de letra que cada nodo trae de la escena;
+así los dos ajustes de texto se pueden deshacer sin que la escena tenga que
+enumerarse a sí misma en una lista que envejecería mal.
+
+Las casillas cambian el cuadradito del motor por una marca escrita
+(`[X]`/`[ ]`, ver `MainGame._vestir_casillas()`): el icono por defecto es un
+gris oscuro que sobre esta penumbra no se ve, y el color de un icono solo
+puede multiplicarse, así que no hay forma de aclararlo desde el tema.
 
 ### Tests
 
@@ -287,10 +353,16 @@ Ambos imprimen qué test ha fallado y por qué, y salen con exit code 1 si
 algo falla (0 si todo pasa) — es el criterio que usa la CI para marcar el
 job en rojo, igual que hace `coverage report --fail-under=90` en Python.
 
-Los tests que tocan récords escriben en un archivo aparte (ver
-`RUTA_RECORDS_TEST` en cada uno) y lo borran al terminar: **no pisan los
-récords reales** de quien los ejecute. Si añades un test que llame a
-`Records.guardar()` o instancie `MainGame.tscn`, redirige la ruta igual.
+Los tests que tocan récords o ajustes escriben en archivos aparte (ver
+`RUTA_RECORDS_TEST` y `RUTA_AJUSTES_TEST` en cada uno) y los borran al
+terminar: **no pisan los récords ni los ajustes reales** de quien los
+ejecute. Si añades un test que llame a `Records.guardar()`/`Ajustes.guardar()`
+o instancie `MainGame.tscn`, redirige las rutas igual.
+
+`test_escena.gd` desmonta la escena al terminar (`_main.free()`) y deja
+pasar un rato de reloj para que el servidor de audio descarte los sonidos
+que quedaran sonando: sin eso, Godot avisaría al salir de instancias sin
+liberar.
 
 ## Lanzadores
 
@@ -354,8 +426,12 @@ russian-roulette-2d/
     ├── Jugador.gd
     ├── Dificultad.gd
     ├── Records.gd
+    ├── Ajustes.gd
     ├── MainGame.gd
     ├── TamborView.gd
+    ├── FondoTaller.gd
+    ├── Vineta.gd
+    ├── Maquina.gd
     ├── tests/
     │   ├── test_logica.gd
     │   └── test_escena.gd
@@ -363,5 +439,6 @@ russian-roulette-2d/
     │   └── MainGame.tscn
     └── assets/
         ├── audio/          (sintetizado con synth_sfx.py)
-        └── fonts/          (Courier Prime + Special Elite, con licencias)
+        ├── fonts/          (Courier Prime + Special Elite, con licencias)
+        └── tema/           (juicio.tres: tipografía + chapa de la interfaz)
 ```

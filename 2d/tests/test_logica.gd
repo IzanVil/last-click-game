@@ -14,6 +14,7 @@ extends SceneTree
 ## aparte de la real (Records.RUTA_POR_DEFECTO) para no pisar los
 ## records de quien ejecute los tests, y se borra al terminar.
 const RUTA_RECORDS_TEST := "user://test_records_tmp.json"
+const RUTA_AJUSTES_TEST := "user://test_ajustes_tmp.json"
 
 var _fallos: Array[String] = []
 
@@ -30,6 +31,7 @@ func _init() -> void:
 	_test_historial()
 	_test_dificultad()
 	_test_records()
+	_test_ajustes()
 	_test_jugador_ganadores()
 	_test_ruleta_estado_flujo_completo()
 	_test_duelo_flujo_completo()
@@ -319,6 +321,52 @@ func _test_records_en_disco(records: Records) -> void:
 func _borrar_records_test() -> void:
 	if FileAccess.file_exists(RUTA_RECORDS_TEST):
 		DirAccess.remove_absolute(RUTA_RECORDS_TEST)
+
+
+func _test_ajustes() -> void:
+	var por_defecto := Ajustes.new()
+	_afirmar(not por_defecto.efectos_reducidos, "por defecto los efectos estan activados")
+	_afirmar(not por_defecto.texto_grande, "por defecto el texto es del tamano normal")
+	_afirmar(not por_defecto.alto_contraste, "por defecto no hay alto contraste")
+	_afirmar(por_defecto.sonido, "por defecto el juego suena")
+
+	_borrar_ajustes_test()
+	var inexistente := Ajustes.cargar(RUTA_AJUSTES_TEST)
+	_afirmar(not inexistente.efectos_reducidos, "cargar sin archivo devuelve los ajustes de fabrica")
+	_afirmar(inexistente.sonido, "y el sonido sigue puesto")
+
+	var elegidos := Ajustes.new()
+	elegidos.efectos_reducidos = true
+	elegidos.texto_grande = true
+	elegidos.sonido = false
+	_afirmar(elegidos.guardar(RUTA_AJUSTES_TEST), "guardar devuelve true al escribir bien")
+
+	var recargados := Ajustes.cargar(RUTA_AJUSTES_TEST)
+	_afirmar(recargados.efectos_reducidos, "recarga los efectos reducidos")
+	_afirmar(recargados.texto_grande, "recarga el texto grande")
+	_afirmar(not recargados.alto_contraste, "recarga el contraste como estaba")
+	_afirmar(not recargados.sonido, "recarga el sonido apagado")
+	# Un JSON devuelve true/false como bool, pero el contrato es el mismo
+	# que en Records: lo recargado tiene el tipo del campo, no el del JSON.
+	_afirmar(
+		typeof(recargados.efectos_reducidos) == TYPE_BOOL, "lo recargado son booleanos"
+	)
+
+	# Un archivo corrupto no debe impedir jugar: se vuelve a los de fabrica.
+	var archivo := FileAccess.open(RUTA_AJUSTES_TEST, FileAccess.WRITE)
+	archivo.store_string("esto no es json valido {{{")
+	archivo.close()
+	_afirmar(
+		not Ajustes.cargar(RUTA_AJUSTES_TEST).efectos_reducidos,
+		"un archivo de ajustes corrupto devuelve los de fabrica",
+	)
+
+	_borrar_ajustes_test()
+
+
+func _borrar_ajustes_test() -> void:
+	if FileAccess.file_exists(RUTA_AJUSTES_TEST):
+		DirAccess.remove_absolute(RUTA_AJUSTES_TEST)
 
 
 func _test_jugador_ganadores() -> void:
