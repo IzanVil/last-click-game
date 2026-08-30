@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/Godot-4.7%2B-478CBF?logo=godotengine&logoColor=white" alt="Godot">
   <img src="https://img.shields.io/badge/estado-en%20desarrollo-yellow" alt="Estado">
   <img src="https://img.shields.io/badge/licencia-MIT-green" alt="Licencia">
-  <img src="https://img.shields.io/badge/coverage-99%25-brightgreen" alt="Cobertura">
+  <img src="https://img.shields.io/badge/coverage-97%25-brightgreen" alt="Cobertura">
 </p>
 
 ---
@@ -113,7 +113,8 @@ russian-roulette-2d/
 │   ├── farol.py         ← marcar un hueco como seguro sin disparar
 │   ├── eventos.py       ← eventos aleatorios (clic metálico, tambor caliente)
 │   ├── historial.py     ← contadores de la partida y resumen narrativo
-│   └── test_*.py        ← pruebas unitarias de los siete módulos
+│   ├── records.py       ← récords persistidos en ~/.tambor_del_juicio/
+│   └── test_*.py        ← pruebas unitarias de los ocho módulos
 └── 2d/                  ← versión gráfica: El Tambor del Juicio
     ├── project.godot    ← proyecto Godot
     ├── RuletaEstado.gd  ← orquestador: conecta la lógica y emite señales
@@ -187,17 +188,54 @@ cd terminal && python3 ruleta.py
 
 ### Dificultad personalizada
 
-El tambor tiene 8 huecos por defecto, pero se puede ajustar por línea de
-comandos:
+Tres presets (`--dificultad facil|normal|dificil`) ajustan a la vez el
+tamaño del tambor y las marcas de farol por partida; `--huecos`/`--marcas`
+sueltos afinan cualquiera de los dos por separado (y pisan al preset si
+se combinan con él):
+
+| Dificultad | Huecos | Marcas |
+|:----------:|:------:|:------:|
+| `facil`    | 10     | 4      |
+| `normal` (por defecto) | 8 | 3 |
+| `dificil`  | 6      | 2      |
 
 ```bash
-cd terminal && python3 ruleta.py --huecos 6
+cd terminal && python3 ruleta.py --dificultad dificil
+python3 ruleta.py --huecos 6 --marcas 1   # a medida, sin usar un preset
 python3 ruleta.py --help       # ver todas las opciones
 python3 ruleta.py --version    # version instalada (o aviso si se ejecuta sin instalar)
 ```
 
 > 💡 Con `pip install -e .` el comando instalado es `ruleta`, con las mismas
-> opciones (`ruleta --huecos 6`).
+> opciones (`ruleta --dificultad dificil`).
+
+### Récords
+
+Cada partida (en solitario o en un duelo) actualiza un fichero de récords
+en `~/.tambor_del_juicio/records.json`: días máximos sobrevividos, puntos
+máximos en una partida, partidas jugadas y faroles acertados/usados.
+Se guarda solo, y `--records` los muestra sin jugar:
+
+```bash
+python3 ruleta.py --records
+```
+
+Si superas tu récord de días, la pantalla final de esa partida lo anuncia.
+
+### Modo duelo
+
+`--duelo` enfrenta a dos jugadores por turnos **en el mismo tambor**: la
+bala, su patrón y las pistas acumuladas son compartidas (es literalmente
+el mismo revólver), pero cada jugador tiene su propia apuesta y sus
+propias marcas de farol. La partida termina en cuanto el turno de uno de
+los dos acaba en **BOOM** o en retirada — el otro no sigue jugando después
+— y gana quien haya sobrevivido más días (en caso de empate, quien tenga
+más puntos):
+
+```bash
+python3 ruleta.py --duelo
+python3 ruleta.py --duelo --dificultad facil   # combinable con dificultad
+```
 
 ### Ejemplo de partida
 
@@ -324,7 +362,7 @@ la CI (`godot-smoke-test`) los ejecuta en cada push/PR, junto al
   de vida — ver el detalle fase a fase más abajo
 - [x] **Lanzadores** para Linux, macOS y Windows (`run.sh`, `run.bat`)
 - [x] **Instalador** con acceso directo en el escritorio (`instalar.sh`, `instalar.bat`)
-- [x] **Tests** automáticos de la versión Python (99% de cobertura) y dos
+- [x] **Tests** automáticos de la versión Python (97% de cobertura) y dos
   scripts headless para la versión Godot (lógica + integración de escena)
 - [x] **Empaquetado** con `pyproject.toml` (entry point instalable, config de lint/formato/tipos)
 - [x] **Integración continua** en GitHub Actions (tests + lint + tipos de
@@ -333,7 +371,10 @@ la CI (`godot-smoke-test`) los ejecuta en cada push/PR, junto al
   o retorno de valores, sin polling)
 - [x] **Feedback visual** por colores en la versión Godot, ahora también
   por estado de hueco (paleta noir/steampunk)
-- [x] **Selector de dificultad** por CLI (`--huecos` en la versión terminal)
+- [x] **Selector de dificultad** por CLI (`--dificultad`/`--huecos`/`--marcas`
+  en la terminal; presets fácil/normal/difícil)
+- [x] **Récords persistidos** entre partidas (`~/.tambor_del_juicio/`,
+  terminal) y **modo duelo** local por turnos, mismo tambor compartido
 - [x] **Efectos de sonido** de disparo, victoria y derrota (versión Godot)
 - [x] **Animación del tambor** — giro al empezar partida, tensión antes de
   revelar un disparo o farol, y vibración de pantalla al morir (Godot)
@@ -362,14 +403,19 @@ ambas):
   manual"), vibración de pantalla al morir y `Historial.gd` con el mismo
   resumen narrativo. Pendiente solo la tipografía: sigue la fuente por
   defecto de Godot, no se ha añadido una de máquina de escribir
-- [ ] **Fase 4:** multijugador local por turnos, récords/estadísticas y
-  opciones de dificultad (huecos y balas iniciales configurables, también
-  en Godot)
+- [x] **Fase 4 — Terminal:** opciones de dificultad por preset
+  (`--dificultad facil|normal|dificil`, o `--huecos`/`--marcas` sueltos),
+  récords persistidos entre partidas (`records.py`,
+  `~/.tambor_del_juicio/records.json`, con aviso de "nuevo récord" en la
+  pantalla final) y modo duelo local por turnos (`--duelo`,
+  `jugar_duelo()`): mismo tambor/pistas compartidos, apuesta y marcas
+  propias de cada jugador, termina en el primer BOOM o retirada
+- [ ] **Fase 4 — Godot:** selector de dificultad, récords y duelo local,
+  a la par de la terminal
 
 ### 🎯 Otros próximos pasos
 - [ ] Modo «borracho» 🍺 (menos suerte y más humor)
 - [ ] Fuente de máquina de escribir para rematar la ambientación de Godot
-- [ ] Sistema de puntos, rachas y récords
 - [ ] Empaquetado en un ejecutable único (`pyinstaller`)
 
 ## 🤝 Cómo contribuir

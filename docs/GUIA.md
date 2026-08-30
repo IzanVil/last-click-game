@@ -43,23 +43,36 @@ GDScript se indica entre paréntesis.
    pista reciente mentía.
 6. Al terminar la partida se resume en una frase lo ocurrido (días
    sobrevividos, faroles lanzados/acertados, eventos sufridos).
+7. La dificultad tiene tres presets (fácil/normal/difícil) que ajustan
+   huecos y marcas a la vez; huecos y marcas también se pueden fijar por
+   separado. Cada partida actualiza unos récords persistidos entre
+   ejecuciones (días máximos, puntos máximos, faroles acertados/usados).
+8. **Modo duelo**: dos jugadores se turnan en el mismo tambor —bala,
+   patrón y pistas compartidos—, cada uno con su propia apuesta y sus
+   propias marcas. La partida termina en cuanto el turno de uno de los
+   dos acaba en BOOM o en retirada; gana quien sobrevivió más días (o,
+   en caso de empate, quien tenga más puntos).
 
 En la versión gráfica, además, el tambor se ve girar al empezar la
 partida, pulsa con tensión antes de revelar un disparo o un farol, y la
-pantalla vibra al morir; ver "Versión gráfica (Godot)" más abajo.
+pantalla vibra al morir; ver "Versión gráfica (Godot)" más abajo. El modo
+duelo y los récords persistidos son, de momento, solo de la terminal (ver
+la hoja de ruta del `README.md`, Fase 4).
 
 ## Versión de terminal (Python)
 
 - Archivos: `terminal/ruleta.py` (interfaz, sin lógica propia) +
   `terminal/estado.py`, `terminal/pistas.py`, `terminal/apuestas.py`,
-  `terminal/farol.py`, `terminal/eventos.py`, `terminal/historial.py`
-  (lógica pura, sin `input()`/`print()`, igual de fácil de testear que
-  `RuletaEstado.gd` en la versión Godot).
+  `terminal/farol.py`, `terminal/eventos.py`, `terminal/historial.py`,
+  `terminal/records.py` (lógica pura, sin `input()`/`print()`, igual de
+  fácil de testear que `RuletaEstado.gd` en la versión Godot).
 - Dependencias: **ninguna** (solo la librería estándar de Python 3.11+).
 - Ejecución: `./run.sh`, o directamente `python3 terminal/ruleta.py`. Admite
-  `--huecos N` (tamaño del tambor) y `--version`; `main()` es el entry point
-  real (`ruleta = "terminal.ruleta:main"` en `pyproject.toml`), que envuelve
-  `jugar()` para capturar Ctrl+C.
+  `--dificultad {facil,normal,dificil}`, `--huecos N`/`--marcas N` (pisan
+  al preset), `--duelo` (modo duelo, ver `jugar_duelo()`), `--records`
+  (muestra los récords guardados y no juega) y `--version`. `main()` es el
+  entry point real (`ruleta = "terminal.ruleta:main"` en `pyproject.toml`),
+  que envuelve `jugar()`/`jugar_duelo()` para capturar Ctrl+C.
 - Interactúa por entrada/salida estándar con interfaz en colores y tambor ASCII.
 
 ### Cómo modificar la lógica
@@ -88,8 +101,24 @@ pantalla vibra al morir; ver "Versión gráfica (Godot)" más abajo.
   `historial.resumen()` genera la frase final. `ruleta.calcular_estados()`
   combina marcadas/resultados de farol/candidatos en el diccionario que
   colorea el tambor (`ruleta.COLORES_ESTADO`, `ruleta.GLIFOS_ESTADO`).
+- `ruleta.DIFICULTADES` define los tres presets (huecos + marcas); añadir
+  uno nuevo es sumar una entrada a ese diccionario, que ya
+  aparece automáticamente en `--dificultad` (`choices=sorted(DIFICULTADES)`).
+- `records.Records` es un dataclass con los contadores acumulados;
+  `records.cargar()`/`records.guardar()` leen/escriben
+  `records.ruta_por_defecto()` (`~/.tambor_del_juicio/records.json`) y
+  aceptan una `ruta` explícita para tests. Un archivo ausente o corrupto
+  no rompe la partida: `cargar()` devuelve `Records()` vacío.
+- `ruleta.JugadorDuelo` (dataclass) lleva la apuesta/marca/historial/
+  disparos de un jugador dentro de `jugar_duelo()`; su propiedad `dias`
+  deriva de `disparos` igual que `estado.dias_sobrevividos()`.
+  `jugar_duelo()` reutiliza `escena`/`cabecera`/`elegir_accion`/
+  `elegir_posicion`/`impacto`/`retirada` tal cual (con los datos del
+  jugador activo en cada turno); lo único propio del modo duelo es
+  `escena_duelo()` (añade de quién es el turno y el estado del rival) y
+  `resultado_duelo()` (compara días y, en empate, puntos).
 
-`ruleta.py` importa estos seis módulos con un `try/except` (relativo si se
+`ruleta.py` importa estos siete módulos con un `try/except` (relativo si se
 usa como paquete instalado, absoluto si se ejecuta como script suelto): si
 añades un módulo de lógica más, sigue el mismo patrón de import.
 
@@ -97,7 +126,11 @@ añades un módulo de lógica más, sigue el mismo patrón de import.
 
 Hay una batería de pruebas por módulo (`test_estado.py`, `test_pistas.py`,
 `test_apuestas.py`, `test_farol.py`, `test_eventos.py`, `test_historial.py`,
-`test_ruleta.py`):
+`test_records.py`, `test_ruleta.py`). Cualquier test que llame a
+`jugar()`/`jugar_duelo()` debe parchear `ruleta.records.cargar` y
+`ruleta.records.guardar` (ver el decorador `_parchear_records` en
+`test_ruleta.py`): si no, leerían/escribirían el archivo de récords real
+del usuario que ejecuta los tests.
 
 ```bash
 cd terminal && python3 -m unittest discover -s . -v
@@ -208,11 +241,11 @@ job en rojo, igual que hace `coverage report --fail-under=90` en Python.
 
 ## Ampliaciones sugeridas
 
-Consulta la **Hoja de ruta** del `README.md` para el detalle completo:
-las Fases 1-3 de «El Tambor del Juicio» (farol, eventos, días de vida,
-ambientación) ya están en ambas versiones; queda la Fase 4 (multijugador,
-récords, dificultad configurable también en Godot) y sueltas como el modo
-«borracho» o una fuente de máquina de escribir para Godot.
+Consulta la **Hoja de ruta** del `README.md` para el detalle completo: las
+Fases 1-3 de «El Tambor del Juicio» (farol, eventos, días de vida,
+ambientación) ya están en ambas versiones, y la Fase 4 (dificultad,
+récords, duelo local) ya en la terminal; queda portarla a Godot, y sueltas
+como el modo «borracho» o una fuente de máquina de escribir para Godot.
 
 ## Estructura de carpetas
 
@@ -239,13 +272,15 @@ russian-roulette-2d/
 │   ├── farol.py
 │   ├── eventos.py
 │   ├── historial.py
+│   ├── records.py
 │   ├── test_ruleta.py
 │   ├── test_estado.py
 │   ├── test_pistas.py
 │   ├── test_apuestas.py
 │   ├── test_farol.py
 │   ├── test_eventos.py
-│   └── test_historial.py
+│   ├── test_historial.py
+│   └── test_records.py
 └── 2d/
     ├── project.godot
     ├── RuletaEstado.gd

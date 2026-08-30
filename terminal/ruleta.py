@@ -2,7 +2,7 @@
 
 Este archivo solo se ocupa de entrada/salida (pantalla, teclado, colores y
 pausas); la logica del juego vive en estado.py, pistas.py, apuestas.py,
-farol.py, eventos.py e historial.py.
+farol.py, eventos.py, historial.py y records.py.
 
 El try/except de abajo permite que el modulo funcione tanto instalado como
 paquete (`terminal.ruleta`, con imports relativos) como ejecutado suelto
@@ -12,10 +12,11 @@ paquete (`terminal.ruleta`, con imports relativos) como ejecutado suelto
 import argparse
 import os
 import time
+from dataclasses import dataclass, field
 from importlib.metadata import PackageNotFoundError, version
 
 try:
-    from . import apuestas, estado, eventos, farol, historial, pistas
+    from . import apuestas, estado, eventos, farol, historial, pistas, records
 except ImportError:  # pragma: no cover - ejecucion como script suelto
     # mypy resuelve el paquete via el `from .` de arriba y no encuentra
     # estos como modulos sueltos de nivel superior (solo existen asi en
@@ -28,9 +29,19 @@ except ImportError:  # pragma: no cover - ejecucion como script suelto
     import farol  # type: ignore[no-redef,import-not-found]
     import historial  # type: ignore[no-redef,import-not-found]
     import pistas  # type: ignore[no-redef,import-not-found]
+    import records  # type: ignore[no-redef,import-not-found]
 
 APUESTA_BASE = 100
 BONO_MARCA_ACERTADA = 50
+
+# Presets de dificultad: huecos del tambor y marcas de farol por partida.
+# --huecos/--marcas explicitos en la CLI pisan el valor del preset (ver
+# _parsear_args).
+DIFICULTADES = {
+    "facil": {"huecos": 10, "marcas": 4},
+    "normal": {"huecos": estado.HUECOS, "marcas": farol.MARCAS_INICIALES},
+    "dificil": {"huecos": 6, "marcas": 2},
+}
 
 ROJO = "\033[91m"
 VERDE = "\033[92m"
@@ -138,15 +149,21 @@ def escena(
     limpiar()
     cabecera(disparos, apuesta, marca)
     print()
+    _imprimir_pistas(pistas_reveladas)
+    print()
+    dibujar_tambor(estados, huecos)
+    print()
+
+
+def _imprimir_pistas(pistas_reveladas: list["pistas.Pista"]) -> None:
+    """Imprime la lista de pistas acumuladas, o el aviso de que aun no
+    hay ninguna. Comun a la partida en solitario y al modo duelo."""
     if pistas_reveladas:
         print(NEGRITA + "   Pistas del tambor:" + RESET)
         for indice, pista in enumerate(pistas_reveladas, start=1):
             print(f"   {AMARILLO}#{indice}{RESET} {pista.texto}")
     else:
         print(GRIS + "   La bala descansa en algun hueco. Aun no hay pistas." + RESET)
-    print()
-    dibujar_tambor(estados, huecos)
-    print()
 
 
 def elegir_accion(marcas_restantes: int) -> str:
@@ -181,7 +198,13 @@ def elegir_posicion(huecos: int) -> int:
         return posicion
 
 
-def impacto(disparos: int, perdidos: int, dias: int, resumen_texto: str) -> None:
+def impacto(
+    disparos: int,
+    perdidos: int,
+    dias: int,
+    resumen_texto: str,
+    nuevo_record: bool = False,
+) -> None:
     """Muestra la pantalla de derrota (BOOM), lo perdido y el resumen final."""
     limpiar()
     print(NEGRITA + ROJO + "\n      ▓▓▓   B O O M   ▓▓▓\n" + RESET)
@@ -190,11 +213,19 @@ def impacto(disparos: int, perdidos: int, dias: int, resumen_texto: str) -> None
         f"{AMARILLO}   Caiste tras {disparos} disparo(s) ({dias} dia(s) "
         f"sobrevivido(s)), perdiendo {perdidos} puntos.{RESET}"
     )
+    if nuevo_record:
+        print(NEGRITA + AMARILLO + "   ¡Nuevo record de dias sobrevividos!" + RESET)
     print(f"{CELESTE}   {resumen_texto}\n{RESET}")
     time.sleep(2)
 
 
-def retirada(disparos: int, ganados: int, dias: int, resumen_texto: str) -> None:
+def retirada(
+    disparos: int,
+    ganados: int,
+    dias: int,
+    resumen_texto: str,
+    nuevo_record: bool = False,
+) -> None:
     """Muestra la pantalla de retirada, lo cobrado y el resumen final."""
     limpiar()
     print(NEGRITA + VERDE + "\n    ✦  TE RETIRAS A TIEMPO  ✦\n" + RESET)
@@ -202,16 +233,20 @@ def retirada(disparos: int, ganados: int, dias: int, resumen_texto: str) -> None
         f"{CELESTE}   Cobras {ganados} puntos tras {disparos} disparo(s) "
         f"({dias} dia(s) sobrevivido(s)).{RESET}"
     )
+    if nuevo_record:
+        print(NEGRITA + AMARILLO + "   ¡Nuevo record de dias sobrevividos!" + RESET)
     print(f"{VERDE}   {resumen_texto}\n{RESET}")
     time.sleep(2)
 
 
-def jugar(huecos: int = estado.HUECOS) -> None:
+def jugar(huecos: int = estado.HUECOS, marcas: int = farol.MARCAS_INICIALES) -> None:
     """Ejecuta el bucle principal: disparar, marcar o retirarse."""
+    misrecords = records.cargar()
+
     while True:
         tambor = estado.TamborJuicio(huecos=huecos)
         apuesta = apuestas.Apuesta(APUESTA_BASE)
-        marca = farol.Farol()
+        marca = farol.Farol(marcas)
         bitacora = historial.Historial()
         disparos = 0
         marcadas: set[int] = set()
@@ -227,7 +262,18 @@ def jugar(huecos: int = estado.HUECOS) -> None:
             if accion == "retirarse":
                 ganados = apuesta.retirarse()
                 dias = estado.dias_sobrevividos(disparos)
-                retirada(disparos, ganados, dias, historial.resumen(bitacora, dias))
+                nuevo_record = dias > misrecords.dias_maximos
+                misrecords.registrar_partida(
+                    dias, ganados, bitacora.faroles_usados, bitacora.faroles_acertados
+                )
+                records.guardar(misrecords)
+                retirada(
+                    disparos,
+                    ganados,
+                    dias,
+                    historial.resumen(bitacora, dias),
+                    nuevo_record,
+                )
                 break
 
             if accion == "marcar":
@@ -256,7 +302,18 @@ def jugar(huecos: int = estado.HUECOS) -> None:
             if tambor.disparar(posicion):
                 perdidos = apuesta.perder()
                 dias = estado.dias_sobrevividos(disparos)
-                impacto(disparos, perdidos, dias, historial.resumen(bitacora, dias))
+                nuevo_record = dias > misrecords.dias_maximos
+                misrecords.registrar_partida(
+                    dias, perdidos, bitacora.faroles_usados, bitacora.faroles_acertados
+                )
+                records.guardar(misrecords)
+                impacto(
+                    disparos,
+                    perdidos,
+                    dias,
+                    historial.resumen(bitacora, dias),
+                    nuevo_record,
+                )
                 break
 
             apuesta.doblar()
@@ -293,6 +350,229 @@ def jugar(huecos: int = estado.HUECOS) -> None:
             break
 
 
+@dataclass
+class JugadorDuelo:
+    """Estado de un jugador dentro de una partida de modo duelo.
+
+    Cada jugador lleva su propia apuesta, sus propias marcas de farol y
+    su propio contador de disparos (sus "dias de vida" son solo los
+    disparos que ha sobrevivido el mismo); el tambor, sus pistas y los
+    huecos ya marcados o disparados son compartidos entre los dos (ver
+    jugar_duelo).
+    """
+
+    nombre: str
+    apuesta: "apuestas.Apuesta"
+    marca: "farol.Farol"
+    bitacora: "historial.Historial" = field(default_factory=historial.Historial)
+    disparos: int = 0
+    puntos_finales: int = 0
+
+    @property
+    def dias(self) -> int:
+        return estado.dias_sobrevividos(self.disparos)
+
+
+def _pedir_nombre(numero: int) -> str:
+    """Pide el nombre de un jugador; en blanco usa 'Jugador N'."""
+    prefijo = f"Nombre del jugador {numero} (Enter para 'Jugador {numero}'): "
+    entrada = input(f"{NEGRITA}   {prefijo}{RESET}").strip()
+    return entrada or f"Jugador {numero}"
+
+
+def escena_duelo(
+    activo: JugadorDuelo,
+    rival: JugadorDuelo,
+    estados: dict[int, str],
+    pistas_reveladas: list["pistas.Pista"],
+    huecos: int,
+) -> None:
+    """Como escena(), pero para el modo duelo: añade de quien es el turno
+    y el estado del rival por encima del tablero, que es compartido."""
+    limpiar()
+    print(NEGRITA + CELESTE + "   === EL TAMBOR DEL JUICIO: DUELO ===" + RESET)
+    print(
+        f"{AMARILLO}   Turno de {activo.nombre}{RESET}   ·   "
+        f"{rival.nombre}: {rival.dias} dia(s) sobrevividos"
+    )
+    print()
+    cabecera(activo.disparos, activo.apuesta, activo.marca)
+    print()
+    _imprimir_pistas(pistas_reveladas)
+    print()
+    dibujar_tambor(estados, huecos)
+    print()
+
+
+def resultado_duelo(jugadores: list[JugadorDuelo]) -> None:
+    """Compara a los jugadores (dias sobrevividos y, en caso de empate,
+    puntos alcanzados) y muestra quien gana el duelo."""
+    limpiar()
+    print(NEGRITA + AMARILLO + "\n   === RESULTADO DEL DUELO ===\n" + RESET)
+    for jugador in jugadores:
+        print(
+            f"   {jugador.nombre}: {jugador.dias} dia(s) sobrevividos, "
+            f"{jugador.puntos_finales} puntos."
+        )
+    print()
+
+    mejor_dias = max(j.dias for j in jugadores)
+    finalistas = [j for j in jugadores if j.dias == mejor_dias]
+    if len(finalistas) > 1:
+        mejores_puntos = max(j.puntos_finales for j in finalistas)
+        finalistas = [j for j in finalistas if j.puntos_finales == mejores_puntos]
+
+    if len(finalistas) > 1:
+        print(NEGRITA + CELESTE + "   Empate. El tambor no se decide." + RESET)
+    else:
+        print(NEGRITA + VERDE + f"   ¡Gana {finalistas[0].nombre}!" + RESET)
+    print()
+    time.sleep(1)
+    input(NEGRITA + "   Pulsa Enter para continuar..." + RESET)
+
+
+def jugar_duelo(
+    huecos: int = estado.HUECOS, marcas: int = farol.MARCAS_INICIALES
+) -> None:
+    """Modo duelo: dos jugadores turnandose en el mismo tambor.
+
+    El tambor, sus pistas y los huecos ya marcados o disparados son
+    compartidos (es literalmente el mismo revolver); cada jugador tiene
+    su propia apuesta, marcas y contador de disparos. La partida termina
+    en cuanto el turno de uno de los dos acaba en impacto o retirada: no
+    sigue jugando el otro en solitario despues. Se compara quien
+    sobrevivio mas dias (y, en caso de empate, quien llego con mas
+    puntos) para decidir quien gana.
+    """
+    misrecords = records.cargar()
+
+    limpiar()
+    print(NEGRITA + CELESTE + "\n   === EL TAMBOR DEL JUICIO: DUELO ===\n" + RESET)
+    nombres = [_pedir_nombre(1), _pedir_nombre(2)]
+
+    while True:
+        tambor = estado.TamborJuicio(huecos=huecos)
+        pistas_reveladas: list[pistas.Pista] = []
+        marcadas: set[int] = set()
+        resultados_farol: dict[int, str] = {}
+        jugadores = [
+            JugadorDuelo(
+                nombres[0], apuestas.Apuesta(APUESTA_BASE), farol.Farol(marcas)
+            ),
+            JugadorDuelo(
+                nombres[1], apuestas.Apuesta(APUESTA_BASE), farol.Farol(marcas)
+            ),
+        ]
+
+        turno = 0
+        while True:
+            activo = jugadores[turno % 2]
+            rival = jugadores[(turno + 1) % 2]
+
+            candidatos = pistas.interseccion(pistas_reveladas)
+            estados = calcular_estados(marcadas, resultados_farol, candidatos)
+            escena_duelo(activo, rival, estados, pistas_reveladas, tambor.huecos)
+            accion = elegir_accion(activo.marca.marcas_restantes)
+
+            if accion == "retirarse":
+                activo.puntos_finales = activo.apuesta.retirarse()
+                nuevo_record = activo.dias > misrecords.dias_maximos
+                misrecords.registrar_partida(
+                    activo.dias,
+                    activo.puntos_finales,
+                    activo.bitacora.faroles_usados,
+                    activo.bitacora.faroles_acertados,
+                )
+                records.guardar(misrecords)
+                retirada(
+                    activo.disparos,
+                    activo.puntos_finales,
+                    activo.dias,
+                    historial.resumen(activo.bitacora, activo.dias),
+                    nuevo_record,
+                )
+                break
+
+            if accion == "marcar":
+                posicion = elegir_posicion(tambor.huecos)
+                acierto = activo.marca.marcar(posicion, tambor.posicion_bala)
+                activo.bitacora.registrar_farol(acierto)
+                resultados_farol[posicion] = "seguro" if acierto else "peligro"
+                if acierto:
+                    activo.apuesta.sumar_bono(BONO_MARCA_ACERTADA)
+                    print(
+                        f"{VERDE}   Farol acertado: el hueco {posicion} estaba "
+                        f"vacio. +{BONO_MARCA_ACERTADA} puntos.{RESET}"
+                    )
+                else:
+                    print(
+                        f"{ROJO}   Farol fallido: ahi estaba la bala. "
+                        f"Pierdes la marca.{RESET}"
+                    )
+                time.sleep(1.5)
+                turno += 1
+                continue
+
+            posicion = elegir_posicion(tambor.huecos)
+            marcadas.add(posicion)
+            activo.disparos += 1
+
+            if tambor.disparar(posicion):
+                activo.puntos_finales = activo.apuesta.perder()
+                nuevo_record = activo.dias > misrecords.dias_maximos
+                misrecords.registrar_partida(
+                    activo.dias,
+                    activo.puntos_finales,
+                    activo.bitacora.faroles_usados,
+                    activo.bitacora.faroles_acertados,
+                )
+                records.guardar(misrecords)
+                impacto(
+                    activo.disparos,
+                    activo.puntos_finales,
+                    activo.dias,
+                    historial.resumen(activo.bitacora, activo.dias),
+                    nuevo_record,
+                )
+                break
+
+            activo.apuesta.doblar()
+
+            evento = eventos.tirar_evento()
+            if evento == "clic_metalico":
+                tambor.mover_extra()
+            if evento is not None:
+                activo.bitacora.registrar_evento(evento)
+                print(f"{GRIS}   {eventos.texto_de(evento)}{RESET}")
+
+            pistas_reveladas.append(
+                pistas.generar_pista(
+                    tambor.posicion_bala,
+                    tambor.huecos,
+                    tambor.ultimo_disparo,
+                    mentir=(evento == "tambor_caliente"),
+                )
+            )
+            print(
+                f"{VERDE}   Click. Cartucho vacio. Lo apostado se dobla "
+                f"a {activo.apuesta.en_juego} puntos.{RESET}"
+            )
+            time.sleep(1.5)
+            turno += 1
+
+        # El rival no jugo su ultimo turno con los mismos puntos "en
+        # juego" que ya se le hubiesen esfumado o cobrado: para el, sus
+        # puntos finales son los que llevaba en juego cuando el duelo
+        # termino (no jugo ni impacto ni retirada, sigue "vivo" a medias).
+        rival.puntos_finales = rival.apuesta.en_juego
+        resultado_duelo(jugadores)
+
+        otra = input(NEGRITA + "   Jugar otro duelo? (s/n): " + RESET).strip().lower()
+        if otra not in ("s", "si", "y", "yes"):
+            print(f"{AMARILLO}   Hasta la proxima. El tambor siempre espera.{RESET}")
+            break
+
+
 def _version_texto() -> str:
     """Version del paquete instalado (la que declara pyproject.toml), o
     un aviso claro si se ejecuta el script directamente sin instalar (no
@@ -324,18 +604,48 @@ def _parsear_args(argv: list[str] | None = None) -> argparse.Namespace:
         version=f"%(prog)s {_version_texto()}",
     )
     parser.add_argument(
+        "--dificultad",
+        choices=sorted(DIFICULTADES),
+        default="normal",
+        help="Preset de huecos y marcas (por defecto: normal). Ver --huecos/--marcas.",
+    )
+    parser.add_argument(
         "--huecos",
         type=int,
-        default=estado.HUECOS,
-        help=f"Huecos del tambor (por defecto: {estado.HUECOS}).",
+        default=None,
+        help="Huecos del tambor (por defecto, segun --dificultad).",
+    )
+    parser.add_argument(
+        "--marcas",
+        type=int,
+        default=None,
+        help="Marcas de farol por partida (por defecto, segun --dificultad).",
+    )
+    parser.add_argument(
+        "--duelo",
+        action="store_true",
+        help="Modo duelo: dos jugadores turnandose en el mismo tambor.",
+    )
+    parser.add_argument(
+        "--records",
+        action="store_true",
+        help="Muestra los records guardados y termina, sin jugar.",
     )
     args = parser.parse_args(argv)
+
+    preset = DIFICULTADES[args.dificultad]
+    if args.huecos is None:
+        args.huecos = preset["huecos"]
+    if args.marcas is None:
+        args.marcas = preset["marcas"]
 
     if args.huecos < 2:
         # Mismo mensaje que TamborJuicio.__init__, pero convertido al
         # idioma de error de argparse (exit code 2) en vez de dejar que
         # un ValueError suelto reviente a mitad de partida.
         parser.error(f"huecos debe ser al menos 2 (recibido: {args.huecos}).")
+    if args.marcas < 0:
+        parser.error(f"marcas no puede ser negativo (recibido: {args.marcas}).")
 
     return args
 
@@ -343,15 +653,23 @@ def _parsear_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> None:
     """Punto de entrada real del juego (usado por `run.sh`/`run.bat` via
     `__main__` y por el comando `ruleta` instalable via pyproject.toml):
-    envuelve jugar() para que Ctrl+C siempre salga con el mensaje de
-    despedida en vez de un traceback, sin importar por cual de las dos
-    vias se haya lanzado. `argv=None` hace que argparse lea sys.argv
-    real (comportamiento normal); se le puede pasar una lista para
-    lanzar el juego con otros parametros sin pasar por la terminal.
+    envuelve jugar()/jugar_duelo() para que Ctrl+C siempre salga con el
+    mensaje de despedida en vez de un traceback, sin importar por cual
+    de las dos vias se haya lanzado. `argv=None` hace que argparse lea
+    sys.argv real (comportamiento normal); se le puede pasar una lista
+    para lanzar el juego con otros parametros sin pasar por la terminal.
     """
     args = _parsear_args(argv)
+
+    if args.records:
+        print(records.resumen(records.cargar()))
+        return
+
     try:
-        jugar(huecos=args.huecos)
+        if args.duelo:
+            jugar_duelo(huecos=args.huecos, marcas=args.marcas)
+        else:
+            jugar(huecos=args.huecos, marcas=args.marcas)
     except KeyboardInterrupt:
         print()
         print(AMARILLO + "   Hasta la proxima. El tambor siempre espera." + RESET)

@@ -1,7 +1,10 @@
 import unittest
 from unittest.mock import patch
 
+import apuestas
+import farol
 import pistas
+import records
 import ruleta
 
 
@@ -25,6 +28,15 @@ class FakeTambor:
         self.movimientos_extra += 1
         self.posicion_bala += 1  # desplazamiento simbolico para el test
         return self.posicion_bala
+
+
+def _parchear_records(func):
+    """Decorador que evita que los tests toquen el archivo de records real
+    del usuario: jugar()/jugar_duelo() cargan y guardan records siempre,
+    asi que cualquier test que las llame necesita este doble parcheo."""
+    func = patch("ruleta.records.guardar")(func)
+    func = patch("ruleta.records.cargar", return_value=records.Records())(func)
+    return func
 
 
 class TestCalcularEstados(unittest.TestCase):
@@ -110,8 +122,16 @@ class TestFlujoJuego(unittest.TestCase):
     @patch("ruleta.eventos.tirar_evento", return_value=None)
     @patch("ruleta.retirada")
     @patch("ruleta.estado.TamborJuicio")
+    @_parchear_records
     def test_sobrevive_y_se_retira_con_la_apuesta_doblada(
-        self, mock_tambor_cls, mock_retirada, mock_evento, mock_limpiar, mock_sleep
+        self,
+        mock_cargar,
+        mock_guardar,
+        mock_tambor_cls,
+        mock_retirada,
+        mock_evento,
+        mock_limpiar,
+        mock_sleep,
     ):
         mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([False])
 
@@ -122,19 +142,29 @@ class TestFlujoJuego(unittest.TestCase):
         ):
             ruleta.jugar()
 
-        # 1 disparo sobrevivido -> 0 dias completos (hacen falta 3) y sin
-        # faroles ni eventos en el resumen.
+        # 1 disparo sobrevivido -> 0 dias completos (hacen falta 3), sin
+        # faroles ni eventos en el resumen, y sin record (no hay ninguno
+        # previo que batir por encima de 0 dias).
         mock_retirada.assert_called_once_with(
-            1, 200, 0, "Hoy sobreviviste 0 dias, sin faroles ni sobresaltos."
+            1, 200, 0, "Hoy sobreviviste 0 dias, sin faroles ni sobresaltos.", False
         )
+        mock_guardar.assert_called_once()
 
     @patch("ruleta.time.sleep", return_value=None)
     @patch("ruleta.limpiar", return_value=None)
     @patch("ruleta.eventos.tirar_evento", return_value=None)
     @patch("ruleta.impacto")
     @patch("ruleta.estado.TamborJuicio")
+    @_parchear_records
     def test_impacto_pierde_todo_lo_apostado(
-        self, mock_tambor_cls, mock_impacto, mock_evento, mock_limpiar, mock_sleep
+        self,
+        mock_cargar,
+        mock_guardar,
+        mock_tambor_cls,
+        mock_impacto,
+        mock_evento,
+        mock_limpiar,
+        mock_sleep,
     ):
         mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([False, True])
 
@@ -146,7 +176,7 @@ class TestFlujoJuego(unittest.TestCase):
             ruleta.jugar()
 
         mock_impacto.assert_called_once_with(
-            2, 200, 0, "Hoy sobreviviste 0 dias, sin faroles ni sobresaltos."
+            2, 200, 0, "Hoy sobreviviste 0 dias, sin faroles ni sobresaltos.", False
         )
 
     @patch("ruleta.time.sleep", return_value=None)
@@ -154,8 +184,16 @@ class TestFlujoJuego(unittest.TestCase):
     @patch("ruleta.eventos.tirar_evento", return_value=None)
     @patch("ruleta.retirada")
     @patch("ruleta.estado.TamborJuicio")
+    @_parchear_records
     def test_marcar_acertado_suma_bono_sin_disparar(
-        self, mock_tambor_cls, mock_retirada, mock_evento, mock_limpiar, mock_sleep
+        self,
+        mock_cargar,
+        mock_guardar,
+        mock_tambor_cls,
+        mock_retirada,
+        mock_evento,
+        mock_limpiar,
+        mock_sleep,
     ):
         # posicion_bala=5 por defecto: marcar el 3 acierta (no es la bala).
         mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([])
@@ -170,7 +208,7 @@ class TestFlujoJuego(unittest.TestCase):
         # Marcar no cuenta como disparo (0) y suma el bono sin doblar:
         # 100 + 50 = 150. El resumen refleja el farol acertado.
         mock_retirada.assert_called_once_with(
-            0, 150, 0, "Hoy sobreviviste 0 dias y faroleaste 1 vez (1 acertado)."
+            0, 150, 0, "Hoy sobreviviste 0 dias y faroleaste 1 vez (1 acertado).", False
         )
 
     @patch("ruleta.time.sleep", return_value=None)
@@ -178,8 +216,16 @@ class TestFlujoJuego(unittest.TestCase):
     @patch("ruleta.eventos.tirar_evento", return_value=None)
     @patch("ruleta.retirada")
     @patch("ruleta.estado.TamborJuicio")
+    @_parchear_records
     def test_marcar_fallido_pierde_la_marca_sin_tocar_los_puntos(
-        self, mock_tambor_cls, mock_retirada, mock_evento, mock_limpiar, mock_sleep
+        self,
+        mock_cargar,
+        mock_guardar,
+        mock_tambor_cls,
+        mock_retirada,
+        mock_evento,
+        mock_limpiar,
+        mock_sleep,
     ):
         # posicion_bala=5 por defecto: marcar justo el 5 falla.
         mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([])
@@ -192,7 +238,11 @@ class TestFlujoJuego(unittest.TestCase):
             ruleta.jugar()
 
         mock_retirada.assert_called_once_with(
-            0, 100, 0, "Hoy sobreviviste 0 dias y faroleaste 1 vez (0 acertados)."
+            0,
+            100,
+            0,
+            "Hoy sobreviviste 0 dias y faroleaste 1 vez (0 acertados).",
+            False,
         )
 
     @patch("ruleta.time.sleep", return_value=None)
@@ -200,8 +250,16 @@ class TestFlujoJuego(unittest.TestCase):
     @patch("ruleta.eventos.tirar_evento", return_value="clic_metalico")
     @patch("ruleta.retirada")
     @patch("ruleta.estado.TamborJuicio")
+    @_parchear_records
     def test_evento_clic_metalico_mueve_la_bala_otra_vez(
-        self, mock_tambor_cls, mock_retirada, mock_evento, mock_limpiar, mock_sleep
+        self,
+        mock_cargar,
+        mock_guardar,
+        mock_tambor_cls,
+        mock_retirada,
+        mock_evento,
+        mock_limpiar,
+        mock_sleep,
     ):
         fake = FakeTambor([False])
         mock_tambor_cls.side_effect = lambda huecos=None: fake
@@ -221,8 +279,11 @@ class TestFlujoJuego(unittest.TestCase):
     @patch("ruleta.pistas.generar_pista")
     @patch("ruleta.retirada")
     @patch("ruleta.estado.TamborJuicio")
+    @_parchear_records
     def test_evento_tambor_caliente_pide_una_pista_mentirosa(
         self,
+        mock_cargar,
+        mock_guardar,
         mock_tambor_cls,
         mock_retirada,
         mock_generar_pista,
@@ -249,8 +310,16 @@ class TestFlujoJuego(unittest.TestCase):
     @patch("ruleta.eventos.tirar_evento", return_value=None)
     @patch("ruleta.retirada")
     @patch("ruleta.estado.TamborJuicio")
+    @_parchear_records
     def test_completa_un_dia_cada_tres_disparos_sobrevividos(
-        self, mock_tambor_cls, mock_retirada, mock_evento, mock_limpiar, mock_sleep
+        self,
+        mock_cargar,
+        mock_guardar,
+        mock_tambor_cls,
+        mock_retirada,
+        mock_evento,
+        mock_limpiar,
+        mock_sleep,
     ):
         mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor(
             [False, False, False]
@@ -263,11 +332,14 @@ class TestFlujoJuego(unittest.TestCase):
         ):
             ruleta.jugar()
 
-        # 3 disparos sobrevividos (100 -> 200 -> 400 -> 800) = 1 dia completo.
+        # 3 disparos sobrevividos (100 -> 200 -> 400 -> 800) = 1 dia
+        # completo, y como no habia ningun record previo (0 dias), este
+        # se marca como nuevo record.
         dias, ganados, disparos = 1, 800, 3
         llamada = mock_retirada.call_args
         self.assertEqual(llamada.args[:3], (disparos, ganados, dias))
         self.assertIn("sobreviviste 1 dia", llamada.args[3])
+        self.assertTrue(llamada.args[4])
 
     @patch("ruleta.time.sleep", return_value=None)
     @patch("ruleta.limpiar", return_value=None)
@@ -287,6 +359,20 @@ class TestFlujoJuego(unittest.TestCase):
         self.assertRegex(mensajes, r"(?i)b\s*o\s*o\s*m")
         self.assertIn("200", mensajes)
         self.assertIn("Hoy sobreviviste 0 dias.", mensajes)
+        self.assertNotIn("record", mensajes.lower())
+
+    @patch("ruleta.time.sleep", return_value=None)
+    @patch("ruleta.limpiar", return_value=None)
+    def test_pantalla_impacto_anuncia_nuevo_record(self, mock_limpiar, mock_sleep):
+        with patch("builtins.print") as mock_print:
+            ruleta.impacto(2, 200, 5, "Hoy sobreviviste 5 dias.", nuevo_record=True)
+
+        mensajes = " ".join(
+            str(llamada.args[0])
+            for llamada in mock_print.call_args_list
+            if llamada.args
+        )
+        self.assertIn("Nuevo record", mensajes)
 
     @patch("ruleta.time.sleep", return_value=None)
     @patch("ruleta.limpiar", return_value=None)
@@ -303,12 +389,238 @@ class TestFlujoJuego(unittest.TestCase):
         )
         self.assertIn("400", mensajes)
         self.assertIn("Hoy sobreviviste 1 dia.", mensajes)
+        self.assertNotIn("record", mensajes.lower())
+
+
+class TestJugadorDuelo(unittest.TestCase):
+    def test_dias_se_deriva_de_los_disparos(self):
+        jugador = ruleta.JugadorDuelo("Ana", apuestas.Apuesta(100), farol.Farol())
+        jugador.disparos = 7
+        self.assertEqual(jugador.dias, 2)
+
+
+class TestResultadoDuelo(unittest.TestCase):
+    @patch("ruleta.time.sleep", return_value=None)
+    @patch("ruleta.limpiar", return_value=None)
+    def test_gana_quien_sobrevive_mas_dias(self, mock_limpiar, mock_sleep):
+        ana = ruleta.JugadorDuelo("Ana", apuestas.Apuesta(100), farol.Farol())
+        ana.disparos, ana.puntos_finales = 6, 300  # 2 dias
+        beto = ruleta.JugadorDuelo("Beto", apuestas.Apuesta(100), farol.Farol())
+        beto.disparos, beto.puntos_finales = 3, 900  # 1 dia, pero mas puntos
+
+        with (
+            patch("builtins.input", return_value=""),
+            patch("builtins.print") as mock_print,
+        ):
+            ruleta.resultado_duelo([ana, beto])
+
+        mensajes = " ".join(str(c.args[0]) for c in mock_print.call_args_list if c.args)
+        self.assertIn("Gana Ana", mensajes)
+
+    @patch("ruleta.time.sleep", return_value=None)
+    @patch("ruleta.limpiar", return_value=None)
+    def test_empate_en_dias_lo_desempata_los_puntos(self, mock_limpiar, mock_sleep):
+        ana = ruleta.JugadorDuelo("Ana", apuestas.Apuesta(100), farol.Farol())
+        ana.disparos, ana.puntos_finales = 3, 400
+        beto = ruleta.JugadorDuelo("Beto", apuestas.Apuesta(100), farol.Farol())
+        beto.disparos, beto.puntos_finales = 3, 900
+
+        with (
+            patch("builtins.input", return_value=""),
+            patch("builtins.print") as mock_print,
+        ):
+            ruleta.resultado_duelo([ana, beto])
+
+        mensajes = " ".join(str(c.args[0]) for c in mock_print.call_args_list if c.args)
+        self.assertIn("Gana Beto", mensajes)
+
+    @patch("ruleta.time.sleep", return_value=None)
+    @patch("ruleta.limpiar", return_value=None)
+    def test_empate_total(self, mock_limpiar, mock_sleep):
+        ana = ruleta.JugadorDuelo("Ana", apuestas.Apuesta(100), farol.Farol())
+        ana.disparos, ana.puntos_finales = 3, 400
+        beto = ruleta.JugadorDuelo("Beto", apuestas.Apuesta(100), farol.Farol())
+        beto.disparos, beto.puntos_finales = 3, 400
+
+        with (
+            patch("builtins.input", return_value=""),
+            patch("builtins.print") as mock_print,
+        ):
+            ruleta.resultado_duelo([ana, beto])
+
+        mensajes = " ".join(str(c.args[0]) for c in mock_print.call_args_list if c.args)
+        self.assertIn("Empate", mensajes)
+
+
+class TestJugarDuelo(unittest.TestCase):
+    @patch("ruleta.time.sleep", return_value=None)
+    @patch("ruleta.limpiar", return_value=None)
+    @patch("ruleta.eventos.tirar_evento", return_value=None)
+    @patch("ruleta.estado.TamborJuicio")
+    @_parchear_records
+    def test_turnos_alternan_y_el_duelo_acaba_al_retirarse_el_activo(
+        self,
+        mock_cargar,
+        mock_guardar,
+        mock_tambor_cls,
+        mock_evento,
+        mock_limpiar,
+        mock_sleep,
+    ):
+        # posicion_bala=5 por defecto (nunca coincide con los disparos de
+        # abajo): dos disparos sobreviven, uno por jugador, y el turno
+        # vuelve al primer jugador, que se retira.
+        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([False, False])
+
+        entradas = iter(
+            [
+                "",  # nombre jugador 1 (por defecto)
+                "",  # nombre jugador 2 (por defecto)
+                "d",
+                "3",  # turno 1: Jugador 1 dispara y sobrevive
+                "d",
+                "4",  # turno 2: Jugador 2 dispara y sobrevive
+                "r",  # turno 3: Jugador 1 se retira -> fin del duelo
+                "",  # "Pulsa Enter para continuar" del resultado
+                "n",  # no jugar otro duelo
+            ]
+        )
+        with (
+            patch("builtins.input", side_effect=lambda _p="": next(entradas)),
+            patch("ruleta.retirada") as mock_retirada,
+            patch("builtins.print") as mock_print,
+        ):
+            ruleta.jugar_duelo()
+
+        # Jugador 1: 1 disparo sobrevivido (100 -> 200) y se retira con
+        # esos 200 puntos; 0 dias (hacen falta 3 disparos).
+        mock_retirada.assert_called_once_with(
+            1, 200, 0, "Hoy sobreviviste 0 dias, sin faroles ni sobresaltos.", False
+        )
+
+        # Jugador 2 tambien habia doblado su apuesta a 200 en su unico
+        # turno; al no retirarse ni morir, sus "puntos finales" son los
+        # que tenia en juego cuando el duelo termino.
+        mensajes = " ".join(str(c.args[0]) for c in mock_print.call_args_list if c.args)
+        self.assertIn("Jugador 2: 0 dia(s) sobrevividos, 200 puntos", mensajes)
+        # Con los mismos dias (0) y los mismos puntos (200 cada uno),
+        # el duelo termina en empate.
+        self.assertIn("Empate", mensajes)
+
+    @patch("ruleta.time.sleep", return_value=None)
+    @patch("ruleta.limpiar", return_value=None)
+    @patch("ruleta.eventos.tirar_evento", return_value=None)
+    @patch("ruleta.estado.TamborJuicio")
+    @_parchear_records
+    def test_marcar_en_duelo_suma_bono_y_congela_los_puntos_del_rival(
+        self,
+        mock_cargar,
+        mock_guardar,
+        mock_tambor_cls,
+        mock_evento,
+        mock_limpiar,
+        mock_sleep,
+    ):
+        # posicion_bala=5 por defecto: marcar el 3 acierta (no es la bala).
+        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([])
+
+        entradas = iter(
+            [
+                "",
+                "",  # nombres por defecto
+                "m",
+                "3",  # turno 1: Jugador 1 marca y acierta (+50 puntos)
+                "r",  # turno 2: Jugador 2 se retira -> fin del duelo
+                "",  # "Pulsa Enter para continuar" del resultado
+                "n",
+            ]
+        )
+        with (
+            patch("builtins.input", side_effect=lambda _p="": next(entradas)),
+            patch("ruleta.retirada") as mock_retirada,
+            patch("builtins.print") as mock_print,
+        ):
+            ruleta.jugar_duelo()
+
+        # Jugador 2 se retira sin haber hecho nada: cobra su apuesta base.
+        mock_retirada.assert_called_once_with(
+            0, 100, 0, "Hoy sobreviviste 0 dias, sin faroles ni sobresaltos.", False
+        )
+
+        # Jugador 1 no llego a retirarse ni a morir: sus puntos finales
+        # quedan congelados en los 150 (100 + 50 de bono) que tenia en
+        # juego, y eso es justo lo que le hace ganar el duelo.
+        mensajes = " ".join(str(c.args[0]) for c in mock_print.call_args_list if c.args)
+        self.assertIn("Jugador 1: 0 dia(s) sobrevividos, 150 puntos", mensajes)
+        self.assertIn("Gana Jugador 1", mensajes)
+
+    @patch("ruleta.time.sleep", return_value=None)
+    @patch("ruleta.limpiar", return_value=None)
+    @patch("ruleta.eventos.tirar_evento", return_value=None)
+    @patch("ruleta.impacto")
+    @patch("ruleta.estado.TamborJuicio")
+    @_parchear_records
+    def test_impacto_en_duelo_termina_la_partida(
+        self,
+        mock_cargar,
+        mock_guardar,
+        mock_tambor_cls,
+        mock_impacto,
+        mock_evento,
+        mock_limpiar,
+        mock_sleep,
+    ):
+        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([False, True])
+
+        entradas = iter(
+            [
+                "",
+                "",  # nombres por defecto
+                "d",
+                "3",  # turno 1: Jugador 1 dispara y sobrevive (100 -> 200)
+                "d",
+                "5",  # turno 2: Jugador 2 dispara justo la bala -> BOOM
+                "",  # "Pulsa Enter para continuar" del resultado
+                "n",  # no jugar otro duelo
+            ]
+        )
+        with (
+            patch("builtins.input", side_effect=lambda _p="": next(entradas)),
+            patch("builtins.print"),
+        ):
+            ruleta.jugar_duelo()
+
+        # Jugador 2 muere en su primer disparo: pierde su apuesta base
+        # entera (nunca llego a doblarla).
+        mock_impacto.assert_called_once_with(
+            1, 100, 0, "Hoy sobreviviste 0 dias, sin faroles ni sobresaltos.", False
+        )
 
 
 class TestParsearArgs(unittest.TestCase):
-    def test_valores_por_defecto(self):
+    def test_valores_por_defecto_son_la_dificultad_normal(self):
         args = ruleta._parsear_args([])
         self.assertEqual(args.huecos, ruleta.estado.HUECOS)
+        self.assertEqual(args.marcas, ruleta.farol.MARCAS_INICIALES)
+        self.assertFalse(args.duelo)
+        self.assertFalse(args.records)
+
+    def test_dificultad_facil(self):
+        args = ruleta._parsear_args(["--dificultad", "facil"])
+        self.assertEqual(args.huecos, ruleta.DIFICULTADES["facil"]["huecos"])
+        self.assertEqual(args.marcas, ruleta.DIFICULTADES["facil"]["marcas"])
+
+    def test_dificultad_dificil(self):
+        args = ruleta._parsear_args(["--dificultad", "dificil"])
+        self.assertEqual(args.huecos, ruleta.DIFICULTADES["dificil"]["huecos"])
+        self.assertEqual(args.marcas, ruleta.DIFICULTADES["dificil"]["marcas"])
+
+    def test_huecos_y_marcas_explicitos_pisan_el_preset(self):
+        args = ruleta._parsear_args(
+            ["--dificultad", "facil", "--huecos", "5", "--marcas", "1"]
+        )
+        self.assertEqual(args.huecos, 5)
+        self.assertEqual(args.marcas, 1)
 
     def test_acepta_huecos_personalizado(self):
         args = ruleta._parsear_args(["--huecos", "6"])
@@ -317,6 +629,22 @@ class TestParsearArgs(unittest.TestCase):
     def test_rechaza_huecos_insuficiente(self):
         with self.assertRaises(SystemExit):
             ruleta._parsear_args(["--huecos", "1"])
+
+    def test_rechaza_marcas_negativas(self):
+        with self.assertRaises(SystemExit):
+            ruleta._parsear_args(["--marcas", "-1"])
+
+    def test_acepta_marcas_cero(self):
+        args = ruleta._parsear_args(["--marcas", "0"])
+        self.assertEqual(args.marcas, 0)
+
+    def test_duelo(self):
+        args = ruleta._parsear_args(["--duelo"])
+        self.assertTrue(args.duelo)
+
+    def test_records(self):
+        args = ruleta._parsear_args(["--records"])
+        self.assertTrue(args.records)
 
     def test_version_sale_con_exit_0_y_no_es_error(self):
         with self.assertRaises(SystemExit) as contexto:
@@ -336,9 +664,29 @@ class TestVersionTexto(unittest.TestCase):
 
 class TestMain(unittest.TestCase):
     @patch("ruleta.jugar")
-    def test_pasa_huecos_a_jugar(self, mock_jugar):
-        ruleta.main(["--huecos", "6"])
-        mock_jugar.assert_called_once_with(huecos=6)
+    def test_pasa_huecos_y_marcas_a_jugar(self, mock_jugar):
+        ruleta.main(["--huecos", "6", "--marcas", "2"])
+        mock_jugar.assert_called_once_with(huecos=6, marcas=2)
+
+    @patch("ruleta.jugar_duelo")
+    def test_duelo_llama_a_jugar_duelo_en_vez_de_jugar(self, mock_jugar_duelo):
+        ruleta.main(["--duelo", "--huecos", "6"])
+        mock_jugar_duelo.assert_called_once_with(
+            huecos=6, marcas=farol.MARCAS_INICIALES
+        )
+
+    @patch("ruleta.jugar")
+    @patch(
+        "ruleta.records.cargar",
+        return_value=records.Records(partidas_jugadas=1, dias_maximos=3),
+    )
+    def test_records_imprime_el_resumen_y_no_juega(self, mock_cargar, mock_jugar):
+        with patch("builtins.print") as mock_print:
+            ruleta.main(["--records"])
+
+        mock_jugar.assert_not_called()
+        mensajes = " ".join(str(c.args[0]) for c in mock_print.call_args_list if c.args)
+        self.assertIn("3 dia(s)", mensajes)
 
     @patch("ruleta.jugar", side_effect=KeyboardInterrupt)
     def test_ctrl_c_sale_con_mensaje_sin_traceback(self, mock_jugar):
