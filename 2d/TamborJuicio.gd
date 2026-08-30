@@ -9,6 +9,19 @@ extends RefCounted
 
 const PATRONES: Array[String] = ["avanza", "retrocede", "salta_dos", "espejo"]
 
+## Cuantos disparos sobrevividos forman un "dia de vida". Vive aqui, y no
+## en RuletaEstado, para que sea espejo exacto de terminal/estado.py, que
+## declara DISPAROS_POR_DIA y dias_sobrevividos() junto a TamborJuicio.
+const DISPAROS_POR_DIA := 3
+
+
+## Cuenta cuantos dias completos (de `disparos_por_dia` disparos) se han
+## sobrevivido. Un dia en curso, aun sin terminar, no cuenta todavia.
+static func dias_sobrevividos(
+	disparos_superados: int, disparos_por_dia: int = DISPAROS_POR_DIA
+) -> int:
+	return disparos_superados / disparos_por_dia
+
 var huecos: int
 var patron: String
 var posicion_bala: int

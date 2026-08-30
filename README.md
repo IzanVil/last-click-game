@@ -118,13 +118,16 @@ russian-roulette-2d/
 └── 2d/                  ← versión gráfica: El Tambor del Juicio
     ├── project.godot    ← proyecto Godot
     ├── RuletaEstado.gd  ← orquestador: conecta la lógica y emite señales
-    ├── TamborJuicio.gd  ← tambor y bala: posición, patrón de movimiento
+    ├── TamborJuicio.gd  ← tambor y bala: posición, patrón, días de vida
     ├── Pistas.gd        ← generación de pistas (veraces o mentirosas)
     ├── Apuesta.gd       ← apuesta doblar-o-retirarse
     ├── Farol.gd         ← marcar un hueco como seguro sin disparar
     ├── Eventos.gd       ← eventos aleatorios (clic metálico, tambor caliente)
     ├── Historial.gd     ← contadores de la partida y resumen narrativo
-    ├── MainGame.gd      ← vista: Label/Button/Tween
+    ├── Jugador.gd       ← apuesta/marcas/disparos de un jugador y desempate
+    ├── Dificultad.gd    ← presets fácil/normal/difícil
+    ├── Records.gd       ← récords persistidos en user://records.json
+    ├── MainGame.gd      ← vista: menú, Label/Button/Tween
     ├── TamborView.gd    ← dibuja el tambor y sus animaciones
     ├── tests/           ← scripts headless (lógica + integración de escena)
     ├── scenes/          ← escenas (UI)
@@ -277,32 +280,48 @@ seguro (verde `✓`); el 1, 2 y 3 son huecos por los que ya se disparó (gris `�
 
 ## 🎮 Versión gráfica (Godot 2D) — El Tambor del Juicio
 
-Desde esta beta, la versión gráfica juega **la misma mecánica que la
-terminal** (Fases 1-3 del rediseño): tambor de bala móvil, pistas, apuesta
-doblar-o-retirarse, farol y días de vida, con ambientación noir/steampunk,
-tambor animado y vibración en pantalla al morir.
+La versión gráfica juega **la misma mecánica que la terminal** (las
+cuatro fases del rediseño): tambor de bala móvil, pistas, apuesta
+doblar-o-retirarse, farol, días de vida, dificultad, récords y modo
+duelo — con ambientación noir/steampunk, tambor animado y vibración en
+pantalla al morir.
 
 ### Cómo jugar
 
 1. Abre Godot e importa el proyecto desde `2d/project.godot`.
 2. Pulsa **▶ Play** (o la tecla **F5**).
-3. Escribe una posición del tambor (1-8) y pulsa **Enter** o uno de los
-   tres botones: **Disparar**, **Marcar** o **Retirarse** (las mismas
+3. En el **menú** eliges dificultad y, si quieres, marcas *Modo duelo* y
+   pones los nombres de los dos jugadores. Pulsa **Empezar**.
+4. Escribe una posición del tambor y pulsa **Enter** o uno de los tres
+   botones: **Disparar**, **Marcar** o **Retirarse** (las mismas
    acciones que en la terminal, ver [Reglas](#reglas) más arriba).
 
 El tambor se colorea igual que en la terminal: 🟡 amarillo = candidato
 según las pistas vigentes, 🟢 verde / 🔴 rojo = resultado de un farol, ⚪
 gris = ya disparado.
 
+Donde la terminal usa opciones de línea de comandos (`--dificultad`,
+`--duelo`, `--records`), aquí están en ese menú previo, que además
+muestra los récords; y donde la terminal vuelve al prompt al terminar
+una partida, aquí se vuelve al menú con los récords ya actualizados.
+Los récords se guardan en `user://records.json` (el equivalente
+idiomático en Godot de `~/.tambor_del_juicio/records.json`).
+
 ### Arquitectura: lógica pura + señales, igual que en Python
 
 `2d/RuletaEstado.gd` orquesta `TamborJuicio.gd`, `Apuesta.gd`, `Farol.gd`,
-`Eventos.gd` e `Historial.gd` — sin conocer nodos ni UI, igual que
-`terminal/estado.py` y compañía — y emite señales (`disparo_sobrevivido`,
-`pista_nueva`, `evento_ocurrido`, `farol_resuelto`, `dia_completado`,
-`impacto`, `retirada`...) que `MainGame.gd` escucha para actualizar
-Label/Button/Tween. `TamborView.gd` solo sabe pintar el estado que le pasa
-`MainGame.gd`, sin conocer ninguna regla del juego.
+`Eventos.gd`, `Historial.gd` y `Jugador.gd` — sin conocer nodos ni UI, ni
+tocar disco, igual que `terminal/estado.py` y compañía — y emite señales
+(`disparo_sobrevivido`, `pista_nueva`, `evento_ocurrido`,
+`farol_resuelto`, `dia_completado`, `impacto`, `retirada`,
+`turno_cambiado`, `duelo_terminado`...) que `MainGame.gd` escucha para
+actualizar Label/Button/Tween. `TamborView.gd` solo sabe pintar el estado
+que le pasa `MainGame.gd`, sin conocer ninguna regla del juego.
+
+Una partida en solitario es, internamente, **un duelo de un solo
+jugador**: los dos modos comparten la misma lógica de turnos
+(`RuletaEstado.jugadores` y `turno`), y los atajos `apuesta`/`farol`/
+`historial`/`disparos` apuntan siempre al jugador activo.
 
 ### Tests
 
@@ -313,12 +332,14 @@ scripts headless en `2d/tests/`, a modo de arnés mínimo:
 ```bash
 cd 2d
 godot --headless --script res://tests/test_logica.gd --path .    # RuletaEstado y sus módulos, sin nodos
-godot --headless --script res://tests/test_escena.gd --path .    # MainGame.tscn real: dispara/marca/retírate
+godot --headless --script res://tests/test_escena.gd --path .    # MainGame.tscn real: menú, disparo, farol, duelo
 ```
 
 Ambos salen con exit code 0 si todo pasa, 1 si algo falla (y lo imprime);
 la CI (`godot-smoke-test`) los ejecuta en cada push/PR, junto al
-`--check-only` que ya había.
+`--check-only` que ya había. Los tests que tocan récords escriben en un
+archivo aparte y lo borran al terminar, así que **no pisan los récords
+de quien los ejecuta**.
 
 ## 🧰 Herramientas de desarrollo
 
@@ -371,10 +392,10 @@ la CI (`godot-smoke-test`) los ejecuta en cada push/PR, junto al
   o retorno de valores, sin polling)
 - [x] **Feedback visual** por colores en la versión Godot, ahora también
   por estado de hueco (paleta noir/steampunk)
-- [x] **Selector de dificultad** por CLI (`--dificultad`/`--huecos`/`--marcas`
-  en la terminal; presets fácil/normal/difícil)
-- [x] **Récords persistidos** entre partidas (`~/.tambor_del_juicio/`,
-  terminal) y **modo duelo** local por turnos, mismo tambor compartido
+- [x] **Selector de dificultad** en ambas versiones (presets
+  fácil/normal/difícil: por CLI en la terminal, en el menú en Godot)
+- [x] **Récords persistidos** entre partidas y **modo duelo** local por
+  turnos con el tambor compartido, también en ambas versiones
 - [x] **Efectos de sonido** de disparo, victoria y derrota (versión Godot)
 - [x] **Animación del tambor** — giro al empezar partida, tensión antes de
   revelar un disparo o farol, y vibración de pantalla al morir (Godot)
@@ -410,8 +431,11 @@ ambas):
   pantalla final) y modo duelo local por turnos (`--duelo`,
   `jugar_duelo()`): mismo tambor/pistas compartidos, apuesta y marcas
   propias de cada jugador, termina en el primer BOOM o retirada
-- [ ] **Fase 4 — Godot:** selector de dificultad, récords y duelo local,
-  a la par de la terminal
+- [x] **Fase 4 — Godot:** lo mismo, en un menú previo a la partida en vez
+  de por CLI: `Dificultad.gd` (mismos tres presets), `Records.gd`
+  (`user://records.json`, con aviso de "nuevo récord") y duelo local por
+  turnos con `Jugador.gd` + `RuletaEstado.jugadores`/`turno` — donde una
+  partida en solitario es, internamente, un duelo de un solo jugador
 
 ### 🎯 Otros próximos pasos
 - [ ] Modo «borracho» 🍺 (menos suerte y más humor)

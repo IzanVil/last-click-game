@@ -49,15 +49,20 @@ GDScript se indica entre paréntesis.
    ejecuciones (días máximos, puntos máximos, faroles acertados/usados).
 8. **Modo duelo**: dos jugadores se turnan en el mismo tambor —bala,
    patrón y pistas compartidos—, cada uno con su propia apuesta y sus
-   propias marcas. La partida termina en cuanto el turno de uno de los
-   dos acaba en BOOM o en retirada; gana quien sobrevivió más días (o,
-   en caso de empate, quien tenga más puntos).
+   propias marcas. Marcar también consume turno. La partida termina en
+   cuanto el turno de uno de los dos acaba en BOOM o en retirada (el otro
+   no sigue jugando en solitario después, y se queda con los puntos que
+   tuviera en juego); gana quien sobrevivió más días o, en caso de
+   empate, quien tenga más puntos.
 
-En la versión gráfica, además, el tambor se ve girar al empezar la
-partida, pulsa con tensión antes de revelar un disparo o un farol, y la
-pantalla vibra al morir; ver "Versión gráfica (Godot)" más abajo. El modo
-duelo y los récords persistidos son, de momento, solo de la terminal (ver
-la hoja de ruta del `README.md`, Fase 4).
+Cada versión ofrece esos ajustes a su manera: la terminal por línea de
+comandos (`--dificultad`, `--duelo`, `--records`) y Godot en un menú
+previo a la partida. Los récords se guardan en
+`~/.tambor_del_juicio/records.json` (terminal) y en `user://records.json`
+(Godot, el equivalente idiomático del motor). En la versión gráfica,
+además, el tambor se ve girar al empezar la partida, pulsa con tensión
+antes de revelar un disparo o un farol, y la pantalla vibra al morir; ver
+"Versión gráfica (Godot)" más abajo.
 
 ## Versión de terminal (Python)
 
@@ -143,24 +148,46 @@ cd terminal && python3 -m unittest discover -s . -v
 - Escena principal: `2d/scenes/MainGame.tscn`
 - Lógica del juego (sin UI): `2d/RuletaEstado.gd` (orquestador) +
   `TamborJuicio.gd`, `Pista.gd`, `Pistas.gd`, `Apuesta.gd`, `Farol.gd`,
-  `Eventos.gd`, `Historial.gd` (lógica pura, sin nodos ni Tween — hermanas
-  1 a 1 de `terminal/estado.py` y compañía, mismo vocabulario en español).
-- Vista: `2d/MainGame.gd` (Label/Button/Tween) + `2d/TamborView.gd`
+  `Eventos.gd`, `Historial.gd`, `Jugador.gd`, `Dificultad.gd`,
+  `Records.gd` (lógica pura, sin nodos ni Tween — hermanas 1 a 1 de
+  `terminal/estado.py` y compañía, mismo vocabulario en español).
+- Vista: `2d/MainGame.gd` (menú + Label/Button/Tween) + `2d/TamborView.gd`
   (dibuja el tambor con `_draw()`).
 
 Ningún script de lógica conoce nodos ni UI: `RuletaEstado.gd` orquesta los
 demás y emite señales (`partida_iniciada`, `entrada_invalida`,
 `evento_ocurrido`, `pista_nueva`, `disparo_sobrevivido`, `dia_completado`,
-`farol_resuelto`, `impacto`, `retirada`) cuando pasa algo relevante.
-`MainGame.gd` se limita a escucharlas y traducirlas a texto, colores y
-animaciones; `TamborView.gd` ni siquiera sabe que existen: solo pinta el
-diccionario de estados que le pasa `MainGame.gd` via `aplicar_estados()`,
-espejo de `calcular_estados()`/`dibujar_tambor()` en `terminal/ruleta.py`.
+`farol_resuelto`, `impacto`, `retirada`, `turno_cambiado`,
+`duelo_terminado`) cuando pasa algo relevante. `MainGame.gd` se limita a
+escucharlas y traducirlas a texto, colores y animaciones; `TamborView.gd`
+ni siquiera sabe que existen: solo pinta el diccionario de estados que le
+pasa `MainGame.gd` via `aplicar_estados()`, espejo de
+`calcular_estados()`/`dibujar_tambor()` en `terminal/ruleta.py`.
+
+`RuletaEstado` tampoco toca disco: persistir los récords es cosa de la
+vista, que reacciona a `impacto`/`retirada` (igual que en la terminal, donde
+lo hace `jugar()`, no los módulos de lógica).
 
 Todos los scripts de lógica llevan `class_name` (`TamborJuicio`, `Pista`,
-`Pistas`, `Apuesta`, `Farol`, `Eventos`, `Historial`, `RuletaEstado`): se
-usan directamente por su nombre desde cualquier script del proyecto, sin
-`preload()`.
+`Pistas`, `Apuesta`, `Farol`, `Eventos`, `Historial`, `Jugador`,
+`Dificultad`, `Records`, `RuletaEstado`): se usan directamente por su
+nombre desde cualquier script del proyecto, sin `preload()`.
+
+### Solitario y duelo: la misma lógica
+
+Una partida en solitario es **un duelo de un solo jugador**.
+`RuletaEstado` lleva un `Array[Jugador]` y un índice `turno`; el tambor y
+las pistas son de la partida (compartidos), mientras que apuesta, marcas,
+historial y disparos son de cada `Jugador`. Los atajos
+`RuletaEstado.apuesta`/`farol`/`historial`/`disparos` son *properties* que
+apuntan al jugador activo, así que la vista y los tests escritos antes de
+existir el duelo siguen funcionando sin cambios.
+
+`iniciar_juego(huecos, marcas, nombres)` decide el modo: con `nombres`
+vacío hay un jugador anónimo (solitario), y con dos o más, un duelo.
+`es_duelo()` distingue los dos casos, y `turno_cambiado`/`duelo_terminado`
+solo se emiten en duelo. El desempate (`Jugador.ganadores()`) es una
+función estática pura, testeable sin montar una partida.
 
 ### Cómo modificar la lógica
 
@@ -187,6 +214,21 @@ usan directamente por su nombre desde cualquier script del proyecto, sin
   `MainGame._calcular_estados()` combina huecos ya disparados, resultados
   de farol y candidatos de `Pistas.interseccion()` en el diccionario que
   pinta `TamborView.aplicar_estados()`.
+- `Dificultad.PRESETS` define los tres presets (huecos + marcas) y
+  `Dificultad.ORDEN` en qué orden se ofrecen en el menú (que no es el
+  alfabético). Añadir uno es sumar su entrada a `PRESETS`, `ORDEN` y
+  `ETIQUETAS`, y aparece solo en el desplegable.
+- `Records.gd` guarda y carga `user://records.json`. Un archivo ausente o
+  corrupto no rompe la partida: `cargar()` devuelve unos récords vacíos.
+  Usa `JSON.new().parse()` y no `JSON.parse_string()` a propósito: el
+  segundo, además de devolver `null`, imprime un `ERROR:` en el log, y un
+  archivo corrupto aquí es un caso previsto, no un fallo. Ojo también con
+  que **un JSON devuelve todos los números como `float`**, de ahí el
+  `int()` al recargar cada campo.
+- `MainGame.ruta_records` existe (en vez de usar
+  `Records.RUTA_POR_DEFECTO` directamente) para que los tests puedan
+  redirigirla y no pisar los récords reales de quien los ejecuta — mismo
+  motivo que `RuletaEstado.probabilidad_eventos`.
 
 ### Cómo modificar la vista
 
@@ -215,12 +257,14 @@ Godot no trae un framework de tests instalado en el proyecto (ni
 [GUT](https://github.com/bitwes/Gut) ni similar); en su lugar hay dos
 scripts headless en `2d/tests/`:
 
-- `test_logica.gd` — prueba `RuletaEstado` y los módulos que orquesta,
-  sin nodos ni escena, igual que `terminal/test_estado.py` y compañía.
-- `test_escena.gd` — carga `MainGame.tscn` de verdad y simula una partida
-  completa (marcar acierto y fallo, disparo seguro, impacto, retirada),
-  esperando a que terminen los `Tween` entre una acción y la siguiente:
-  cubre el cableado de señales de `MainGame.gd` que el anterior no toca.
+- `test_logica.gd` — prueba `RuletaEstado` y los módulos que orquesta
+  (incluidos `Dificultad`, `Records` y el desempate de `Jugador`), sin
+  nodos ni escena, igual que `terminal/test_estado.py` y compañía.
+- `test_escena.gd` — carga `MainGame.tscn` de verdad y simula partidas
+  completas (menú y dificultad, marcar acierto y fallo, disparo seguro,
+  retirada, duelo entero, impacto), esperando a que terminen los `Tween`
+  y las pausas entre una acción y la siguiente: cubre el cableado de
+  señales de `MainGame.gd` que el anterior no toca.
 
 ```bash
 cd 2d
@@ -228,9 +272,14 @@ godot --headless --script res://tests/test_logica.gd --path .
 godot --headless --script res://tests/test_escena.gd --path .
 ```
 
-Ambos imprimen que test ha fallado y por qué, y salen con exit code 1 si
+Ambos imprimen qué test ha fallado y por qué, y salen con exit code 1 si
 algo falla (0 si todo pasa) — es el criterio que usa la CI para marcar el
 job en rojo, igual que hace `coverage report --fail-under=90` en Python.
+
+Los tests que tocan récords escriben en un archivo aparte (ver
+`RUTA_RECORDS_TEST` en cada uno) y lo borran al terminar: **no pisan los
+récords reales** de quien los ejecute. Si añades un test que llame a
+`Records.guardar()` o instancie `MainGame.tscn`, redirige la ruta igual.
 
 ## Lanzadores
 
@@ -241,11 +290,12 @@ job en rojo, igual que hace `coverage report --fail-under=90` en Python.
 
 ## Ampliaciones sugeridas
 
-Consulta la **Hoja de ruta** del `README.md` para el detalle completo: las
-Fases 1-3 de «El Tambor del Juicio» (farol, eventos, días de vida,
-ambientación) ya están en ambas versiones, y la Fase 4 (dificultad,
-récords, duelo local) ya en la terminal; queda portarla a Godot, y sueltas
-como el modo «borracho» o una fuente de máquina de escribir para Godot.
+Consulta la **Hoja de ruta** del `README.md` para el detalle completo:
+las cuatro fases de «El Tambor del Juicio» (mecánica, farol y eventos,
+ambientación, y dificultad/récords/duelo) ya están en las dos versiones.
+Quedan ideas sueltas como el modo «borracho», una fuente de máquina de
+escribir para rematar la ambientación de Godot, o empaquetar la versión
+de terminal en un ejecutable único.
 
 ## Estructura de carpetas
 
@@ -291,6 +341,9 @@ russian-roulette-2d/
     ├── Farol.gd
     ├── Eventos.gd
     ├── Historial.gd
+    ├── Jugador.gd
+    ├── Dificultad.gd
+    ├── Records.gd
     ├── MainGame.gd
     ├── TamborView.gd
     ├── tests/

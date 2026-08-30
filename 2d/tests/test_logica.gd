@@ -1,14 +1,19 @@
 extends SceneTree
 ## Smoke test headless de la logica pura de "El Tambor del Juicio" en
 ## Godot (TamborJuicio, Pistas, Apuesta, Farol, Eventos, Historial,
-## RuletaEstado). Es el equivalente en GDScript a `terminal/test_*.py`:
-## no hay framework de tests instalado en el proyecto (ni GUT ni nada
-## similar), así que este script hace de arnes minimo, pensado para
-## correr en CI vía:
+## Records, Dificultad, Jugador, RuletaEstado). Es el equivalente en
+## GDScript a `terminal/test_*.py`: no hay framework de tests instalado
+## en el proyecto (ni GUT ni nada similar), así que este script hace de
+## arnes minimo, pensado para correr en CI vía:
 ##
 ##   godot --headless --script res://tests/test_logica.gd --path 2d
 ##
 ## Sale con exit code 0 si todo pasa, 1 si algo falla (y lo imprime).
+
+## Los tests de Records escriben de verdad en disco: se usa una ruta
+## aparte de la real (Records.RUTA_POR_DEFECTO) para no pisar los
+## records de quien ejecute los tests, y se borra al terminar.
+const RUTA_RECORDS_TEST := "user://test_records_tmp.json"
 
 var _fallos: Array[String] = []
 
@@ -16,13 +21,19 @@ var _fallos: Array[String] = []
 func _init() -> void:
 	_test_tambor_juicio_movimiento()
 	_test_tambor_juicio_disparo()
+	_test_dias_sobrevividos()
 	_test_pistas_candidatos()
 	_test_pistas_interseccion()
 	_test_apuesta()
 	_test_farol()
 	_test_eventos()
 	_test_historial()
+	_test_dificultad()
+	_test_records()
+	_test_jugador_ganadores()
 	_test_ruleta_estado_flujo_completo()
+	_test_duelo_flujo_completo()
+	_test_solitario_no_es_duelo()
 
 	if _fallos.is_empty():
 		print("OK: todos los tests de logica pasaron.")
@@ -183,3 +194,239 @@ func _test_ruleta_estado_flujo_completo() -> void:
 	if not retiradas.is_empty():
 		_afirmar_igual(retiradas[0]["ganados"], 800, "retirarse cobra lo que habia en juego")
 		_afirmar_igual(retiradas[0]["dias"], 1, "retirarse informa de los dias sobrevividos")
+
+
+func _test_dias_sobrevividos() -> void:
+	_afirmar_igual(TamborJuicio.dias_sobrevividos(0), 0, "0 disparos son 0 dias")
+	_afirmar_igual(TamborJuicio.dias_sobrevividos(2), 0, "un dia a medias no cuenta")
+	_afirmar_igual(TamborJuicio.dias_sobrevividos(3), 1, "3 disparos son 1 dia")
+	_afirmar_igual(TamborJuicio.dias_sobrevividos(5), 1, "5 disparos siguen siendo 1 dia")
+	_afirmar_igual(TamborJuicio.dias_sobrevividos(6), 2, "6 disparos son 2 dias")
+	_afirmar_igual(
+		TamborJuicio.dias_sobrevividos(4, 2), 2, "admite una duracion de dia distinta"
+	)
+
+
+func _test_dificultad() -> void:
+	_afirmar_igual(Dificultad.ORDEN.size(), 3, "hay tres presets de dificultad")
+	for clave in Dificultad.ORDEN:
+		_afirmar(Dificultad.PRESETS.has(clave), "el preset '%s' existe en PRESETS" % clave)
+		_afirmar(Dificultad.etiqueta_de(clave) != "", "el preset '%s' tiene etiqueta" % clave)
+
+	_afirmar_igual(Dificultad.huecos_de("facil"), 10, "facil son 10 huecos")
+	_afirmar_igual(Dificultad.marcas_de("facil"), 4, "facil son 4 marcas")
+	_afirmar_igual(Dificultad.huecos_de("dificil"), 6, "dificil son 6 huecos")
+	_afirmar_igual(Dificultad.marcas_de("dificil"), 2, "dificil son 2 marcas")
+
+	# El preset normal no repite numeros a mano: sale de las constantes
+	# que ya usaba el juego antes de existir la dificultad configurable.
+	_afirmar_igual(
+		Dificultad.huecos_de("normal"), RuletaEstado.HUECOS, "normal usa los huecos por defecto"
+	)
+	_afirmar_igual(
+		Dificultad.marcas_de("normal"),
+		Farol.MARCAS_INICIALES,
+		"normal usa las marcas por defecto"
+	)
+
+
+func _test_records() -> void:
+	var vacios := Records.new()
+	_afirmar(
+		vacios.resumen().find("Todavia no hay recuerdos") != -1,
+		"sin partidas jugadas el resumen lo dice"
+	)
+
+	# Los maximos suben, pero nunca bajan; los acumulados suman siempre.
+	var records := Records.new()
+	records.registrar_partida(5, 800, 1, 1)
+	records.registrar_partida(2, 100, 1, 0)
+	_afirmar_igual(records.partidas_jugadas, 2, "cada partida cuenta")
+	_afirmar_igual(records.dias_maximos, 5, "una partida peor no baja el maximo de dias")
+	_afirmar_igual(records.puntos_maximos, 800, "una partida peor no baja el maximo de puntos")
+	_afirmar_igual(records.faroles_usados, 2, "los faroles usados se acumulan")
+	_afirmar_igual(records.faroles_acertados, 1, "los faroles acertados se acumulan")
+	records.registrar_partida(9, 1600, 0, 0)
+	_afirmar_igual(records.dias_maximos, 9, "una partida mejor si sube el maximo")
+
+	var texto := records.resumen()
+	_afirmar(texto.find("9 dia(s)") != -1, "el resumen incluye los dias maximos")
+	_afirmar(texto.find("1600 puntos") != -1, "el resumen incluye los puntos maximos")
+	_afirmar(texto.find("1/2") != -1, "el resumen incluye los faroles acertados/usados")
+	_afirmar(texto.find("50%") != -1, "el resumen incluye el porcentaje de acierto")
+
+	# Sin faroles el porcentaje no puede dividir por cero.
+	var sin_faroles := Records.new()
+	sin_faroles.registrar_partida(1, 100, 0, 0)
+	_afirmar(sin_faroles.resumen().find("0/0") != -1, "sin faroles no divide por cero")
+
+	_test_records_en_disco(records)
+
+
+func _test_records_en_disco(records: Records) -> void:
+	# Un archivo que no existe todavia (primera partida de siempre) no es
+	# un error: devuelve records vacios.
+	_borrar_records_test()
+	var inexistente := Records.cargar(RUTA_RECORDS_TEST)
+	_afirmar_igual(inexistente.partidas_jugadas, 0, "cargar sin archivo devuelve records vacios")
+
+	_afirmar(records.guardar(RUTA_RECORDS_TEST), "guardar devuelve true al escribir bien")
+	var recargados := Records.cargar(RUTA_RECORDS_TEST)
+	_afirmar_igual(recargados.partidas_jugadas, records.partidas_jugadas, "recarga las partidas")
+	_afirmar_igual(recargados.dias_maximos, records.dias_maximos, "recarga los dias maximos")
+	_afirmar_igual(recargados.puntos_maximos, records.puntos_maximos, "recarga los puntos maximos")
+	_afirmar_igual(recargados.faroles_usados, records.faroles_usados, "recarga los faroles usados")
+	# Un JSON devuelve los numeros como float. Esto fija el contrato de
+	# que, pese a ello, los campos recargados son enteros (hoy lo
+	# garantizan por partida doble el int() de cargar() y el tipo
+	# estatico de los campos, que convierte al asignar).
+	_afirmar(
+		typeof(recargados.dias_maximos) == TYPE_INT, "los numeros recargados son enteros, no floats"
+	)
+
+	# Un archivo corrupto tampoco debe impedir jugar.
+	var archivo := FileAccess.open(RUTA_RECORDS_TEST, FileAccess.WRITE)
+	archivo.store_string("esto no es json valido {{{")
+	archivo.close()
+	_afirmar_igual(
+		Records.cargar(RUTA_RECORDS_TEST).partidas_jugadas,
+		0,
+		"un archivo corrupto devuelve records vacios"
+	)
+
+	# Ni un JSON valido que no sea un objeto.
+	var archivo2 := FileAccess.open(RUTA_RECORDS_TEST, FileAccess.WRITE)
+	archivo2.store_string("[1, 2, 3]")
+	archivo2.close()
+	_afirmar_igual(
+		Records.cargar(RUTA_RECORDS_TEST).partidas_jugadas,
+		0,
+		"un JSON que no es un objeto devuelve records vacios"
+	)
+
+	# Claves desconocidas (p. ej. de una version futura) se ignoran sin
+	# romper las que si se entienden.
+	var archivo3 := FileAccess.open(RUTA_RECORDS_TEST, FileAccess.WRITE)
+	archivo3.store_string('{"dias_maximos": 3, "campo_futuro": "x"}')
+	archivo3.close()
+	_afirmar_igual(
+		Records.cargar(RUTA_RECORDS_TEST).dias_maximos, 3, "ignora claves desconocidas"
+	)
+
+	_borrar_records_test()
+
+
+func _borrar_records_test() -> void:
+	if FileAccess.file_exists(RUTA_RECORDS_TEST):
+		DirAccess.remove_absolute(RUTA_RECORDS_TEST)
+
+
+func _test_jugador_ganadores() -> void:
+	var ana := Jugador.new("Ana", Apuesta.new(100), Farol.new())
+	var beto := Jugador.new("Beto", Apuesta.new(100), Farol.new())
+
+	# Sobrevivir mas dias manda, aunque el otro tenga mas puntos.
+	ana.disparos = 6  # 2 dias
+	ana.puntos_finales = 300
+	beto.disparos = 3  # 1 dia
+	beto.puntos_finales = 900
+	var ganadores := Jugador.ganadores([ana, beto])
+	_afirmar_igual(ganadores.size(), 1, "gana uno solo cuando hay mas dias")
+	if ganadores.size() == 1:
+		_afirmar_igual(ganadores[0].nombre, "Ana", "gana quien sobrevivio mas dias")
+
+	# Con los mismos dias, desempatan los puntos.
+	ana.disparos = 3
+	ana.puntos_finales = 400
+	beto.puntos_finales = 900
+	ganadores = Jugador.ganadores([ana, beto])
+	_afirmar_igual(ganadores.size(), 1, "el empate en dias lo rompe un solo ganador")
+	if ganadores.size() == 1:
+		_afirmar_igual(ganadores[0].nombre, "Beto", "con los mismos dias gana quien tiene mas puntos")
+
+	# Mismos dias y mismos puntos: empate de verdad, sin ganador unico.
+	ana.puntos_finales = 900
+	_afirmar_igual(Jugador.ganadores([ana, beto]).size(), 2, "empate total deja dos ganadores")
+
+	_afirmar(Jugador.ganadores([]).is_empty(), "sin jugadores no hay ganadores")
+
+
+## Ejercita un duelo entero por señales: turnos alternos, tambor y pistas
+## compartidos, y el veredicto al terminar.
+func _test_duelo_flujo_completo() -> void:
+	var juego := RuletaEstado.new()
+
+	var turnos: Array[String] = []
+	var duelos_terminados: Array[Dictionary] = []
+	juego.turno_cambiado.connect(
+		func(nombre: String, _rival: String, _rival_dias: int): turnos.append(nombre)
+	)
+	juego.duelo_terminado.connect(
+		func(jugadores: Array, ganadores: Array):
+			duelos_terminados.append({"jugadores": jugadores, "ganadores": ganadores})
+	)
+
+	juego.iniciar_juego(8, 3, ["Ana", "Beto"] as Array[String])
+	_afirmar(juego.es_duelo(), "con dos nombres la partida es un duelo")
+	_afirmar_igual(juego.jugadores.size(), 2, "hay dos jugadores")
+	_afirmar_igual(juego.jugador_activo.nombre, "Ana", "empieza el primer jugador")
+
+	juego.probabilidad_eventos = 0.0
+	juego.tambor = TamborJuicio.new(8, "avanza", 8)  # la bala nunca esta en 1..7
+
+	juego.disparar(1)  # Ana sobrevive
+	_afirmar_igual(juego.jugador_activo.nombre, "Beto", "tras disparar pasa el turno")
+	_afirmar_igual(turnos, ["Beto"] as Array[String], "el cambio de turno se anuncia")
+
+	juego.disparar(2)  # Beto sobrevive
+	_afirmar_igual(juego.jugador_activo.nombre, "Ana", "el turno vuelve al primero")
+
+	# Cada jugador lleva su propia apuesta y sus propios disparos...
+	_afirmar_igual(juego.jugadores[0].disparos, 1, "Ana lleva un disparo")
+	_afirmar_igual(juego.jugadores[1].disparos, 1, "Beto lleva un disparo")
+	_afirmar_igual(juego.jugadores[0].apuesta.en_juego, 200, "Ana doblo su apuesta")
+	_afirmar_igual(juego.jugadores[1].apuesta.en_juego, 200, "Beto doblo la suya, aparte")
+	# ...pero el tambor y sus pistas son compartidos.
+	_afirmar_igual(juego.pistas_reveladas.size(), 2, "las pistas de ambos van al mismo monton")
+
+	# Marcar tambien consume turno, y solo gasta las marcas de quien marca.
+	juego.marcar(3)
+	_afirmar_igual(juego.jugadores[0].farol.marcas_restantes, 2, "marcar gasta la marca de Ana")
+	_afirmar_igual(juego.jugadores[1].farol.marcas_restantes, 3, "las marcas de Beto no se tocan")
+	_afirmar_igual(juego.jugador_activo.nombre, "Beto", "marcar tambien pasa el turno")
+
+	# Beto se retira: el duelo acaba ahi, Ana no sigue jugando sola.
+	juego.retirarse()
+	_afirmar_igual(duelos_terminados.size(), 1, "retirarse termina el duelo")
+	if duelos_terminados.is_empty():
+		return
+
+	var jugadores: Array = duelos_terminados[0]["jugadores"]
+	var ganadores: Array = duelos_terminados[0]["ganadores"]
+	_afirmar_igual(jugadores[1].puntos_finales, 200, "quien se retira cobra lo que tenia en juego")
+	# Ana no llego a jugar su ultimo turno: ni perdio ni cobro, se queda
+	# con lo que tuviera en juego (200 doblados + 50 del farol acertado).
+	_afirmar_igual(jugadores[0].puntos_finales, 250, "el rival congela los puntos que tenia")
+	_afirmar_igual(ganadores.size(), 1, "con puntos distintos hay un unico ganador")
+	if ganadores.size() == 1:
+		_afirmar_igual(ganadores[0].nombre, "Ana", "gana quien acabo con mas puntos")
+
+
+## Una partida en solitario es un duelo de un jugador: ni emite
+## turno_cambiado ni duelo_terminado, y los atajos apuntan al unico que hay.
+func _test_solitario_no_es_duelo() -> void:
+	var juego := RuletaEstado.new()
+	var turnos := 0
+	var duelos := 0
+	juego.turno_cambiado.connect(func(_n: String, _r: String, _d: int): turnos += 1)
+	juego.duelo_terminado.connect(func(_j: Array, _g: Array): duelos += 1)
+
+	juego.iniciar_juego(8)
+	juego.probabilidad_eventos = 0.0
+	juego.tambor = TamborJuicio.new(8, "avanza", 8)
+
+	_afirmar(not juego.es_duelo(), "sin nombres la partida es en solitario")
+	juego.disparar(1)
+	juego.retirarse()
+	_afirmar_igual(turnos, 0, "en solitario no se anuncian cambios de turno")
+	_afirmar_igual(duelos, 0, "en solitario no se emite duelo_terminado")
