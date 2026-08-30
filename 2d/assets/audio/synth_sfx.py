@@ -151,8 +151,9 @@ def marca() -> list[float]:
     for i in range(n):
         t = i / SAMPLE_RATE
         ataque = 1.0 - math.exp(-200.0 * t)
-        cuerpo = math.sin(2 * math.pi * 1320.0 * t) + 0.5 * math.sin(2 * math.pi * 1980.0 * t)
-        out.append(cuerpo * env[i] * ataque * 0.5)
+        fundamental = math.sin(2 * math.pi * 1320.0 * t)
+        quinta = math.sin(2 * math.pi * 1980.0 * t)
+        out.append((fundamental + 0.5 * quinta) * env[i] * ataque * 0.5)
     return _normalizar(out, 0.85)
 
 
@@ -206,7 +207,8 @@ def ambiente() -> list[float]:
                     break
                 t = i / rate
                 ataque = 1.0 - math.exp(-150.0 * t)
-                out[inicio + i] += math.sin(2 * math.pi * 48.0 * t) * env[i] * ataque * fuerza * 0.7
+                golpe = math.sin(2 * math.pi * 48.0 * t)
+                out[inicio + i] += golpe * env[i] * ataque * fuerza * 0.7
 
     return _normalizar(out, 0.7)
 
@@ -223,7 +225,5 @@ if __name__ == "__main__":
     _write_wav(os.path.join(out_dir, "marca.wav"), marca())
     _write_wav(os.path.join(out_dir, "fallo.wav"), fallo())
     _write_wav(os.path.join(out_dir, "ambiente.wav"), ambiente(), SAMPLE_RATE_AMBIENTE)
-    print(
-        "Generados disparo, derrota, victoria, engranaje, marca, fallo y ambiente (.wav) en",
-        out_dir,
-    )
+    generados = "disparo, derrota, victoria, engranaje, marca, fallo y ambiente"
+    print(f"Generados {generados} (.wav) en {out_dir}")
