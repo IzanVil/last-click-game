@@ -1,8 +1,10 @@
 """Interfaz de terminal de "El Tambor del Juicio".
 
-Este archivo solo se ocupa de entrada/salida (pantalla, teclado, colores y
-pausas); la logica del juego vive en estado.py, pistas.py, apuestas.py,
-farol.py, eventos.py, historial.py y records.py.
+Este archivo solo se ocupa de entrada/salida (pantalla, teclado, colores,
+animaciones y pausas); la logica del juego vive en estado.py, pistas.py,
+apuestas.py, farol.py, eventos.py, historial.py y records.py, y las
+primitivas de terminal (limpiar, teclear letra a letra, pitar, repintar
+un bloque) en efectos.py, entrada.py y ambiente.py.
 
 El try/except de abajo permite que el modulo funcione tanto instalado como
 paquete (`terminal.ruleta`, con imports relativos) como ejecutado suelto
@@ -11,19 +13,34 @@ paquete (`terminal.ruleta`, con imports relativos) como ejecutado suelto
 
 import argparse
 import os
-import time
+import textwrap
 from dataclasses import dataclass, field
+from functools import partial
 from importlib.metadata import PackageNotFoundError, version
 
 try:
-    from . import apuestas, estado, eventos, farol, historial, pistas, records
+    from . import (
+        ambiente,
+        apuestas,
+        efectos,
+        entrada,
+        estado,
+        eventos,
+        farol,
+        historial,
+        pistas,
+        records,
+    )
 except ImportError:  # pragma: no cover - ejecucion como script suelto
     # mypy resuelve el paquete via el `from .` de arriba y no encuentra
     # estos como modulos sueltos de nivel superior (solo existen asi en
     # tiempo de ejecucion, cuando este archivo corre como script suelto
     # con `terminal/` en sys.path): son el mismo modulo por las dos vias,
     # asi que ignorarlo aqui es correcto y no un error real.
+    import ambiente  # type: ignore[no-redef,import-not-found]
     import apuestas  # type: ignore[no-redef,import-not-found]
+    import efectos  # type: ignore[no-redef,import-not-found]
+    import entrada  # type: ignore[no-redef,import-not-found]
     import estado  # type: ignore[no-redef,import-not-found]
     import eventos  # type: ignore[no-redef,import-not-found]
     import farol  # type: ignore[no-redef,import-not-found]
@@ -43,22 +60,57 @@ DIFICULTADES = {
     "dificil": {"huecos": 6, "marcas": 2},
 }
 
-ROJO = "\033[91m"
-VERDE = "\033[92m"
-AMARILLO = "\033[93m"
-CELESTE = "\033[96m"
-GRIS = "\033[90m"
-NEGRITA = "\033[1m"
-RESET = "\033[0m"
+# La paleta vive en efectos.py (unico sitio que sabe de codigos ANSI); se
+# reexporta aqui porque toda la interfaz la usa en cada linea.
+ROJO = efectos.ROJO
+VERDE = efectos.VERDE
+AMARILLO = efectos.AMARILLO
+CELESTE = efectos.CELESTE
+GRIS = efectos.GRIS
+NEGRITA = efectos.NEGRITA
+INVERSO = efectos.INVERSO
+RESET = efectos.RESET
 
 # Como se ve cada hueco segun lo que se sabe de el (ver calcular_estados).
-GLIFOS_ESTADO = {"seguro": "✓", "peligro": "✗", "candidato": "?", "probado": "·"}
+# "oculto" solo aparece en el modo oscuridad (ver `oscurecer`).
+GLIFOS_ESTADO = {
+    "seguro": "✓",
+    "peligro": "✗",
+    "candidato": "?",
+    "probado": "·",
+    "oculto": "▒",
+}
 COLORES_ESTADO = {
     "seguro": VERDE,
     "peligro": ROJO,
     "candidato": AMARILLO,
     "probado": GRIS,
+    "oculto": GRIS,
 }
+
+# Color de cada linea del panel de acciones recientes, por tipo.
+COLORES_ACCION = {
+    "disparo": CELESTE,
+    "farol": AMARILLO,
+    "evento": GRIS,
+    "dia": VERDE,
+    "aviso": ROJO,
+}
+
+# Estados que el modo oscuridad deja ver: solo lo que el jugador ha
+# comprobado el mismo. Los candidatos que se deducen de las pistas se
+# ocultan; para eso estan las pistas escritas y la memoria.
+ESTADOS_VISIBLES_A_OSCURAS = ("seguro", "peligro", "probado")
+
+ANCHO_PANEL = 50
+ANCHO_EPILOGO = 62
+
+# Huecos sin probar a partir de los cuales el tambor empieza a latir.
+HUECOS_LATIDO = 3
+
+# Vueltas completas que da el resaltado antes de pararse en el hueco
+# elegido, al disparar.
+VUELTAS_GIRO = 1
 
 
 if os.name == "nt":
@@ -70,9 +122,25 @@ if os.name == "nt":
     os.system("")
 
 
-def limpiar() -> None:
-    """Limpia la pantalla de la terminal segun el sistema operativo."""
-    os.system("cls" if os.name == "nt" else "clear")
+@dataclass
+class Tablero:
+    """Todo lo que hace falta para pintar el tablero de un turno.
+
+    Se arma de nuevo en cada vuelta del bucle (los estados se recalculan
+    a partir de las pistas vigentes); `resaltado` es el unico campo que
+    cambia dentro del turno, mientras el selector se mueve por el tambor.
+    """
+
+    huecos: int
+    estados: dict[int, str]
+    pistas_reveladas: list["pistas.Pista"]
+    bitacora: "historial.Historial"
+    resaltado: int | None = None
+
+
+def limpiar(duro: bool = False) -> None:
+    """Limpia la pantalla (ver efectos.limpiar)."""
+    efectos.limpiar(duro)
 
 
 def calcular_estados(
@@ -91,68 +159,153 @@ def calcular_estados(
     return estados
 
 
-def dibujar_tambor(estados: dict[int, str], huecos: int) -> None:
-    """Imprime el tambor ASCII coloreando cada hueco segun `estados`.
+def oscurecer(estados: dict[int, str], huecos: int) -> dict[int, str]:
+    """Apaga el tambor: solo sigue viendose lo que se ha comprobado.
+
+    En el modo oscuridad los candidatos que las pistas dejan en pie ya no
+    se resaltan y los huecos de los que no se sabe nada se pintan en
+    negro: hay que llevar la deduccion en la cabeza, leyendo las pistas,
+    y no en los colores del tambor.
+    """
+    return {
+        hueco: (
+            estados[hueco]
+            if estados.get(hueco) in ESTADOS_VISIBLES_A_OSCURAS
+            else "oculto"
+        )
+        for hueco in range(1, huecos + 1)
+    }
+
+
+def tambor_ascii(
+    estados: dict[int, str],
+    huecos: int,
+    resaltado: int | None = None,
+    alerta: bool = False,
+) -> str:
+    """Monta (sin imprimirlo) el tambor ASCII coloreado segun `estados`.
 
     Verde = farol acertado ahi, rojo = farol fallido ahi (la bala estuvo
     en ese momento), amarillo = candidato segun las pistas actuales, gris
-    = ya disparado. Sin ninguna marca, se muestra sin colorear.
+    = ya disparado o a oscuras. Sin ninguna marca, se muestra sin
+    colorear. `resaltado` pinta un hueco en video inverso (el selector de
+    flechas y el giro del tambor) y `alerta` tine el marco de rojo (el
+    latido de cuando quedan pocos huecos por probar).
     """
-    marco = "┌" + "─┬" * (huecos - 1) + "─┐"
+    color_marco = f"{NEGRITA}{ROJO}" if alerta else NEGRITA
+    superior = f"{color_marco}┌{'───┬' * (huecos - 1)}───┐{RESET}"
+    inferior = f"{color_marco}└{'───┴' * (huecos - 1)}───┘{RESET}"
+    barra = f"{color_marco}│{RESET}"
+
     celdas = []
     etiquetas = []
-    for i in range(1, huecos + 1):
-        estado_hueco = estados.get(i, "")
+    for hueco in range(1, huecos + 1):
+        estado_hueco = estados.get(hueco, "")
         color = COLORES_ESTADO.get(estado_hueco, CELESTE)
         glifo = GLIFOS_ESTADO.get(estado_hueco, "0")
-        celdas.append(color + glifo + RESET)
-        etiquetas.append(str(i))
-    print("   " + NEGRITA + marco + RESET)
-    print("   " + "   ".join(celdas))
-    print("   " + NEGRITA + "└" + "─┴" * (huecos - 1) + "─┘" + RESET)
-    print("   " + "  ".join(etiquetas))
+        if hueco == resaltado:
+            celdas.append(f"{INVERSO}{NEGRITA} {glifo} {RESET}")
+            etiquetas.append(f"{NEGRITA}{AMARILLO}{str(hueco).center(3)}{RESET}")
+        else:
+            celdas.append(f" {color}{glifo}{RESET} ")
+            etiquetas.append(str(hueco).center(3))
 
-
-def cabecera(disparos: int, apuesta: "apuestas.Apuesta", marca: "farol.Farol") -> None:
-    """Imprime el marco superior con el dia actual, marcas y lo apostado."""
-    dia = estado.dias_sobrevividos(disparos) + 1
-    disparo_del_dia = disparos % estado.DISPAROS_POR_DIA + 1
-    print(f"{NEGRITA}{CELESTE}╔{'═' * 44}╗{RESET}")
-    print(
-        f"{NEGRITA}{CELESTE}║{RESET}"
-        "        EL TAMBOR DEL JUICIO         "
-        f"{NEGRITA}{CELESTE}║{RESET}"
+    return "\n".join(
+        (
+            "   " + superior,
+            "   " + barra + barra.join(celdas) + barra,
+            "   " + inferior,
+            "    " + " ".join(etiquetas),
+        )
     )
-    print(
-        f"{NEGRITA}{CELESTE}║{RESET}   Dia {AMARILLO}{dia:^2}{RESET}"
-        f" (disparo {disparo_del_dia}/{estado.DISPAROS_POR_DIA})"
-        f"  ·  Marcas {CELESTE}{marca.marcas_restantes}{RESET}  "
-        f"{NEGRITA}{CELESTE}║{RESET}"
-    )
-    print(
-        f"{NEGRITA}{CELESTE}║{RESET}   En juego "
-        f"{VERDE}{apuesta.en_juego:>5}{RESET} pts"
-        f"{' ' * 20}{NEGRITA}{CELESTE}║{RESET}"
-    )
-    print(f"{NEGRITA}{CELESTE}╚{'═' * 44}╝{RESET}")
 
 
-def escena(
+def dibujar_tambor(
+    estados: dict[int, str],
+    huecos: int,
+    resaltado: int | None = None,
+    alerta: bool = False,
+) -> None:
+    """Imprime el tambor ASCII linea a linea (ver `tambor_ascii`)."""
+    for linea in tambor_ascii(estados, huecos, resaltado, alerta).split("\n"):
+        print(linea)
+
+
+def panel_acciones(bitacora: "historial.Historial") -> str:
+    """Monta el panel inferior con las ultimas acciones de la partida.
+
+    Siempre ocupa el mismo alto (aunque sobren lineas en blanco) para que
+    el bloque se pueda repintar en el sitio sin descuadrar la pantalla.
+    """
+    acciones = bitacora.ultimas_acciones()
+    lineas = [f"{GRIS}   ── bitacora ──{RESET}"]
+    for accion in acciones:
+        color = COLORES_ACCION.get(accion.tipo, GRIS)
+        lineas.append(f"   {color}› {accion.texto}{RESET}")
+    lineas.extend([""] * (historial.MAX_ACCIONES - len(acciones)))
+    return "\n".join(lineas)
+
+
+def bloque_tablero(tablero: Tablero, alerta: bool = False) -> str:
+    """Tambor + panel de acciones: el bloque que se repinta en el sitio.
+
+    Es lo ultimo que dibuja `escena`, asi que las animaciones pueden
+    pisarlo subiendo el cursor sin tocar el resto de la pantalla.
+    """
+    tambor = tambor_ascii(tablero.estados, tablero.huecos, tablero.resaltado, alerta)
+    return f"{tambor}\n\n{panel_acciones(tablero.bitacora)}"
+
+
+def _fila_panel(contenido: str) -> str:
+    """Una fila del panel superior, rellenada hasta el ancho fijo.
+
+    El relleno se calcula sobre el ancho visible (sin contar los codigos
+    de color), que es lo que descuadraba el marco antes.
+    """
+    relleno = " " * max(0, ANCHO_PANEL - efectos.ancho_visible(contenido))
+    borde = f"{NEGRITA}{CELESTE}║{RESET}"
+    return f"{borde}{contenido}{relleno}{borde}"
+
+
+def cabecera(
     disparos: int,
     apuesta: "apuestas.Apuesta",
     marca: "farol.Farol",
-    estados: dict[int, str],
-    pistas_reveladas: list["pistas.Pista"],
-    huecos: int,
+    num_pistas: int = 0,
 ) -> None:
-    """Limpia la pantalla y dibuja la cabecera, las pistas y el tambor."""
-    limpiar()
-    cabecera(disparos, apuesta, marca)
-    print()
-    _imprimir_pistas(pistas_reveladas)
-    print()
-    dibujar_tambor(estados, huecos)
-    print()
+    """Imprime el panel fijo de la parte de arriba de la pantalla.
+
+    Lleva de un vistazo los cuatro datos que se consultan todo el rato:
+    dias de vida, puntos en juego, marcas que quedan y pistas
+    acumuladas. Como la pantalla se repinta desde arriba en cada
+    fotograma, el panel se queda siempre en el mismo sitio.
+    """
+    dia = estado.dias_sobrevividos(disparos) + 1
+    disparo_del_dia = disparos % estado.DISPAROS_POR_DIA + 1
+    marco = f"{NEGRITA}{CELESTE}"
+
+    print(f"{marco}╔{'═' * ANCHO_PANEL}╗{RESET}")
+    print(_fila_panel(f"{NEGRITA}{'EL TAMBOR DEL JUICIO'.center(ANCHO_PANEL)}{RESET}"))
+    print(f"{marco}╟{'─' * ANCHO_PANEL}╢{RESET}")
+    # El dia y las marcas ocupan un campo fijo para que las etiquetas de
+    # la derecha caigan en la misma columna en las dos filas; los puntos
+    # y las pistas crecen a sus anchas, y el relleno del final absorbe lo
+    # que ocupen (el marco solo se descuadraria por encima de mil
+    # millones de puntos, que son mas dias de los que da el tambor).
+    print(
+        _fila_panel(
+            f"  Dia {AMARILLO}{dia:<2}{RESET}"
+            f" · disparo {disparo_del_dia}/{estado.DISPAROS_POR_DIA}"
+            f"    En juego {VERDE}{apuesta.en_juego}{RESET} pts"
+        )
+    )
+    print(
+        _fila_panel(
+            f"  Marcas {CELESTE}{marca.marcas_restantes:<2}{RESET}"
+            f"{' ' * 15}Pistas {AMARILLO}{num_pistas}{RESET}"
+        )
+    )
+    print(f"{marco}╚{'═' * ANCHO_PANEL}╝{RESET}")
 
 
 def _imprimir_pistas(pistas_reveladas: list["pistas.Pista"]) -> None:
@@ -166,6 +319,71 @@ def _imprimir_pistas(pistas_reveladas: list["pistas.Pista"]) -> None:
         print(GRIS + "   La bala descansa en algun hueco. Aun no hay pistas." + RESET)
 
 
+def escena(
+    disparos: int,
+    apuesta: "apuestas.Apuesta",
+    marca: "farol.Farol",
+    tablero: Tablero,
+) -> None:
+    """Repinta la pantalla entera: panel, pistas y bloque del tablero."""
+    limpiar()
+    cabecera(disparos, apuesta, marca, len(tablero.pistas_reveladas))
+    print()
+    _imprimir_pistas(tablero.pistas_reveladas)
+    print()
+    efectos.pintar_bloque(bloque_tablero(tablero))
+
+
+def refrescar(dibujar: "partial[None]") -> None:
+    """Repinta la escena para borrar el rastro que deja elegir un hueco.
+
+    Ademas de limpiar la linea de ayuda del selector, deja el bloque del
+    tablero como lo ultimo pintado, que es lo que necesita el giro para
+    animarse en el sitio. Sin animaciones no hay rastro que borrar ni
+    giro que preparar, y repetir el tablero solo alargaria el registro.
+    """
+    if efectos.AJUSTES.animaciones:
+        dibujar()
+
+
+def bala_cerca(marcadas: set[int], huecos: int) -> bool:
+    """True cuando quedan pocos huecos sin probar: el tambor se pone tenso."""
+    return huecos - len(marcadas) <= HUECOS_LATIDO
+
+
+def latido(tablero: Tablero, pulsos: int = 3) -> None:
+    """Hace latir el tambor en rojo, cada vez mas rapido.
+
+    Se llama justo despues de `escena`, que deja el bloque del tablero
+    como lo ultimo pintado; el ultimo fotograma es el normal, para que la
+    pantalla quede en reposo al terminar.
+    """
+    normal = bloque_tablero(tablero)
+    alerta = bloque_tablero(tablero, alerta=True)
+    fotogramas = [alerta, normal] * pulsos
+    efectos.repintar(fotogramas, retardo=0.26, factor=0.72)
+
+
+def _secuencia_giro(
+    huecos: int, destino: int, vueltas: int = VUELTAS_GIRO
+) -> list[int]:
+    """Huecos por los que pasa el resaltado hasta pararse en `destino`."""
+    total = vueltas * huecos + destino
+    return [indice % huecos + 1 for indice in range(total)]
+
+
+def animar_giro(tablero: Tablero, destino: int) -> None:
+    """Gira el tambor y lo para en `destino`, frenando poco a poco."""
+    resaltado_previo = tablero.resaltado
+    fotogramas = []
+    for hueco in _secuencia_giro(tablero.huecos, destino):
+        tablero.resaltado = hueco
+        fotogramas.append(bloque_tablero(tablero))
+    tablero.resaltado = resaltado_previo
+    efectos.beep("clic")
+    efectos.repintar(fotogramas, retardo=0.035, factor=1.13)
+
+
 def elegir_accion(marcas_restantes: int) -> str:
     """Pide al jugador si dispara, se retira o (si le quedan) marca."""
     if marcas_restantes > 0:
@@ -173,22 +391,22 @@ def elegir_accion(marcas_restantes: int) -> str:
     else:
         opciones = "(D)isparar o (R)etirarse"
     while True:
-        entrada = input(f"{NEGRITA}   {opciones}: {RESET}").strip().lower()
-        if entrada in ("d", "disparar"):
+        entrada_leida = input(f"{NEGRITA}   {opciones}: {RESET}").strip().lower()
+        if entrada_leida in ("d", "disparar"):
             return "disparar"
-        if entrada in ("r", "retirarse"):
+        if entrada_leida in ("r", "retirarse"):
             return "retirarse"
-        if marcas_restantes > 0 and entrada in ("m", "marcar"):
+        if marcas_restantes > 0 and entrada_leida in ("m", "marcar"):
             return "marcar"
         print(ROJO + "   Esa respuesta no esta entre las opciones." + RESET)
 
 
 def elegir_posicion(huecos: int) -> int:
-    """Pide al jugador una posicion valida del tambor."""
+    """Pide al jugador una posicion valida del tambor, tecleada."""
     while True:
-        entrada = input(f"{NEGRITA}   Elige una posicion (1-{huecos}): {RESET}").strip()
+        leido = input(f"{NEGRITA}   Elige una posicion (1-{huecos}): {RESET}").strip()
         try:
-            posicion = int(entrada)
+            posicion = int(leido)
         except ValueError:
             print(ROJO + "   Eso no parece un numero." + RESET)
             continue
@@ -198,16 +416,79 @@ def elegir_posicion(huecos: int) -> int:
         return posicion
 
 
+def elegir_hueco(tablero: Tablero, dibujar: "partial[None]", verbo: str) -> int | None:
+    """Elige un hueco recorriendo el tambor con las flechas.
+
+    En una terminal de verdad se navega con ← y → y se confirma con
+    Enter (Esc o Q se echan atras y devuelven None). Donde no se puede
+    leer tecla a tecla -- un pipe, los tests, CI -- se cae al metodo de
+    siempre: teclear el numero, que nunca cancela.
+    """
+    if not entrada.modo_tecla_disponible():
+        return elegir_posicion(tablero.huecos)
+
+    def pintar(seleccion: int) -> None:
+        tablero.resaltado = seleccion
+        dibujar()
+        print(
+            f"{NEGRITA}   {verbo} el hueco {AMARILLO}{seleccion}{RESET}"
+            f"{GRIS}   ← → mueven · Enter confirma · Esc cancela{RESET}"
+        )
+
+    try:
+        return entrada.seleccionar(tablero.huecos, pintar)
+    finally:
+        tablero.resaltado = None
+
+
+def amanecer(dia: int, bitacora: "historial.Historial") -> None:
+    """Abre un dia nuevo con una frase de ambiente, tecleada despacio."""
+    texto = ambiente.mensaje_de_dia(dia)
+    bitacora.registrar_accion("dia", f"Amanece el dia {dia}.")
+    print()
+    efectos.escribir(f"   {GRIS}{texto}{RESET}")
+    efectos.pausa(1.2)
+
+
+def cartel_evento(evento: str) -> None:
+    """Planta el cartel a pantalla completa de un evento del tambor."""
+    efectos.beep("zumbido" if evento == "tambor_caliente" else "clic")
+    efectos.banner(
+        ambiente.cartel_evento(evento, eventos.texto_de(evento)),
+        color=AMARILLO,
+        segundos=2.0,
+    )
+
+
+def revelar_pista(numero: int, pista: "pistas.Pista") -> None:
+    """Imprime una pista recien salida con efecto de teletipo."""
+    efectos.escribir(f"   {AMARILLO}#{numero}{RESET} {pista.texto}")
+
+
+def _imprimir_epilogo(final: "ambiente.Epilogo", color: str) -> None:
+    """Imprime el titulo y el parrafo del final que cierra la partida."""
+    print()
+    print(f"{NEGRITA}{color}   ── {final.titulo} ──{RESET}")
+    for linea in textwrap.wrap(final.texto, width=ANCHO_EPILOGO):
+        print(f"{GRIS}   {linea}{RESET}")
+
+
 def impacto(
     disparos: int,
     perdidos: int,
     dias: int,
     resumen_texto: str,
     nuevo_record: bool = False,
+    final: "ambiente.Epilogo | None" = None,
 ) -> None:
-    """Muestra la pantalla de derrota (BOOM), lo perdido y el resumen final."""
+    """Muestra la pantalla de derrota (BOOM), lo perdido y el epilogo."""
     limpiar()
-    print(NEGRITA + ROJO + "\n      ▓▓▓   B O O M   ▓▓▓\n" + RESET)
+    efectos.beep("impacto")
+    print()
+    for linea in ambiente.ARTE_BOOM:
+        print(f"{NEGRITA}{ROJO}   {linea}{RESET}")
+    print(f"{ROJO}   {'B O O M'.center(36)}{RESET}")
+    print()
     print(ROJO + "   La bala ha encontrado tu numero." + RESET)
     print(
         f"{AMARILLO}   Caiste tras {disparos} disparo(s) ({dias} dia(s) "
@@ -215,8 +496,10 @@ def impacto(
     )
     if nuevo_record:
         print(NEGRITA + AMARILLO + "   ¡Nuevo record de dias sobrevividos!" + RESET)
-    print(f"{CELESTE}   {resumen_texto}\n{RESET}")
-    time.sleep(2)
+    print(f"{CELESTE}   {resumen_texto}{RESET}")
+    _imprimir_epilogo(final or ambiente.epilogo(dias, retirado=False), ROJO)
+    print()
+    efectos.pausa(2.5)
 
 
 def retirada(
@@ -225,9 +508,11 @@ def retirada(
     dias: int,
     resumen_texto: str,
     nuevo_record: bool = False,
+    final: "ambiente.Epilogo | None" = None,
 ) -> None:
-    """Muestra la pantalla de retirada, lo cobrado y el resumen final."""
+    """Muestra la pantalla de retirada, lo cobrado y el epilogo."""
     limpiar()
+    efectos.beep("acierto")
     print(NEGRITA + VERDE + "\n    ✦  TE RETIRAS A TIEMPO  ✦\n" + RESET)
     print(
         f"{CELESTE}   Cobras {ganados} puntos tras {disparos} disparo(s) "
@@ -235,11 +520,71 @@ def retirada(
     )
     if nuevo_record:
         print(NEGRITA + AMARILLO + "   ¡Nuevo record de dias sobrevividos!" + RESET)
-    print(f"{VERDE}   {resumen_texto}\n{RESET}")
-    time.sleep(2)
+    print(f"{VERDE}   {resumen_texto}{RESET}")
+    _imprimir_epilogo(
+        final or ambiente.epilogo(dias, retirado=True, puntos=ganados), VERDE
+    )
+    print()
+    efectos.pausa(2.5)
 
 
-def jugar(huecos: int = estado.HUECOS, marcas: int = farol.MARCAS_INICIALES) -> None:
+def _resolver_farol(
+    posicion: int,
+    tambor: "estado.TamborJuicio",
+    marca: "farol.Farol",
+    apuesta: "apuestas.Apuesta",
+    bitacora: "historial.Historial",
+    resultados_farol: dict[int, str],
+) -> None:
+    """Gasta una marca en `posicion` y cuenta como ha ido.
+
+    Comun a la partida en solitario y al duelo: solo cambia de quien son
+    la marca, la apuesta y la bitacora que se le pasan.
+    """
+    acierto = marca.marcar(posicion, tambor.posicion_bala)
+    bitacora.registrar_farol(acierto)
+    resultados_farol[posicion] = "seguro" if acierto else "peligro"
+    if acierto:
+        apuesta.sumar_bono(BONO_MARCA_ACERTADA)
+        bitacora.registrar_accion(
+            "farol", f"Farol en el {posicion}: vacio (+{BONO_MARCA_ACERTADA} pts)"
+        )
+        efectos.beep("acierto")
+        print(
+            f"{VERDE}   Farol acertado: el hueco {posicion} estaba "
+            f"vacio. +{BONO_MARCA_ACERTADA} puntos.{RESET}"
+        )
+    else:
+        bitacora.registrar_accion("aviso", f"Farol en el {posicion}: ahi estaba")
+        efectos.beep("fallo")
+        print(f"{ROJO}   Farol fallido: ahi estaba la bala. Pierdes la marca.{RESET}")
+    efectos.pausa(1.5)
+
+
+def _resolver_evento(
+    tambor: "estado.TamborJuicio", bitacora: "historial.Historial"
+) -> str | None:
+    """Sortea un evento, lo aplica y lo anuncia con su cartel.
+
+    Devuelve el evento (o None) para que quien llama sepa si la proxima
+    pista sale mentirosa.
+    """
+    evento = eventos.tirar_evento()
+    if evento is None:
+        return None
+    if evento == "clic_metalico":
+        tambor.mover_extra()
+    bitacora.registrar_evento(evento)
+    bitacora.registrar_accion("evento", evento.replace("_", " ").capitalize())
+    cartel_evento(evento)
+    return evento
+
+
+def jugar(
+    huecos: int = estado.HUECOS,
+    marcas: int = farol.MARCAS_INICIALES,
+    oscuridad: bool = False,
+) -> None:
     """Ejecuta el bucle principal: disparar, marcar o retirarse."""
     misrecords = records.cargar()
 
@@ -253,10 +598,20 @@ def jugar(huecos: int = estado.HUECOS, marcas: int = farol.MARCAS_INICIALES) -> 
         resultados_farol: dict[int, str] = {}
         pistas_reveladas: list[pistas.Pista] = []
 
+        limpiar(duro=True)
+        amanecer(1, bitacora)
+
         while True:
             candidatos = pistas.interseccion(pistas_reveladas)
             estados = calcular_estados(marcadas, resultados_farol, candidatos)
-            escena(disparos, apuesta, marca, estados, pistas_reveladas, tambor.huecos)
+            if oscuridad:
+                estados = oscurecer(estados, tambor.huecos)
+            tablero = Tablero(tambor.huecos, estados, pistas_reveladas, bitacora)
+            dibujar = partial(escena, disparos, apuesta, marca, tablero)
+
+            dibujar()
+            if bala_cerca(marcadas, tambor.huecos):
+                latido(tablero)
             accion = elegir_accion(marca.marcas_restantes)
 
             if accion == "retirarse":
@@ -273,29 +628,31 @@ def jugar(huecos: int = estado.HUECOS, marcas: int = farol.MARCAS_INICIALES) -> 
                     dias,
                     historial.resumen(bitacora, dias),
                     nuevo_record,
+                    ambiente.epilogo(
+                        dias,
+                        retirado=True,
+                        faroles_usados=bitacora.faroles_usados,
+                        faroles_acertados=bitacora.faroles_acertados,
+                        puntos=ganados,
+                    ),
                 )
                 break
 
             if accion == "marcar":
-                posicion = elegir_posicion(tambor.huecos)
-                acierto = marca.marcar(posicion, tambor.posicion_bala)
-                bitacora.registrar_farol(acierto)
-                resultados_farol[posicion] = "seguro" if acierto else "peligro"
-                if acierto:
-                    apuesta.sumar_bono(BONO_MARCA_ACERTADA)
-                    print(
-                        f"{VERDE}   Farol acertado: el hueco {posicion} estaba "
-                        f"vacio. +{BONO_MARCA_ACERTADA} puntos.{RESET}"
-                    )
-                else:
-                    print(
-                        f"{ROJO}   Farol fallido: ahi estaba la bala. "
-                        f"Pierdes la marca.{RESET}"
-                    )
-                time.sleep(1.5)
+                posicion = elegir_hueco(tablero, dibujar, "Marcar")
+                if posicion is None:
+                    continue
+                refrescar(dibujar)
+                _resolver_farol(
+                    posicion, tambor, marca, apuesta, bitacora, resultados_farol
+                )
                 continue
 
-            posicion = elegir_posicion(tambor.huecos)
+            posicion = elegir_hueco(tablero, dibujar, "Disparar a")
+            if posicion is None:
+                continue
+            refrescar(dibujar)
+            animar_giro(tablero, posicion)
             marcadas.add(posicion)
             disparos += 1
 
@@ -313,17 +670,22 @@ def jugar(huecos: int = estado.HUECOS, marcas: int = farol.MARCAS_INICIALES) -> 
                     dias,
                     historial.resumen(bitacora, dias),
                     nuevo_record,
+                    ambiente.epilogo(
+                        dias,
+                        retirado=False,
+                        faroles_usados=bitacora.faroles_usados,
+                        faroles_acertados=bitacora.faroles_acertados,
+                        puntos=perdidos,
+                    ),
                 )
                 break
 
             apuesta.doblar()
-
-            evento = eventos.tirar_evento()
-            if evento == "clic_metalico":
-                tambor.mover_extra()
-            if evento is not None:
-                bitacora.registrar_evento(evento)
-                print(f"{GRIS}   {eventos.texto_de(evento)}{RESET}")
+            efectos.beep("fallo")
+            bitacora.registrar_accion(
+                "disparo", f"Disparo al {posicion}: vacio ({apuesta.en_juego} pts)"
+            )
+            evento = _resolver_evento(tambor, bitacora)
 
             pistas_reveladas.append(
                 pistas.generar_pista(
@@ -337,12 +699,12 @@ def jugar(huecos: int = estado.HUECOS, marcas: int = farol.MARCAS_INICIALES) -> 
                 f"{VERDE}   Click. Cartucho vacio. Lo apostado se dobla "
                 f"a {apuesta.en_juego} puntos.{RESET}"
             )
+            revelar_pista(len(pistas_reveladas), pistas_reveladas[-1])
             if disparos % estado.DISPAROS_POR_DIA == 0:
-                print(
-                    f"{AMARILLO}   Sobrevives al dia "
-                    f"{estado.dias_sobrevividos(disparos)}.{RESET}"
-                )
-            time.sleep(1.5)
+                dia_nuevo = estado.dias_sobrevividos(disparos)
+                print(f"{AMARILLO}   Sobrevives al dia {dia_nuevo}.{RESET}")
+                amanecer(dia_nuevo + 1, bitacora)
+            efectos.pausa(1.5)
 
         otra = input(NEGRITA + "   Jugar otra partida? (s/n): " + RESET).strip().lower()
         if otra not in ("s", "si", "y", "yes"):
@@ -376,16 +738,14 @@ class JugadorDuelo:
 def _pedir_nombre(numero: int) -> str:
     """Pide el nombre de un jugador; en blanco usa 'Jugador N'."""
     prefijo = f"Nombre del jugador {numero} (Enter para 'Jugador {numero}'): "
-    entrada = input(f"{NEGRITA}   {prefijo}{RESET}").strip()
-    return entrada or f"Jugador {numero}"
+    leido = input(f"{NEGRITA}   {prefijo}{RESET}").strip()
+    return leido or f"Jugador {numero}"
 
 
 def escena_duelo(
     activo: JugadorDuelo,
     rival: JugadorDuelo,
-    estados: dict[int, str],
-    pistas_reveladas: list["pistas.Pista"],
-    huecos: int,
+    tablero: Tablero,
 ) -> None:
     """Como escena(), pero para el modo duelo: añade de quien es el turno
     y el estado del rival por encima del tablero, que es compartido."""
@@ -396,12 +756,13 @@ def escena_duelo(
         f"{rival.nombre}: {rival.dias} dia(s) sobrevividos"
     )
     print()
-    cabecera(activo.disparos, activo.apuesta, activo.marca)
+    cabecera(
+        activo.disparos, activo.apuesta, activo.marca, len(tablero.pistas_reveladas)
+    )
     print()
-    _imprimir_pistas(pistas_reveladas)
+    _imprimir_pistas(tablero.pistas_reveladas)
     print()
-    dibujar_tambor(estados, huecos)
-    print()
+    efectos.pintar_bloque(bloque_tablero(tablero))
 
 
 def resultado_duelo(jugadores: list[JugadorDuelo]) -> None:
@@ -427,12 +788,14 @@ def resultado_duelo(jugadores: list[JugadorDuelo]) -> None:
     else:
         print(NEGRITA + VERDE + f"   ¡Gana {finalistas[0].nombre}!" + RESET)
     print()
-    time.sleep(1)
+    efectos.pausa(1)
     input(NEGRITA + "   Pulsa Enter para continuar..." + RESET)
 
 
 def jugar_duelo(
-    huecos: int = estado.HUECOS, marcas: int = farol.MARCAS_INICIALES
+    huecos: int = estado.HUECOS,
+    marcas: int = farol.MARCAS_INICIALES,
+    oscuridad: bool = False,
 ) -> None:
     """Modo duelo: dos jugadores turnandose en el mismo tambor.
 
@@ -446,7 +809,7 @@ def jugar_duelo(
     """
     misrecords = records.cargar()
 
-    limpiar()
+    limpiar(duro=True)
     print(NEGRITA + CELESTE + "\n   === EL TAMBOR DEL JUICIO: DUELO ===\n" + RESET)
     nombres = [_pedir_nombre(1), _pedir_nombre(2)]
 
@@ -471,7 +834,14 @@ def jugar_duelo(
 
             candidatos = pistas.interseccion(pistas_reveladas)
             estados = calcular_estados(marcadas, resultados_farol, candidatos)
-            escena_duelo(activo, rival, estados, pistas_reveladas, tambor.huecos)
+            if oscuridad:
+                estados = oscurecer(estados, tambor.huecos)
+            tablero = Tablero(tambor.huecos, estados, pistas_reveladas, activo.bitacora)
+            dibujar = partial(escena_duelo, activo, rival, tablero)
+
+            dibujar()
+            if bala_cerca(marcadas, tambor.huecos):
+                latido(tablero)
             accion = elegir_accion(activo.marca.marcas_restantes)
 
             if accion == "retirarse":
@@ -490,30 +860,37 @@ def jugar_duelo(
                     activo.dias,
                     historial.resumen(activo.bitacora, activo.dias),
                     nuevo_record,
+                    ambiente.epilogo(
+                        activo.dias,
+                        retirado=True,
+                        faroles_usados=activo.bitacora.faroles_usados,
+                        faroles_acertados=activo.bitacora.faroles_acertados,
+                        puntos=activo.puntos_finales,
+                    ),
                 )
                 break
 
             if accion == "marcar":
-                posicion = elegir_posicion(tambor.huecos)
-                acierto = activo.marca.marcar(posicion, tambor.posicion_bala)
-                activo.bitacora.registrar_farol(acierto)
-                resultados_farol[posicion] = "seguro" if acierto else "peligro"
-                if acierto:
-                    activo.apuesta.sumar_bono(BONO_MARCA_ACERTADA)
-                    print(
-                        f"{VERDE}   Farol acertado: el hueco {posicion} estaba "
-                        f"vacio. +{BONO_MARCA_ACERTADA} puntos.{RESET}"
-                    )
-                else:
-                    print(
-                        f"{ROJO}   Farol fallido: ahi estaba la bala. "
-                        f"Pierdes la marca.{RESET}"
-                    )
-                time.sleep(1.5)
+                posicion = elegir_hueco(tablero, dibujar, "Marcar")
+                if posicion is None:
+                    continue
+                refrescar(dibujar)
+                _resolver_farol(
+                    posicion,
+                    tambor,
+                    activo.marca,
+                    activo.apuesta,
+                    activo.bitacora,
+                    resultados_farol,
+                )
                 turno += 1
                 continue
 
-            posicion = elegir_posicion(tambor.huecos)
+            posicion = elegir_hueco(tablero, dibujar, "Disparar a")
+            if posicion is None:
+                continue
+            refrescar(dibujar)
+            animar_giro(tablero, posicion)
             marcadas.add(posicion)
             activo.disparos += 1
 
@@ -533,17 +910,23 @@ def jugar_duelo(
                     activo.dias,
                     historial.resumen(activo.bitacora, activo.dias),
                     nuevo_record,
+                    ambiente.epilogo(
+                        activo.dias,
+                        retirado=False,
+                        faroles_usados=activo.bitacora.faroles_usados,
+                        faroles_acertados=activo.bitacora.faroles_acertados,
+                        puntos=activo.puntos_finales,
+                    ),
                 )
                 break
 
             activo.apuesta.doblar()
-
-            evento = eventos.tirar_evento()
-            if evento == "clic_metalico":
-                tambor.mover_extra()
-            if evento is not None:
-                activo.bitacora.registrar_evento(evento)
-                print(f"{GRIS}   {eventos.texto_de(evento)}{RESET}")
+            efectos.beep("fallo")
+            activo.bitacora.registrar_accion(
+                "disparo",
+                f"Disparo al {posicion}: vacio ({activo.apuesta.en_juego} pts)",
+            )
+            evento = _resolver_evento(tambor, activo.bitacora)
 
             pistas_reveladas.append(
                 pistas.generar_pista(
@@ -557,7 +940,8 @@ def jugar_duelo(
                 f"{VERDE}   Click. Cartucho vacio. Lo apostado se dobla "
                 f"a {activo.apuesta.en_juego} puntos.{RESET}"
             )
-            time.sleep(1.5)
+            revelar_pista(len(pistas_reveladas), pistas_reveladas[-1])
+            efectos.pausa(1.5)
             turno += 1
 
         # El rival no jugo su ultimo turno con los mismos puntos "en
@@ -627,6 +1011,21 @@ def _parsear_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Modo duelo: dos jugadores turnandose en el mismo tambor.",
     )
     parser.add_argument(
+        "--oscuridad",
+        action="store_true",
+        help="Modo a oscuras: el tambor solo muestra lo que ya has comprobado.",
+    )
+    parser.add_argument(
+        "--sin-animaciones",
+        action="store_true",
+        help="Sin giros, latidos ni pausas: la partida como un registro (util en CI).",
+    )
+    parser.add_argument(
+        "--sin-sonido",
+        action="store_true",
+        help="Silencia el timbre de la terminal.",
+    )
+    parser.add_argument(
         "--records",
         action="store_true",
         help="Muestra los records guardados y termina, sin jugar.",
@@ -665,14 +1064,20 @@ def main(argv: list[str] | None = None) -> None:
         print(records.resumen(records.cargar()))
         return
 
+    efectos.configurar(animaciones=not args.sin_animaciones, sonido=not args.sin_sonido)
+
     try:
         if args.duelo:
-            jugar_duelo(huecos=args.huecos, marcas=args.marcas)
+            jugar_duelo(
+                huecos=args.huecos, marcas=args.marcas, oscuridad=args.oscuridad
+            )
         else:
-            jugar(huecos=args.huecos, marcas=args.marcas)
+            jugar(huecos=args.huecos, marcas=args.marcas, oscuridad=args.oscuridad)
     except KeyboardInterrupt:
         print()
         print(AMARILLO + "   Hasta la proxima. El tambor siempre espera." + RESET)
+    finally:
+        efectos.cursor(True)
 
 
 if __name__ == "__main__":

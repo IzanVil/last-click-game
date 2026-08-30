@@ -50,5 +50,39 @@ class TestResumen(unittest.TestCase):
         self.assertIn("1 evento del tambor", texto)
 
 
+class TestAcciones(unittest.TestCase):
+    def test_registrar_accion_guarda_tipo_y_texto(self):
+        bitacora = historial.Historial()
+        bitacora.registrar_accion("disparo", "Disparo al 3")
+        self.assertEqual(
+            bitacora.acciones, [historial.Accion("disparo", "Disparo al 3")]
+        )
+
+    def test_solo_se_conservan_las_ultimas(self):
+        bitacora = historial.Historial()
+        for numero in range(historial.MAX_ACCIONES + 3):
+            bitacora.registrar_accion("disparo", f"accion {numero}")
+        self.assertEqual(len(bitacora.acciones), historial.MAX_ACCIONES)
+        self.assertEqual(bitacora.acciones[-1].texto, "accion 7")
+        self.assertEqual(bitacora.acciones[0].texto, "accion 3")
+
+    def test_ultimas_acciones_respeta_el_orden_de_lectura(self):
+        bitacora = historial.Historial()
+        for numero in range(4):
+            bitacora.registrar_accion("disparo", f"accion {numero}")
+        textos = [accion.texto for accion in bitacora.ultimas_acciones(2)]
+        self.assertEqual(textos, ["accion 2", "accion 3"])
+
+    def test_pedir_cero_acciones_devuelve_lista_vacia(self):
+        bitacora = historial.Historial()
+        bitacora.registrar_accion("dia", "Amanece el dia 1.")
+        self.assertEqual(bitacora.ultimas_acciones(0), [])
+
+    def test_las_acciones_no_se_comparten_entre_partidas(self):
+        primera = historial.Historial()
+        primera.registrar_accion("dia", "Amanece el dia 1.")
+        self.assertEqual(historial.Historial().acciones, [])
+
+
 if __name__ == "__main__":
     unittest.main()
