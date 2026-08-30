@@ -42,7 +42,14 @@ GDScript se indica entre paréntesis.
    Si el cruce de pistas se queda sin candidatos, es señal de que alguna
    pista reciente mentía.
 6. Al terminar la partida se resume en una frase lo ocurrido (días
-   sobrevividos, faroles lanzados/acertados, eventos sufridos).
+   sobrevividos, faroles lanzados/acertados, eventos sufridos) y se cierra
+   con un **epílogo**: uno de ocho finales alternativos elegido a partir de
+   esos mismos números (`ambiente.epilogo()`), sin azar de por medio, de
+   modo que la misma partida siempre acaba con el mismo texto.
+   En la terminal, además, hay un **modo a oscuras** opcional
+   (`--oscuridad`) en el que el tambor solo muestra los huecos que el
+   jugador ha disparado o faroleado él mismo; los candidatos que dejan las
+   pistas no se resaltan.
 7. La dificultad tiene tres presets (fácil/normal/difícil) que ajustan
    huecos y marcas a la vez; huecos y marcas también se pueden fijar por
    separado. Cada partida actualiza unos récords persistidos entre
@@ -66,19 +73,30 @@ antes de revelar un disparo o un farol, y la pantalla vibra al morir; ver
 
 ## Versión de terminal (Python)
 
-- Archivos: `terminal/ruleta.py` (interfaz, sin lógica propia) +
-  `terminal/estado.py`, `terminal/pistas.py`, `terminal/apuestas.py`,
-  `terminal/farol.py`, `terminal/eventos.py`, `terminal/historial.py`,
-  `terminal/records.py` (lógica pura, sin `input()`/`print()`, igual de
-  fácil de testear que `RuletaEstado.gd` en la versión Godot).
+- Archivos, en tres capas:
+  - **Lógica pura** (sin `input()`/`print()`, igual de fácil de testear que
+    `RuletaEstado.gd` en la versión Godot): `terminal/estado.py`,
+    `terminal/pistas.py`, `terminal/apuestas.py`, `terminal/farol.py`,
+    `terminal/eventos.py`, `terminal/historial.py`, `terminal/records.py`
+    y `terminal/ambiente.py` (texto narrativo: frases de ambiente,
+    carteles y finales alternativos).
+  - **Primitivas de terminal**, que no saben nada del juego:
+    `terminal/efectos.py` (pantalla, cursor, pausas, tecleo letra a letra,
+    timbre, repintado de un bloque en el sitio) y `terminal/entrada.py`
+    (teclado en crudo con `termios`/`msvcrt`).
+  - **Interfaz**: `terminal/ruleta.py`, que orquesta las otras dos y no
+    lleva ninguna regla del juego.
 - Dependencias: **ninguna** (solo la librería estándar de Python 3.11+).
 - Ejecución: `./run.sh`, o directamente `python3 terminal/ruleta.py`. Admite
   `--dificultad {facil,normal,dificil}`, `--huecos N`/`--marcas N` (pisan
-  al preset), `--duelo` (modo duelo, ver `jugar_duelo()`), `--records`
-  (muestra los récords guardados y no juega) y `--version`. `main()` es el
-  entry point real (`ruleta = "terminal.ruleta:main"` en `pyproject.toml`),
-  que envuelve `jugar()`/`jugar_duelo()` para capturar Ctrl+C.
-- Interactúa por entrada/salida estándar con interfaz en colores y tambor ASCII.
+  al preset), `--duelo` (modo duelo, ver `jugar_duelo()`), `--oscuridad`
+  (modo a oscuras), `--sin-animaciones` y `--sin-sonido` (ver `efectos.py`),
+  `--records` (muestra los récords guardados y no juega) y `--version`.
+  `main()` es el entry point real (`ruleta = "terminal.ruleta:main"` en
+  `pyproject.toml`), que envuelve `jugar()`/`jugar_duelo()` para capturar
+  Ctrl+C y configura los efectos según los flags.
+- Interactúa por entrada/salida estándar con interfaz en colores y tambor
+  ASCII, animado y con teclado en crudo cuando hay una terminal delante.
 
 ### Cómo modificar la lógica
 
@@ -118,24 +136,85 @@ antes de revelar un disparo o un farol, y la pantalla vibra al morir; ver
   disparos de un jugador dentro de `jugar_duelo()`; su propiedad `dias`
   deriva de `disparos` igual que `estado.dias_sobrevividos()`.
   `jugar_duelo()` reutiliza `escena`/`cabecera`/`elegir_accion`/
-  `elegir_posicion`/`impacto`/`retirada` tal cual (con los datos del
+  `elegir_hueco`/`impacto`/`retirada` tal cual (con los datos del
   jugador activo en cada turno); lo único propio del modo duelo es
   `escena_duelo()` (añade de quién es el turno y el estado del rival) y
   `resultado_duelo()` (compara días y, en empate, puntos).
 
-`ruleta.py` importa estos siete módulos con un `try/except` (relativo si se
+`ruleta.py` importa estos módulos con un `try/except` (relativo si se
 usa como paquete instalado, absoluto si se ejecuta como script suelto): si
 añades un módulo de lógica más, sigue el mismo patrón de import.
+
+### Cómo modificar la presentación
+
+- `efectos.AJUSTES` (un dataclass `Ajustes` con `animaciones` y `sonido`)
+  es el interruptor global; `main()` lo fija una sola vez con
+  `efectos.configurar()` a partir de `--sin-animaciones`/`--sin-sonido`.
+  **Todo lo que duerme, parpadea o suena pasa por ahí**: con las
+  animaciones apagadas `pausa()`, `repintar()` y `limpiar()` no hacen nada
+  y `escribir()` imprime la línea de una vez, así que la partida se
+  convierte en un registro que va bajando (lo que quieren los tests, CI y
+  un *pipe*). El sonido se apaga solo si la salida no es una terminal.
+- `efectos.limpiar()` usa códigos ANSI (`ir arriba` + `borrar hacia
+  abajo`) en vez de lanzar `clear`/`cls`: se llama en cada fotograma, y
+  así no parpadea ni levanta un proceso hijo por frame.
+- `efectos.repintar(fotogramas, retardo, factor)` es la única animación:
+  pisa en el sitio el bloque que ya hay en pantalla (todos los fotogramas
+  deben medir lo mismo de alto, y el último es el estado en reposo).
+  `factor` por debajo de 1 acelera (el latido) y por encima frena (el
+  giro). `ruleta.latido()` y `ruleta.animar_giro()` solo montan los
+  fotogramas con `ruleta.bloque_tablero()`.
+- `efectos.PATRONES_SONIDO` define cada sonido como la lista de esperas
+  entre pitidos: el timbre de la terminal (BEL) no tiene tono, así que lo
+  que distingue un sonido de otro es el ritmo.
+- `entrada.seleccionar(huecos, pintar)` es el selector con flechas; recibe
+  una función que dibuja la pantalla con un hueco resaltado. Si
+  `entrada.modo_tecla_disponible()` dice que no (no hay terminal, o falta
+  `termios`/`msvcrt`), `ruleta.elegir_hueco()` cae a `elegir_posicion()`,
+  el número tecleado de siempre. Añadir una tecla es una rama más en el
+  bucle de `seleccionar()` y, si es una secuencia de escape, una entrada
+  en `_FLECHAS_UNIX`/`_FLECHAS_WINDOWS`.
+- `ambiente.MENSAJES_DIA` son las frases de ambiente (la primera se
+  reserva para el día 1), `ambiente.TITULOS_EVENTO` los títulos de los
+  carteles y `ambiente.epilogo()` elige el final: sus ramas van de lo más
+  específico a lo más general, así que un final nuevo se inserta por
+  encima de los cierres genéricos. `ambiente.cartel()` monta cualquier
+  cartel enmarcado.
+- `ruleta.Tablero` agrupa lo que hace falta para pintar un turno (huecos,
+  estados, pistas, bitácora y el hueco resaltado); `ruleta.tambor_ascii()`
+  lo dibuja y `ruleta.bloque_tablero()` le añade la bitácora, que siempre
+  ocupa el mismo alto para poder repintarse en el sitio.
+  `ruleta.ANCHO_PANEL`, `ruleta.HUECOS_LATIDO` (cuántos huecos sin probar
+  encienden el latido) y `ruleta.VUELTAS_GIRO` afinan el resto.
+- `historial.Historial.registrar_accion()` alimenta la bitácora; el `tipo`
+  de cada `Accion` es solo una etiqueta que `ruleta.COLORES_ACCION`
+  traduce a un color, y `historial.MAX_ACCIONES` cuántas se conservan.
 
 ### Tests
 
 Hay una batería de pruebas por módulo (`test_estado.py`, `test_pistas.py`,
 `test_apuestas.py`, `test_farol.py`, `test_eventos.py`, `test_historial.py`,
-`test_records.py`, `test_ruleta.py`). Cualquier test que llame a
-`jugar()`/`jugar_duelo()` debe parchear `ruleta.records.cargar` y
-`ruleta.records.guardar` (ver el decorador `_parchear_records` en
-`test_ruleta.py`): si no, leerían/escribirían el archivo de récords real
-del usuario que ejecuta los tests.
+`test_records.py`, `test_ambiente.py`, `test_efectos.py`, `test_entrada.py`,
+`test_ruleta.py`). Tres cosas que hay que respetar al escribir tests
+nuevos de la interfaz:
+
+- Cualquier test que llame a `jugar()`/`jugar_duelo()` debe parchear
+  `ruleta.records.cargar` y `ruleta.records.guardar` (ver el decorador
+  `_parchear_records` en `test_ruleta.py`): si no, leerían/escribirían el
+  archivo de récords real del usuario que ejecuta los tests.
+- `test_ruleta.setUpModule()` apaga los efectos con
+  `efectos.configurar(animaciones=False, sonido=False)` —el mismo
+  interruptor que `--sin-animaciones`— para que ningún test duerma ni
+  escriba códigos de escape en la terminal de quien los lanza, y parchea
+  `entrada.modo_tecla_disponible` a `False`. Ese segundo parche importa:
+  `sys.stdin` **sí** es una terminal cuando los tests se lanzan a mano, así
+  que sin él el selector se quedaría esperando una flecha que no llega.
+  Un test que llame a `ruleta.main()` vuelve a encender los efectos (main
+  los configura según los flags), así que `TestMain` los reapaga en su
+  `tearDown`.
+- Los tests que comprueban texto en pantalla parchean `builtins.print`; con
+  las animaciones apagadas, `efectos.escribir()` y `efectos.pintar_bloque()`
+  también salen por ahí, así que se capturan igual.
 
 ```bash
 cd terminal && python3 -m unittest discover -s . -v
@@ -405,6 +484,9 @@ russian-roulette-2d/
 │   ├── eventos.py
 │   ├── historial.py
 │   ├── records.py
+│   ├── ambiente.py
+│   ├── efectos.py
+│   ├── entrada.py
 │   ├── test_ruleta.py
 │   ├── test_estado.py
 │   ├── test_pistas.py
@@ -412,7 +494,10 @@ russian-roulette-2d/
 │   ├── test_farol.py
 │   ├── test_eventos.py
 │   ├── test_historial.py
-│   └── test_records.py
+│   ├── test_records.py
+│   ├── test_ambiente.py
+│   ├── test_efectos.py
+│   └── test_entrada.py
 └── 2d/
     ├── project.godot
     ├── RuletaEstado.gd

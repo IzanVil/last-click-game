@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/Godot-4.7%2B-478CBF?logo=godotengine&logoColor=white" alt="Godot">
   <img src="https://img.shields.io/badge/estado-en%20desarrollo-yellow" alt="Estado">
   <img src="https://img.shields.io/badge/licencia-MIT-green" alt="Licencia">
-  <img src="https://img.shields.io/badge/coverage-97%25-brightgreen" alt="Cobertura">
+  <img src="https://img.shields.io/badge/coverage-99%25-brightgreen" alt="Cobertura">
 </p>
 
 ---
@@ -34,7 +34,11 @@ arriesgando que se **doblen** (o perderlo todo), o gastas una de tus 3
 **marcas** para declarar un hueco seguro sin arriesgar el pellejo. El
 objetivo no es una única partida: es acumular **días de vida**.
 
-- **🐍 Terminal** — interfaz de teclado y colores ANSI en un tambor ASCII.
+- **🐍 Terminal** — tambor ASCII con colores ANSI, tambor que **gira**
+  al disparar y **late** en rojo cuando quedan pocos huecos, selector con
+  las **flechas**, pistas escritas a máquina, carteles de evento a pantalla
+  completa, panel fijo con tus datos, bitácora de las últimas acciones y
+  **finales alternativos** según cómo hayas jugado.
 - **🎮 Gráfica (Godot)** — misma mecánica en un taller en penumbra:
   engranajes girando al fondo, tambor de chapa y latón con los huecos
   candidatos **latiendo**, texto tecleado a máquina, viñeta que se cierra
@@ -193,8 +197,42 @@ cd terminal && python3 ruleta.py
      que ahí no había bala, o que sí la había, en ese momento.
    - ⚪ **gris** `·` — ya disparaste ahí alguna vez.
 6. Al terminar la partida (mueras o te retires) se muestra un resumen
-   narrativo de lo que ha pasado: días sobrevividos, faroles lanzados y
-   acertados, y eventos que sufriste.
+   narrativo de lo que ha pasado —días sobrevividos, faroles lanzados y
+   acertados, eventos que sufriste— y un **epílogo** que cambia según cómo
+   hayas jugado: no es lo mismo caer el primer día que retirarte con diez
+   a la espalda, o sobrevivir sin gastar una sola marca.
+7. Con `--oscuridad` el tambor se apaga (`▒`): solo ves los huecos que ya
+   has disparado o faroleado tú. Los candidatos que dejan las pistas dejan
+   de resaltarse y hay que llevar la deducción en la cabeza.
+
+### La terminal como escenario
+
+La versión de terminal no se limita a imprimir el estado: usa lo que la CLI
+sabe hacer para montar la escena.
+
+| Recurso | Qué hace |
+|---------|----------|
+| 🎞️ **Giro del tambor** | Al disparar, el resaltado da una vuelta completa y frena poco a poco hasta pararse en el hueco elegido. |
+| 💓 **Latido** | Cuando quedan 3 huecos o menos sin probar, el marco del tambor parpadea en rojo con un ritmo que acelera. |
+| ⌨️ **Selector con flechas** | `←` y `→` recorren el tambor, `Enter` confirma y `Esc` se echa atrás sin gastar el turno (también valen los dígitos y `a`/`d`). Donde no se puede leer tecla a tecla —un *pipe*, CI— se vuelve a teclear el número de siempre. |
+| 🖨️ **Pistas a máquina** | Cada pista nueva se imprime carácter a carácter, como una teletipo. |
+| 📰 **Carteles de evento** | Un `clic metálico` o un `tambor caliente` ocupan la pantalla entera durante un par de segundos antes de devolverte al juego. |
+| 📋 **Panel fijo y bitácora** | Arriba, siempre en el mismo sitio: día, disparo, puntos en juego, marcas y pistas. Abajo, las últimas 5 acciones con un color por tipo. |
+| 🔔 **Sonido** | El timbre de la terminal (BEL) marca cada momento con un ritmo distinto: un pip seco al sobrevivir, tres al acertar un farol, una ráfaga al morir, un zumbido cuando el tambor se calienta. No tiene tono que ajustar, así que lo que cambia es la cadencia. |
+| 🌑 **Modo a oscuras** | `--oscuridad` tapa todo lo que no hayas comprobado tú mismo. |
+| 🎬 **Finales alternativos** | El epílogo cambia según los días, las marcas gastadas y si te fuiste por tu propio pie. |
+
+Todo eso se apaga de una vez con `--sin-animaciones` (nada duerme, nada
+parpadea y la partida se convierte en un registro que va bajando: es lo
+que quieres al redirigir la salida a un fichero, en CI o con un lector de
+pantalla) y `--sin-sonido` calla el timbre. El sonido se desactiva solo si
+la salida no es una terminal de verdad.
+
+```bash
+python3 ruleta.py --oscuridad              # el tambor solo muestra lo comprobado
+python3 ruleta.py --sin-animaciones        # sin giros, latidos ni pausas
+python3 ruleta.py --sin-sonido             # sin timbre
+```
 
 ### Dificultad personalizada
 
@@ -250,21 +288,29 @@ python3 ruleta.py --duelo --dificultad facil   # combinable con dificultad
 ### Ejemplo de partida
 
 ```
-╔════════════════════════════════════════════╗
-║        EL TAMBOR DEL JUICIO         ║
-║   Dia 2  (disparo 1/3)  ·  Marcas 2  ║
-║   En juego   900 pts                    ║
-╚════════════════════════════════════════════╝
+╔══════════════════════════════════════════════════╗
+║               EL TAMBOR DEL JUICIO               ║
+╟──────────────────────────────────────────────────╢
+║  Dia 2  · disparo 1/3    En juego 900 pts        ║
+║  Marcas 2                Pistas 3                ║
+╚══════════════════════════════════════════════════╝
 
    Pistas del tambor:
    #1 La bala esta en la mitad derecha del tambor.
    #2 La bala no esta en los huecos pares.
    #3 La bala no esta en los huecos pares.
 
-   ┌─┬─┬─┬─┬─┬─┬─┬─┐
-   ·   ·   ·   0   ?   0   ✓   0
-   └─┴─┴─┴─┴─┴─┴─┴─┘
-   1  2  3  4  5  6  7  8
+   ┌───┬───┬───┬───┬───┬───┬───┬───┐
+   │ · │ · │ · │ 0 │ ? │ 0 │ ✓ │ 0 │
+   └───┴───┴───┴───┴───┴───┴───┴───┘
+     1   2   3   4   5   6   7   8
+
+   ── bitacora ──
+   › Disparo al 1: vacio (200 pts)
+   › Tambor caliente
+   › Farol en el 7: vacio (+50 pts)
+   › Disparo al 3: vacio (900 pts)
+   › Amanece el dia 2.
 
    (D)isparar, (R)etirarse o (M)arcar [2]: r
 
@@ -272,11 +318,17 @@ python3 ruleta.py --duelo --dificultad facil   # combinable con dificultad
 
    Cobras 900 puntos tras 3 disparo(s) (1 dia(s) sobrevivido(s)).
    Hoy sobreviviste 1 dia y faroleaste 1 vez (1 acertado).
+
+   ── TE RETIRAS A TIEMPO ──
+   1 dia(s) y 900 puntos en el bolsillo. La puerta estaba abierta
+   y, por una vez, la usaste.
 ```
 
 En este tambor de 8, cruzar "mitad derecha" (5-8) con "no par" (1,3,5,7) deja
 solo el 5 y el 7 como candidatos (amarillo `?`); el 7 ya se marcó y salió
 seguro (verde `✓`); el 1, 2 y 3 son huecos por los que ya se disparó (gris `·`).
+Debajo, la bitácora recuerda las últimas cinco cosas que pasaron, y el
+epílogo cierra la partida según cómo se jugó.
 
 - 💀 Aciertas la bala → **BOOM**, pierdes todo lo apostado (fin de la partida).
 - 😅 Fallas un disparo → los puntos en juego se **doblan** y sigues con una
@@ -415,7 +467,7 @@ de quien los ejecuta**.
   de vida — ver el detalle fase a fase más abajo
 - [x] **Lanzadores** para Linux, macOS y Windows (`run.sh`, `run.bat`)
 - [x] **Instalador** con acceso directo en el escritorio (`instalar.sh`, `instalar.bat`)
-- [x] **Tests** automáticos de la versión Python (97% de cobertura) y dos
+- [x] **Tests** automáticos de la versión Python (99% de cobertura) y dos
   scripts headless para la versión Godot (lógica + integración de escena)
 - [x] **Empaquetado** con `pyproject.toml` (entry point instalable, config de lint/formato/tipos)
 - [x] **Integración continua** en GitHub Actions (tests + lint + tipos de
@@ -431,6 +483,10 @@ de quien los ejecuta**.
 - [x] **Efectos de sonido** de disparo, victoria y derrota (versión Godot)
 - [x] **Animación del tambor** — giro al empezar partida, tensión antes de
   revelar un disparo o farol, y vibración de pantalla al morir (Godot)
+- [x] **Atmósfera en la terminal** — giro y latido del tambor, selector con
+  flechas, pistas escritas a máquina, carteles de evento, panel fijo,
+  bitácora, timbre por patrones de ritmo, modo a oscuras y finales
+  alternativos (ver [La terminal como escenario](#la-terminal-como-escenario))
 - [x] **Ambientación completa de la versión gráfica** — taller con
   engranajes, luz que reacciona a los eventos, texto tecleado, bordón
   sonoro en bucle y tema de chapa y latón (ver el detalle más abajo)
@@ -476,6 +532,18 @@ ambas):
 
 Con eso, **las cuatro fases del rediseño están completas en las dos
 versiones**.
+
+- [x] **Fase 5 — Terminal:** la CLI como escenario. Primitivas de terminal
+  en `efectos.py` (borrado sin parpadeo con códigos ANSI en vez de lanzar
+  `clear`, tecleo letra a letra, timbre por patrones de ritmo, repintado
+  de un bloque en el sitio), teclado en crudo en `entrada.py` (selector con
+  `←`/`→`/`Enter`/`Esc`, con vuelta al número tecleado donde no hay
+  terminal) y narrativa en `ambiente.py` (frase de ambiente al amanecer
+  cada día, carteles de evento a pantalla completa y ocho finales
+  alternativos). Encima de eso: giro del tambor al disparar, latido en rojo
+  cuando quedan pocos huecos, panel fijo con día/puntos/marcas/pistas,
+  bitácora de las últimas acciones (`historial.Accion`), modo a oscuras
+  (`--oscuridad`) e interruptores `--sin-animaciones`/`--sin-sonido`
 
 ### 🕯️ Ambientación de la versión gráfica
 
