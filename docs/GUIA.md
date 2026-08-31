@@ -513,6 +513,28 @@ pasar un rato de reloj para que el servidor de audio descarte los sonidos
 que quedaran sonando: sin eso, Godot avisaría al salir de instancias sin
 liberar.
 
+### Las capturas del README
+
+Las imágenes de `docs/img/` las genera `2d/tools/capturas.gd`, que juega una
+partida guionizada y fotografía cada pantalla. **No es un test** (no
+comprueba nada) y por eso vive fuera de `2d/tests/`, aunque la CI lo parsea
+igual con `--check-only`:
+
+```bash
+godot --resolution 1728x1296 --fixed-fps 60 \
+    --script res://tools/capturas.gd --path 2d
+```
+
+Los tres detalles que importan, y que están explicados también en la
+cabecera del propio script: se pide una **ventana más grande** que la de
+juego (el proyecto escala el lienzo, así que la interfaz sale con el doble
+de píxeles y el recorte queda nítido), se fuerza un **delta fijo**
+(`--fixed-fps`, porque una ventana sin foco no avanza al mismo ritmo que
+los temporizadores del script y las capturas pillarían animaciones a
+medias) y cada imagen se **recorta al panel** de su pantalla, para que no
+sea cuatro quintas partes de fondo negro. El script deja los PNG en
+`user://`; de ahí se copian a `docs/img/`.
+
 ## Lanzadores
 
 | Archivo | Plataforma | Acción |
@@ -593,6 +615,8 @@ russian-roulette-2d/
     ├── tests/
     │   ├── test_logica.gd
     │   └── test_escena.gd
+    ├── tools/
+    │   └── capturas.gd
     ├── scenes/
     │   └── MainGame.tscn
     └── assets/

@@ -19,7 +19,7 @@
 ---
 
 <p align="center">
-  <img src="docs/img/partida.png" alt="Una partida en la versión gráfica: el tambor en escorzo, el HUD con día, puntos, pistas y marcas, y la bitácora de las últimas acciones" width="820">
+  <img src="docs/img/banner.png" alt="El tambor del juicio en la versión gráfica: la barra de estado con día, puntos, pistas y marcas, y el tambor de metal en escorzo con dos huecos candidatos encendidos" width="760">
 </p>
 
 Una colección de minijuegos de ruleta rusa en **dos sabores**: un clásico de
@@ -117,7 +117,7 @@ russian-roulette-2d/
 ├── .github/workflows/   ← CI (tests Python + smoke test Godot)
 ├── docs/
 │   ├── GUIA.md          ← guía técnica del proyecto
-│   └── img/             ← capturas de la versión gráfica
+│   └── img/             ← capturas (las genera 2d/tools/capturas.gd)
 ├── terminal/            ← versión de consola: El Tambor del Juicio
 │   ├── ruleta.py        ← interfaz de terminal (pantalla, teclado, colores)
 │   ├── estado.py        ← tambor y bala: posición, patrón, días de vida
@@ -149,6 +149,7 @@ russian-roulette-2d/
     ├── Paleta.gd        ← los cinco colores del juego, en un solo sitio
     ├── Icono.gd         ← iconos del HUD, dibujados con _draw()
     ├── tests/           ← scripts headless (lógica + integración de escena)
+    ├── tools/           ← capturas.gd: genera las imágenes de docs/img/
     ├── scenes/          ← escenas (UI)
     └── assets/          ← audio y tema (sintetizados/dibujados) + fuentes
 ```
@@ -398,9 +399,15 @@ pantalla de final. Los récords se guardan en `user://records.json` (el
 equivalente idiomático en Godot de `~/.tambor_del_juicio/records.json`), y
 ahí van también las cinco mejores partidas con su fecha.
 
+<p align="center">
+  <img src="docs/img/records.png" alt="Pantalla de récords con la tabla de las mejores partidas: días, puntos y fecha" width="520">
+</p>
+
 ### Accesibilidad y ajustes (tecla Esc)
 
-<img src="docs/img/ajustes.png" alt="Panel de ajustes con los deslizadores de música y efectos y las casillas de accesibilidad" width="460" align="right">
+<p align="center">
+  <img src="docs/img/ajustes.png" alt="Panel de ajustes con los deslizadores de música y efectos y las casillas de accesibilidad" width="480">
+</p>
 
 Todo se recuerda entre partidas en `user://ajustes.json`:
 
@@ -413,26 +420,24 @@ Todo se recuerda entre partidas en `user://ajustes.json`:
 | **Alto contraste** | Aclara los textos y sube el tono de los colores del tambor, a costa de la penumbra. |
 | **Sonido** | Efectos y música (el equivalente de `--sin-sonido` en la terminal). |
 
-<br clear="right">
-
 ### Capturas
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/img/menu.png" alt="Menú principal con el título, el subtítulo y los botones de nueva partida y récords"></td>
-    <td width="50%"><img src="docs/img/tambor-caliente.png" alt="El evento «tambor caliente»: la sala se pone al rojo y la pista siguiente queda marcada como dudosa"></td>
+    <td width="50%" valign="top"><img src="docs/img/menu.png" width="100%" alt="Menú principal con el título, el subtítulo, la dificultad y los botones de nueva partida y récords"></td>
+    <td width="50%" valign="top"><img src="docs/img/final.png" width="100%" alt="Pantalla de final de partida con el rótulo HAS MUERTO, el resumen y los botones de reintentar y volver"></td>
   </tr>
   <tr>
     <td align="center"><em>El taller, antes de empezar.</em></td>
+    <td align="center"><em>El final, con el resumen y la opción de repetir.</em></td>
+  </tr>
+  <tr>
+    <td valign="top"><img src="docs/img/partida.png" width="100%" alt="Una partida: barra de estado, tambor con dos huecos candidatos encendidos y uno elegido, lista de pistas y bitácora de las últimas acciones"></td>
+    <td valign="top"><img src="docs/img/tambor-caliente.png" width="100%" alt="El evento tambor caliente: la sala se pone al rojo y la pista siguiente queda marcada como dudosa"></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Una partida en curso: amarillo = candidato según las pistas, aspa = ya disparado.</em></td>
     <td align="center"><em>«Tambor caliente»: desconfía de la próxima pista.</em></td>
-  </tr>
-  <tr>
-    <td><img src="docs/img/final.png" alt="Pantalla de final de partida con el rótulo HAS MUERTO y el resumen"></td>
-    <td><img src="docs/img/records.png" alt="Pantalla de récords con la tabla de mejores partidas"></td>
-  </tr>
-  <tr>
-    <td align="center"><em>El final, con el resumen de la partida.</em></td>
-    <td align="center"><em>Las mejores marcas, con su fecha.</em></td>
   </tr>
 </table>
 
