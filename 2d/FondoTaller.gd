@@ -71,6 +71,9 @@ func _ready() -> void:
 	_luz = _crear_luz()
 
 
+## El unico reloj del fondo. Se apaga entero con los efectos reducidos (ver
+## la propiedad), y con el se va el repintado por fotograma: es la diferencia
+## entre un fondo animado y un fondo gratis.
 func _process(delta: float) -> void:
 	_tiempo += delta
 	queue_redraw()
@@ -86,6 +89,8 @@ func calentar() -> void:
 	tween.tween_property(self, "_calor", 0.0, ENFRIAMIENTO)
 
 
+## Luz primero y engranajes encima: la luz es el ambiente de la sala, no un
+## foco que ilumine el metal, asi que va detras de todo.
 func _draw() -> void:
 	if size.x <= 0.0 or size.y <= 0.0:
 		return
@@ -122,6 +127,14 @@ func _dibujar_luz() -> void:
 	draw_texture_rect(_luz, Rect2(Vector2.ZERO, size), false, color)
 
 
+## Una rueda dentada, hecha con circulos y segmentos en vez de un poligono
+## de verdad.
+##
+## A la opacidad a la que se ven (ALFA_METAL, un 13%), un diente dibujado
+## como un segmento grueso que asoma del cuerpo se lee igual que un diente
+## poligonal, y cuesta dos vertices en vez de seis. Los radios y el buje no
+## son adorno: sin algo que rompa la simetria del circulo, la rueda gira sin
+## que se note que gira.
 func _dibujar_engranaje(
 	centro: Vector2, radio: float, dientes: int, giro: float, tono: float
 ) -> void:

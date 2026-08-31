@@ -106,6 +106,10 @@ var _rayas: Array[Vector3] = []
 var _chispas: CPUParticles2D
 
 
+## El tamaño minimo no es el de un circulo: el escorzo aplasta la altura a
+## PERSPECTIVA y hay que sumarle el canto que asoma por debajo. Si se pidiera
+## el cuadrado de siempre, el contenedor reservaria una franja vacia arriba y
+## abajo que descolocaria el resto de la columna.
 func _ready() -> void:
 	custom_minimum_size = Vector2(
 		(RADIO_TAMBOR + RADIO_HUECO) * 2,
@@ -188,6 +192,9 @@ func acercar(factor: float = 1.12, duracion: float = 0.35) -> void:
 	tween.tween_property(self, "scale", Vector2(factor, factor), duracion)
 
 
+## Deshace acercar(). Se llama siempre, aunque el acercamiento no haya
+## ocurrido (con los efectos reducidos no ocurre), porque tambien recoge la
+## escala que deja pulsar().
 func alejar(duracion: float = 0.45) -> void:
 	var tween := create_tween()
 	tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
@@ -259,6 +266,10 @@ func reventar(numero: int) -> void:
 # --- Raton --------------------------------------------------------------------
 
 
+## Raton sobre el tambor. Se usa _gui_input y no _input porque asi Godot ya
+## filtra por nosotros: solo llegan los eventos que caen dentro de este
+## Control, y en coordenadas locales, que es justo lo que necesita
+## _hueco_en().
 func _gui_input(evento: InputEvent) -> void:
 	if evento is InputEventMouseMotion:
 		var encima := _hueco_en(evento.position)
@@ -295,6 +306,9 @@ func _hueco_en(punto: Vector2) -> int:
 # --- Dibujo -------------------------------------------------------------------
 
 
+## Pinta el tambor en tres pasadas, de lo que esta mas lejos a lo que esta
+## mas cerca (el algoritmo del pintor): primero el canto, luego la chapa
+## encima y por ultimo los huecos, que son lo que sobresale.
 func _draw() -> void:
 	if _num_huecos <= 0:
 		return
@@ -315,8 +329,10 @@ func _draw() -> void:
 		_dibujar_barrido(centro)
 
 
+## Centro de la boca del tambor, que **no** es el centro del control: el
+## canto cuelga por debajo, asi que la elipse se sube media profundidad para
+## que el conjunto quede centrado a la vista.
 func _centro() -> Vector2:
-	# El tambor no va centrado en vertical: hay que dejar sitio al canto.
 	return Vector2(size.x / 2.0, (size.y - PROFUNDIDAD) / 2.0)
 
 
@@ -393,6 +409,14 @@ func _dibujar_chapa(centro: Vector2) -> void:
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
+## Un hueco, con todo lo que puede llevar encima superpuesto en orden: la
+## boca, el latido si es candidato, el aspa si ya se probo, el destello de
+## una pista dudosa, el borde del raton, el del hueco elegido, el halo de
+## tension y el numero.
+##
+## El orden importa: lo que se dibuja despues tapa a lo anterior, y de ahi
+## que el numero vaya el ultimo (tiene que leerse siempre) y el halo de
+## tension penultimo (es lo que el jugador esta mirando en ese momento).
 func _dibujar_hueco(indice: int) -> void:
 	var pos := _posicion_de(indice)
 	var radio := _radio_de(indice)
@@ -432,6 +456,13 @@ func _dibujar_hueco(indice: int) -> void:
 	_dibujar_numero(indice, pos)
 
 
+## El numero del hueco, en negro sobre los rellenos claros (bronce y rojo) y
+## en bronce claro sobre los oscuros: es el mismo criterio que se sigue al
+## elegir el color de un texto sobre un fondo, y lo que evita tener que
+## mirar dos veces para leer un "8".
+##
+## Crece un par de puntos cuando el hueco esta señalado con el raton o
+## elegido, que es la unica pista de tamaño que da la vista.
 func _dibujar_numero(indice: int, pos: Vector2) -> void:
 	var font := get_theme_default_font()
 	var font_size := 16
@@ -488,11 +519,19 @@ func _color(color: Color) -> Color:
 	return Paleta.aclarar(color, ACLARADO_CONTRASTE) if alto_contraste else color
 
 
+## Destino de tween_method() en tension(). Hace falta un metodo, y no un
+## tween_property sobre la variable, porque cada paso tiene que repintar.
 func _set_pulso_tension(valor: float) -> void:
 	_pulso_tension = valor
 	queue_redraw()
 
 
+## Sortea las rayas de uso de la chapa una vez por partida y las guarda
+## (angulo, radio y largo de cada una).
+##
+## Se sortean y se guardan, en vez de calcularse en _draw(), porque unas
+## rayas distintas en cada fotograma no serian textura: serian ruido
+## parpadeando. Al ir en coordenadas polares giran con el tambor solas.
 func _sortear_rayas() -> void:
 	_rayas.clear()
 	for _i in range(22):

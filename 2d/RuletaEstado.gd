@@ -81,6 +81,10 @@ var disparos: int:
 	get: return jugador_activo.disparos
 
 
+## Una partida en solitario es un duelo de un solo jugador, asi que "es un
+## duelo" es simplemente "hay mas de uno". De esto cuelga todo lo que
+## distingue los dos modos: los turnos, el veredicto y hasta como se redacta
+## el texto final.
 func es_duelo() -> bool:
 	return jugadores.size() > 1
 
@@ -188,6 +192,12 @@ func dias_sobrevividos() -> int:
 	return jugador_activo.dias
 
 
+## Pasa el turno. Se llama tras un disparo sobrevivido y tras un farol
+## —marcar tambien consume turno, como en la version de terminal—, pero no
+## tras un impacto o una retirada, que terminan la partida entera.
+##
+## En solitario el turno tambien avanza: `turno` cuenta acciones, y el
+## jugador activo sigue siendo el unico que hay (ver jugador_activo).
 func _avanzar_turno() -> void:
 	turno += 1
 	if not es_duelo():

@@ -82,6 +82,10 @@ func abrir(duracion: float = 0.6) -> void:
 	tween.tween_property(self, "_apertura", 1.0, duracion)
 
 
+## Tres capas, siempre en el mismo orden: la viñeta de reposo, el resplandor
+## de color del evento que toque y, si la partida ha terminado, el iris
+## cerrandose. Van de la mas permanente a la mas puntual, porque cada una
+## tiene que poder tapar a la anterior.
 func _draw() -> void:
 	if size.x <= 0.0 or size.y <= 0.0:
 		return

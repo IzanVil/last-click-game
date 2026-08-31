@@ -19,6 +19,10 @@ const RUTA_AJUSTES_TEST := "user://test_ajustes_tmp.json"
 var _fallos: Array[String] = []
 
 
+## Lanza todos los tests y sale con el codigo que espera la CI: 0 si todo
+## pasa, 1 si algo falla. No para en el primer fallo a proposito —los
+## acumula en `_fallos` y los imprime juntos— para que un cambio que rompa
+## tres cosas se vea entero de una pasada.
 func _init() -> void:
 	_test_tambor_juicio_movimiento()
 	_test_tambor_juicio_disparo()

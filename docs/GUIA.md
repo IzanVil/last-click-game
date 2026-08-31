@@ -535,6 +535,34 @@ medias) y cada imagen se **recorta al panel** de su pantalla, para que no
 sea cuatro quintas partes de fondo negro. El script deja los PNG en
 `user://`; de ahí se copian a `docs/img/`.
 
+## Cómo está comentado el código
+
+Los dos lados del proyecto siguen el mismo criterio: **el comentario explica
+el porqué; el qué ya lo dice el código**. En la práctica:
+
+- Cada archivo abre con un bloque `##` (docstring en Python) que dice qué es,
+  qué **no** es y con quién se corresponde en la otra versión. Es lo primero
+  que hay que leer, y lo primero que hay que actualizar si algo cambia de
+  sitio.
+- Las funciones con una decisión detrás la llevan escrita encima: por qué el
+  tambor gira un número entero de vueltas (`TamborView.girar`), por qué el
+  orden de los tres bucles de `MainGame._calcular_estados` es el que es, por
+  qué el bucle de la música se marca en código y no en el `.import`
+  (`MainGame._arrancar_musica`), o por qué `_recordar_estilos()` tiene que
+  correr antes de aplicar ningún ajuste (`MainGame._ready`).
+- Las que hacen lo que dice su nombre —`_ready`, un manejador de botón que
+  cambia de pantalla, un `_init` que solo asigna campos— **no llevan
+  comentario a propósito**. Un `## Devuelve el color del hueco` sobre
+  `_color_de()` no informa: ocupa sitio y hay que mantenerlo.
+- En GDScript, `##` es documentación (Godot la enseña en la ayuda del editor
+  para las clases con `class_name`) y `#` es una nota puntual dentro de un
+  cuerpo. La distinción importa: lo que va en `##` es contrato; lo que va en
+  `#`, una advertencia local.
+
+A día de hoy llevan comentario **2 de cada 3 funciones** de la versión
+gráfica; el tercio restante son las triviales de las que habla el punto
+anterior.
+
 ## Lanzadores
 
 | Archivo | Plataforma | Acción |

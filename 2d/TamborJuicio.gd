@@ -68,6 +68,15 @@ func mover_extra() -> int:
 	return posicion_bala
 
 
+## Adonde se mueve la bala desde `posicion` con un patron dado. Es el
+## corazon de la deduccion: el patron se sortea al construir el tambor y no
+## cambia en toda la partida, asi que las pistas acumuladas bastan para
+## acorralar la bala. Las unicas excepciones son mover_extra() (evento "clic
+## metalico") y una pista mentirosa (evento "tambor caliente"): ruido
+## deliberado, no un patron distinto.
+##
+## Es estatica y sin estado a proposito, para poder probar los cuatro
+## patrones sin construir un tambor (ver tests/test_logica.gd).
 static func _mover(posicion: int, patron: String, huecos: int) -> int:
 	match patron:
 		"avanza":

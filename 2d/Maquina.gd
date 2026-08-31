@@ -50,6 +50,10 @@ static func completar(etiqueta: Label) -> void:
 	etiqueta.visible_ratio = 1.0
 
 
+## Mata el tecleo en curso de una etiqueta, si lo hay, y olvida el meta.
+##
+## Comprueba `is_valid()` porque un Tween terminado sigue estando en el meta
+## pero ya no existe como objeto vivo, y llamar a kill() sobre el daria error.
 static func _cancelar(etiqueta: Label) -> void:
 	if not etiqueta.has_meta(META_TWEEN):
 		return

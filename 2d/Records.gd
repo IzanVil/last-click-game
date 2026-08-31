@@ -136,6 +136,9 @@ func resumen() -> String:
 	)
 
 
+## Los campos enteros que viajan al JSON, en el orden en que se escriben.
+## `mejores` no esta aqui porque no es un entero: se guarda y se recarga
+## aparte (ver guardar y cargar).
 func _campos() -> Array[String]:
 	return [
 		"partidas_jugadas",

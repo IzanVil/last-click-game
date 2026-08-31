@@ -87,6 +87,11 @@ static func interseccion(pistas: Array[Pista]) -> Array[int]:
 	return resultado
 
 
+## Estos tres metodos traducen una pista a la lista de huecos que la
+## cumplen. Esa lista es lo unico que la vista necesita para colorear el
+## tambor, y lo que interseccion() cruza cuando hay varias pistas vigentes:
+## por eso una pista mentirosa no necesita ningun tratamiento especial aqui,
+## basta con darle los candidatos de la afirmacion contraria.
 static func _por_paridad(huecos: int, par: bool) -> Array[int]:
 	var resultado: Array[int] = []
 	for h in range(1, huecos + 1):

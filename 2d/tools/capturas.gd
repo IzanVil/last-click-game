@@ -29,6 +29,14 @@ const MARGEN := 46.0
 
 var _main
 
+## Fotografia la ventana y guarda solo el rectangulo del panel `nodo_marco`,
+## con MARGEN alrededor.
+##
+## La conversion no es directa: `get_global_rect()` da unidades de lienzo
+## (las 1152x864 que declara el proyecto) y la imagen esta en pixeles de la
+## ventana, que aqui son mas porque se pide una resolucion mayor. De ahi la
+## escala, y de ahi que el recorte se acote al tamaño de la imagen: un panel
+## pegado al borde daria un rectangulo que se sale.
 func _captura(nombre: String, nodo_marco: Control) -> void:
 	# Sin esto la captura puede pillar el texto a medio teclear: la ventana
 	# de este script no tiene el foco y no avanza al mismo ritmo que los

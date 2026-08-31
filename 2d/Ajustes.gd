@@ -93,6 +93,8 @@ func guardar(ruta := RUTA_POR_DEFECTO) -> bool:
 	return true
 
 
+## Todos los campos que viajan al JSON. El tipo de cada uno lo dice su valor
+## por defecto, y de eso se aprovecha cargar() para no tener que repetirlo.
 func _campos() -> Array[String]:
 	return [
 		"efectos_reducidos",

@@ -32,6 +32,13 @@ var _espera_farol := 0.0
 var _espera_final := 0.0
 
 
+## Una sesion entera, en el mismo orden en que la jugaria una persona: mirar
+## el menu, trastear los ajustes, jugar, morir y volver.
+##
+## Es un solo hilo con `await` en vez de tests independientes porque la
+## escena tiene estado (records en disco, ajustes, la partida en curso) y
+## montarla y desmontarla en cada comprobacion costaria mas de lo que
+## aislaria. A cambio, cada bloque deja la interfaz como se la encontro.
 func _init() -> void:
 	_borrar_archivos_test()
 

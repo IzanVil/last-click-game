@@ -188,6 +188,15 @@ var _tamanos_originales: Dictionary = {}
 var _colores_tema_originales: Dictionary = {}
 
 
+## El orden de este metodo no es casual, y cambiarlo rompe cosas en silencio:
+##
+## 1. Las señales de RuletaEstado se conectan antes de que pueda emitir nada.
+## 2. _recordar_estilos() se apunta los colores y cuerpos que trae la escena
+##    **antes** de que ningun ajuste los pise; si corriera despues, se
+##    guardaria como "original" lo que ya es una modificacion.
+## 3. La musica arranca antes de aplicar los ajustes, para que estos solo
+##    tengan que ajustarle el volumen y no decidir tambien si suena.
+## 4. Los records se cargan antes de _mostrar(), que es quien pinta la tabla.
 func _ready() -> void:
 	randomize()
 	_encadenar_respaldo_de_fuentes()
@@ -410,6 +419,9 @@ func _icono_invisible() -> ImageTexture:
 	return ImageTexture.create_from_image(imagen)
 
 
+## Guarda un ajuste y lo aplica. Escribe en disco en cada cambio a
+## proposito: son siete controles que se tocan de uno en uno, no hay nada
+## que agrupar, y asi cerrar el juego por las bravas no pierde nada.
 func _cambiar_ajuste(campo: String, valor: Variant) -> void:
 	_ajustes.set(campo, valor)
 	_ajustes.guardar(ruta_ajustes)
@@ -439,6 +451,11 @@ func _aplicar_ajustes() -> void:
 		_ajustar_musica()
 
 
+## "Texto grande" sube el cuerpo por dos caminos a la vez: el del tema (que
+## heredan casi todos los nodos) y el de los overrides que la escena traia
+## nodo por nodo, que el tema no puede tocar. Los segundos se suman al
+## original guardado por _recordar_estilos(), no a lo que hubiera puesto,
+## para que marcar y desmarcar no acumule.
 func _aplicar_tamano_de_texto() -> void:
 	var aumento := AUMENTO_TEXTO if _ajustes.texto_grande else 0
 	if theme != null:
@@ -455,6 +472,13 @@ func _aplicar_tamano_de_texto() -> void:
 		icono.lado = 18.0 + aumento
 
 
+## "Alto contraste" acerca cada color de texto al blanco en vez de
+## sustituirlo por blanco: asi el bronce sigue siendo bronce (mas claro) y no
+## se pierde el codigo de color con el que se lee la interfaz.
+##
+## Hay que hacerlo en tres sitios porque el color de un texto puede venir de
+## tres: un override del nodo, el tema (botones, casillas, campos) o, en los
+## iconos del HUD, una propiedad propia.
 func _aplicar_contraste() -> void:
 	for control in _colores_originales:
 		var original: Color = _colores_originales[control]
@@ -481,6 +505,9 @@ func _con_contraste(color: Color) -> Color:
 	return Paleta.aclarar(color, MEZCLA_CONTRASTE) if _ajustes.alto_contraste else color
 
 
+## Los cuatro iconos de la barra, buscados por su sitio en el arbol en vez
+## de con cuatro @onready. Son los unicos nodos que la escena repite con la
+## misma forma, y asi añadir un quinto dato al HUD no obliga a tocar aqui.
 func _iconos_del_hud() -> Array[Icono]:
 	var iconos: Array[Icono] = []
 	for dato in $Centro/Marco/Columnas/Juego/Hud/Fila.get_children():
@@ -523,6 +550,9 @@ func _preparar_buses() -> void:
 		reproductor.bus = BUS_EFECTOS
 
 
+## Lleva los dos deslizadores a sus buses. Un deslizador es lineal (lo que
+## espera el oido al arrastrarlo) y un bus va en decibelios, de ahi la
+## conversion.
 func _aplicar_volumenes() -> void:
 	var mezclas := {
 		BUS_MUSICA: _ajustes.volumen_musica,
@@ -743,6 +773,9 @@ func _numero_elegido() -> int:
 	return entrada_numero.text.to_int()
 
 
+## Clic en un hueco del tambor. Lo unico que hace es escribir el numero en
+## el campo: a partir de ahi, elegir con el raton y teclear el numero son el
+## mismo camino, y los botones no tienen que saber cual se uso.
 func _on_hueco_pulsado(numero: int) -> void:
 	if _accion_bloqueada:
 		return
@@ -758,6 +791,15 @@ func _on_entrada_cambiada(texto: String) -> void:
 	tambor.elegir(numero if numero >= 1 and numero <= _estado.tambor.huecos else -1)
 
 
+## Un disparo, con su coreografia: bloquear la interfaz, acercar el tambor,
+## girarlo, frenarlo en seco, pulsar el hueco elegido y solo entonces
+## resolver.
+##
+## El resultado ya esta decidido antes de la animacion —lo decide
+## RuletaEstado.disparar() cuando se le llama al final—, pero la vista lo
+## retrasa para que la tension exista. Por eso hay `await`: cada paso tiene
+## que terminar antes del siguiente. Y por eso _bloquear_acciones(true) es lo
+## primero: sin ello se podria disparar dos veces durante el giro.
 func _on_disparar_btn_pressed() -> void:
 	if _accion_bloqueada:
 		return
@@ -784,6 +826,8 @@ func _on_disparar_btn_pressed() -> void:
 	tambor.alejar()
 
 
+## Un farol. Mismo esqueleto que el disparo pero sin giro (ver mas abajo), y
+## sin cerrar la partida: marcar nunca mata.
 func _on_marcar_btn_pressed() -> void:
 	if _accion_bloqueada or not _estado.farol.puede_marcar():
 		return
@@ -815,6 +859,12 @@ func _on_retirarse_btn_pressed() -> void:
 # --- Señales de RuletaEstado --------------------------------------------------
 
 
+## Partida nueva: se limpia todo lo que era memoria de la partida anterior
+## (lo que vive en la vista, no en la logica) y se repuebla la pantalla.
+##
+## El giro de aqui **no** se espera con await, a diferencia del de un
+## disparo: es un adorno de entrada, y el jugador puede empezar a leer las
+## pistas mientras el tambor todavia rueda.
 func _on_partida_iniciada(huecos: int, es_duelo: bool) -> void:
 	_marcadas.clear()
 	_resultados_farol.clear()
@@ -853,6 +903,10 @@ func _on_entrada_invalida(_numero: int) -> void:
 	entrada_numero.grab_focus()
 
 
+## Un evento aleatorio. Cada uno tiene su propia firma de imagen y sonido,
+## porque son lo unico que le pasa al jugador sin que el lo haya pedido y
+## tiene que reconocerlos de un vistazo: el clic metalico suena a mecanismo
+## y sacude, el tambor caliente enrojece la sala y siembra la duda.
 func _on_evento_ocurrido(tipo: String, texto: String) -> void:
 	_agregar_linea_resultado(texto)
 	match tipo:
@@ -881,6 +935,9 @@ func _on_pista_nueva(texto: String, candidatos: Array) -> void:
 	_anotar("pista", "Pista: %s" % texto)
 
 
+## Disparo sobrevivido: es el turno "normal" del juego y por eso reune todo
+## lo que hay que refrescar tras una accion (tambor, HUD, bitacora, musica) y
+## devuelve el control al jugador.
 func _on_disparo_sobrevivido(_disparos: int, en_juego: int) -> void:
 	_marcadas.append(_ultimo_disparo)
 	_agregar_linea_resultado("Click. Cartucho vacio. Lo apostado se dobla a %d puntos." % en_juego)
@@ -901,6 +958,9 @@ func _on_dia_completado(dia: int) -> void:
 	_anotar("dia", "Sobrevives al dia %d" % dia)
 
 
+## Farol resuelto. A diferencia de un disparo, aqui el hueco queda etiquetado
+## para siempre (seguro o peligroso): es informacion comprada con una marca,
+## y se guarda en _resultados_farol para que sobreviva a los repintados.
 func _on_farol_resuelto(hueco: int, acierto: bool, en_juego: int, marcas_restantes: int) -> void:
 	if acierto:
 		_mostrar_resultado(
@@ -930,6 +990,9 @@ func _on_turno_cambiado(nombre: String, rival_nombre: String, rival_dias: int) -
 	_actualizar_hud()
 
 
+## La bala. Fin de la partida: se anota en los records, se enseña donde
+## estaba y se cierra con todo lo que la vista tiene para un momento asi
+## (chispas, dos sonidos a la vez, rojo, sacudida).
 func _on_impacto(disparos: int, perdidos: int, dias: int, resumen: String) -> void:
 	var nuevo_record := _registrar_en_records(dias, perdidos)
 	_mostrar_resultado(
@@ -951,6 +1014,8 @@ func _on_impacto(disparos: int, perdidos: int, dias: int, resumen: String) -> vo
 	_cerrar_partida("HAS MUERTO", resumen, nuevo_record)
 
 
+## Retirada. Tambien termina la partida, y tambien cuenta para los records:
+## los dias sobrevividos valen igual se haya salido vivo o no.
 func _on_retirada(disparos: int, ganados: int, dias: int, resumen: String) -> void:
 	var nuevo_record := _registrar_en_records(dias, ganados)
 	_mostrar_resultado(
@@ -1021,6 +1086,11 @@ func _cerrar_partida(titulo_final: String, resumen: String, nuevo_record: bool) 
 	_esperar_y_mostrar_final.call_deferred()
 
 
+## Espera, cierra la pantalla en iris y saca el final.
+##
+## Se llama diferido (call_deferred desde _cerrar_partida) porque en duelo
+## `duelo_terminado` se emite justo despues de `impacto`/`retirada`, y tiene
+## que haber añadido su veredicto al resumen antes de que esto lo enseñe.
 func _esperar_y_mostrar_final() -> void:
 	await get_tree().create_timer(PAUSA_FIN_PARTIDA - DURACION_CIERRE).timeout
 	await vineta.cerrar(DURACION_CIERRE)
@@ -1087,6 +1157,13 @@ func _pintar_bitacora() -> void:
 	bitacora.text = "\n".join(_lineas_bitacora)
 
 
+## Traduce lo que se sabe de la partida al estado de cada hueco.
+##
+## El orden de los tres bucles es el que manda: lo que se escribe despues
+## pisa a lo anterior, asi que la certeza gana a la sospecha. Un hueco que
+## las pistas señalan (candidato) pero que ya se disparo sale como probado,
+## y un farol resuelto se impone a los dos, porque de ese si se sabe la
+## verdad. Espejo de calcular_estados() en terminal/ruleta.py.
 func _calcular_estados() -> Dictionary:
 	var estados := {}
 	for hueco in Pistas.interseccion(_estado.pistas_reveladas):
@@ -1126,6 +1203,8 @@ func _actualizar_hud() -> void:
 	_poner_dato(hud_marcas, "%d" % _estado.farol.marcas_restantes, "marcas")
 
 
+## Un dato del HUD: el numero resaltado y su unidad en gris al lado. Es un
+## RichTextLabel y no un Label porque son dos colores en la misma linea.
 func _poner_dato(etiqueta: RichTextLabel, valor: String, sufijo: String) -> void:
 	etiqueta.text = "[b]%s[/b] [color=#%s]%s[/color]" % [
 		valor, _con_contraste(Paleta.BRONCE_APAGADO).to_html(false), sufijo
@@ -1155,11 +1234,19 @@ func _bajar_pistas() -> void:
 	pistas_scroll.scroll_vertical = int(pistas_scroll.get_v_scroll_bar().max_value)
 
 
+## El boton de marcar lleva la cuenta en su propio texto y se apaga solo
+## cuando no quedan marcas: es la unica accion que se agota, y asi el jugador
+## no tiene que ir a buscar el dato al HUD.
 func _actualizar_boton_marcar(marcas_restantes: int) -> void:
 	marcar_btn.text = "Marcar (%d)" % marcas_restantes
 	marcar_btn.disabled = _accion_bloqueada or marcas_restantes <= 0
 
 
+## Enciende o apaga las tres acciones a la vez. Se llama con `true` al
+## empezar cualquier animacion que resuelva algo y con `false` cuando la
+## vista ya ha terminado de contarlo; entre medias, el resultado ya esta
+## decidido, y dejar pulsar seria dejar actuar sobre una partida que en la
+## logica ya ha avanzado.
 func _bloquear_acciones(bloqueada: bool) -> void:
 	_accion_bloqueada = bloqueada
 	entrada_numero.editable = not bloqueada

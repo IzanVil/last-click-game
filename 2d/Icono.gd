@@ -29,14 +29,18 @@ enum Tipo { CALENDARIO, MONEDA, LUPA, ESCUDO }
 		queue_redraw()
 
 
+## El icono no captura el raton: es un dibujo dentro de una fila de datos,
+## y comerse los clics ahi solo serviria para tapar lo que haya detras.
 func _ready() -> void:
 	custom_minimum_size = Vector2(lado, lado)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
+## Cada icono se dibuja dentro de un cuadrado de lado `lado`, centrado en el
+## espacio que le den y con el trazo proporcional a ese lado: asi los cuatro
+## pesan lo mismo en la barra y siguen cuadrando cuando "texto grande" los
+## agranda.
 func _draw() -> void:
-	# Todo se dibuja dentro de un cuadrado de lado `lado`, centrado en el
-	# espacio que le den, para que los cuatro iconos pesen lo mismo.
 	var caja := Rect2((size - Vector2(lado, lado)) / 2.0, Vector2(lado, lado))
 	var grosor := maxf(1.0, lado * 0.09)
 	match tipo:
