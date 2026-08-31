@@ -15,20 +15,34 @@ class_name FondoTaller
 ## delante) para dar la sensacion de maquina viva que un ParallaxBackground
 ## daria con sprites.
 
-## Engranajes del fondo: posicion relativa al tamaño de la ventana (0..1),
-## radio relativo al lado menor, dientes, y vueltas por minuto (con signo:
-## los engranajes que engranan entre si giran al reves uno del otro).
+## Engranajes del fondo, repartidos en tres capas de profundidad. Cada uno
+## lleva: posicion relativa al tamaño de la ventana (0..1), radio relativo
+## al lado menor, dientes, vueltas por minuto (con signo: dos engranajes que
+## engranan giran al reves uno del otro) y la capa a la que pertenece.
+##
+## La capa decide el tono (los del fondo, mas oscuros) y cuanto se desplaza
+## el engranaje de lado: las de delante corren mas que las de atras, que es
+## de donde sale la sensacion de profundidad.
 const ENGRANAJES: Array[Dictionary] = [
-	{"ancla": Vector2(0.12, 0.18), "radio": 0.34, "dientes": 18, "rpm": 0.9, "tono": 0.55},
-	{"ancla": Vector2(0.88, 0.30), "radio": 0.26, "dientes": 14, "rpm": -1.3, "tono": 0.75},
-	{"ancla": Vector2(0.78, 0.86), "radio": 0.38, "dientes": 20, "rpm": 0.7, "tono": 0.45},
-	{"ancla": Vector2(0.20, 0.92), "radio": 0.20, "dientes": 12, "rpm": -1.8, "tono": 0.9},
-	{"ancla": Vector2(0.50, 0.06), "radio": 0.14, "dientes": 10, "rpm": 2.2, "tono": 1.0},
+	{"ancla": Vector2(0.12, 0.18), "radio": 0.34, "dientes": 18, "rpm": 0.9, "capa": 0},
+	{"ancla": Vector2(0.78, 0.86), "radio": 0.38, "dientes": 20, "rpm": 0.7, "capa": 0},
+	{"ancla": Vector2(0.88, 0.30), "radio": 0.26, "dientes": 14, "rpm": -1.3, "capa": 1},
+	{"ancla": Vector2(0.20, 0.92), "radio": 0.20, "dientes": 12, "rpm": -1.8, "capa": 1},
+	{"ancla": Vector2(0.50, 0.06), "radio": 0.14, "dientes": 10, "rpm": 2.2, "capa": 2},
+	{"ancla": Vector2(0.36, 0.62), "radio": 0.11, "dientes": 9, "rpm": -2.6, "capa": 2},
 ]
 
-const COLOR_METAL := Color(0.32, 0.26, 0.17, 1)
-const COLOR_LUZ := Color(0.85, 0.60, 0.28, 1)
-const COLOR_LUZ_CALIENTE := Color(0.95, 0.25, 0.10, 1)
+## Tono y deriva lateral (pixeles por segundo) de cada capa, de la mas
+## lejana a la mas cercana.
+const CAPAS := [
+	{"tono": 0.45, "deriva": 1.5},
+	{"tono": 0.7, "deriva": 3.5},
+	{"tono": 1.0, "deriva": 7.0},
+]
+
+const COLOR_METAL := Paleta.BRONCE
+const COLOR_LUZ := Paleta.BRONCE
+const COLOR_LUZ_CALIENTE := Paleta.ROJO
 
 ## Cuanto se ve el metal sobre el fondo. Muy poco a proposito: los
 ## engranajes deben insinuarse en la penumbra, no competir con el tambor.
@@ -82,8 +96,15 @@ func _draw() -> void:
 		var radio_relativo: float = engranaje["radio"]
 		var rpm: float = engranaje["rpm"]
 		var dientes: int = engranaje["dientes"]
-		var tono: float = engranaje["tono"]
-		_dibujar_engranaje(ancla * size, radio_relativo * lado, dientes, _tiempo * rpm * TAU / 60.0, tono)
+		var capa: Dictionary = CAPAS[engranaje["capa"]]
+		var tono: float = capa["tono"]
+		var deriva: float = capa["deriva"]
+		# La deriva da la vuelta al llegar al borde para que no se acabe
+		# nunca el taller por la izquierda.
+		var recorrido := size.x + radio_relativo * lado * 3.0
+		var centro := ancla * size
+		centro.x = fposmod(centro.x + _tiempo * deriva, recorrido) - radio_relativo * lado * 1.5
+		_dibujar_engranaje(centro, radio_relativo * lado, dientes, _tiempo * rpm * TAU / 60.0, tono)
 
 
 ## Luz calida sobre el centro de la pantalla (donde esta el tambor), con un

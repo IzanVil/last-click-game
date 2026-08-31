@@ -11,7 +11,7 @@ class_name Vineta
 ## Como FondoTaller, es decorado puro: recibe ordenes de MainGame.gd y no
 ## sabe nada de balas, dias ni apuestas.
 
-const COLOR_VINETA := Color(0, 0, 0, 1)
+const COLOR_VINETA := Color(0, 0, 0, 1)  # negro puro, mas oscuro que el fondo
 
 ## Cuanto se oscurecen los bordes en reposo.
 const INTENSIDAD_BASE := 0.55
@@ -19,7 +19,7 @@ const INTENSIDAD_BASE := 0.55
 ## Opacidad maxima de un resplandor de evento. Bastante menos que la viñeta
 ## porque el resplandor tiñe de color: pasado de ahi deja de ser un aviso en
 ## los bordes y se come la partida.
-const INTENSIDAD_RESPLANDOR := 0.40
+const INTENSIDAD_RESPLANDOR := 0.32
 
 var efectos_reducidos := false
 

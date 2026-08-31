@@ -30,10 +30,19 @@ var texto_grande := false
 ## colores mas claros y saturados, a costa de la penumbra noir.
 var alto_contraste := false
 
-## Efectos y ambiente sonoro. Es el equivalente de `--sin-sonido` en la
-## version de terminal, al reves (aqui se guarda si SI suena) porque las
-## casillas del menu se leen mejor en positivo.
+## Efectos y musica. Es el equivalente de `--sin-sonido` en la version de
+## terminal, al reves (aqui se guarda si SI suena) porque las casillas del
+## menu se leen mejor en positivo.
 var sonido := true
+
+## Volumenes de las dos mezclas, de 0 a 1 (ver los buses "Musica" y
+## "Efectos" que crea MainGame). Se guardan lineales, como los enseña el
+## deslizador del menu de pausa, y se convierten a decibelios al aplicarlos.
+var volumen_musica := 0.7
+var volumen_efectos := 0.9
+
+## Ventana o pantalla completa.
+var pantalla_completa := false
 
 
 ## Carga los ajustes desde disco. Si el archivo no existe (primera partida)
@@ -54,8 +63,15 @@ static func cargar(ruta := RUTA_POR_DEFECTO) -> Ajustes:
 
 	var ajustes := Ajustes.new()
 	for campo in ajustes._campos():
-		if json.data.has(campo):
+		if not json.data.has(campo):
+			continue
+		# El tipo lo manda el valor por defecto del campo, no lo que venga
+		# del archivo: un JSON a mano podria traer un 1 donde va un bool o
+		# un entero donde va un volumen.
+		if typeof(ajustes.get(campo)) == TYPE_BOOL:
 			ajustes.set(campo, bool(json.data[campo]))
+		else:
+			ajustes.set(campo, clampf(float(json.data[campo]), 0.0, 1.0))
 	return ajustes
 
 
@@ -78,4 +94,12 @@ func guardar(ruta := RUTA_POR_DEFECTO) -> bool:
 
 
 func _campos() -> Array[String]:
-	return ["efectos_reducidos", "texto_grande", "alto_contraste", "sonido"]
+	return [
+		"efectos_reducidos",
+		"texto_grande",
+		"alto_contraste",
+		"sonido",
+		"volumen_musica",
+		"volumen_efectos",
+		"pantalla_completa",
+	]

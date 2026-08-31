@@ -23,7 +23,7 @@
 ; y una casilla con chapa y filete parece un boton pulsable. De ahi los
 ; StyleBoxEmpty, que la dejan como lo que es (una marca y una etiqueta) y
 ; le reservan el recuadro solo para el foco de teclado.
-[gd_resource type="Theme" load_steps=12 format=3 uid="uid://bqxvt3n8kmwyf"]
+[gd_resource type="Theme" load_steps=15 format=3 uid="uid://bqxvt3n8kmwyf"]
 
 [ext_resource type="FontFile" path="res://assets/fonts/CourierPrime-Regular.ttf" id="1_courier"]
 
@@ -158,6 +158,38 @@ border_color = Color(0.45, 0.34, 0.15, 1)
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_desplegable_hover"]
 bg_color = Color(0.23, 0.19, 0.13, 1)
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ranura"]
+content_margin_top = 4.0
+content_margin_bottom = 4.0
+bg_color = Color(0.06, 0.055, 0.05, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.26, 0.23, 0.18, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_recorrido"]
+content_margin_top = 4.0
+content_margin_bottom = 4.0
+bg_color = Color(0.545, 0.451, 0.333, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_recorrido_vivo"]
+content_margin_top = 4.0
+content_margin_bottom = 4.0
+bg_color = Color(0.788, 0.647, 0.365, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_casilla"]
 content_margin_left = 4.0
 content_margin_top = 4.0
@@ -188,6 +220,9 @@ CheckBox/styles/focus = SubResource("StyleBoxFlat_foco")
 CheckBox/styles/hover = SubResource("StyleBoxEmpty_casilla")
 CheckBox/styles/normal = SubResource("StyleBoxEmpty_casilla")
 CheckBox/styles/pressed = SubResource("StyleBoxEmpty_casilla")
+HSlider/styles/grabber_area = SubResource("StyleBoxFlat_recorrido")
+HSlider/styles/grabber_area_highlight = SubResource("StyleBoxFlat_recorrido_vivo")
+HSlider/styles/slider = SubResource("StyleBoxFlat_ranura")
 LineEdit/colors/caret_color = Color(0.95, 0.75, 0.25, 1)
 LineEdit/colors/font_color = Color(0.92, 0.86, 0.74, 1)
 LineEdit/colors/font_placeholder_color = Color(0.55, 0.5, 0.42, 1)

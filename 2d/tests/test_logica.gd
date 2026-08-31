@@ -262,7 +262,34 @@ func _test_records() -> void:
 	sin_faroles.registrar_partida(1, 100, 0, 0)
 	_afirmar(sin_faroles.resumen().find("0/0") != -1, "sin faroles no divide por cero")
 
+	_test_mejores_marcas()
 	_test_records_en_disco(records)
+
+
+## La tabla de mejores partidas: ordenada por dias y, a empate, por puntos
+## (el mismo criterio que decide un duelo), y recortada a MAX_MEJORES.
+func _test_mejores_marcas() -> void:
+	var records := Records.new()
+	for caso in [[1, 100], [5, 200], [5, 900], [3, 400]]:
+		records.registrar_partida(caso[0], caso[1], 0, 0)
+
+	var dias: Array = records.mejores.map(func(m: Dictionary) -> int: return m["dias"])
+	_afirmar_igual(dias, [5, 5, 3, 1], "las mejores marcas se ordenan por dias")
+	_afirmar_igual(
+		records.mejores[0]["puntos"], 900, "y a igualdad de dias manda quien hizo mas puntos"
+	)
+	_afirmar(
+		records.mejores[0].has("fecha") and records.mejores[0]["fecha"].length() == 10,
+		"cada marca guarda su fecha (AAAA-MM-DD)",
+	)
+
+	# Solo caben MAX_MEJORES: la peor se cae al entrar una mejor.
+	for i in range(Records.MAX_MEJORES + 3):
+		records.registrar_partida(9, 1000 + i, 0, 0)
+	_afirmar_igual(
+		records.mejores.size(), Records.MAX_MEJORES, "la tabla no crece sin limite"
+	)
+	_afirmar_igual(records.mejores[0]["dias"], 9, "y se queda con las mejores")
 
 
 func _test_records_en_disco(records: Records) -> void:
@@ -275,6 +302,15 @@ func _test_records_en_disco(records: Records) -> void:
 	_afirmar(records.guardar(RUTA_RECORDS_TEST), "guardar devuelve true al escribir bien")
 	var recargados := Records.cargar(RUTA_RECORDS_TEST)
 	_afirmar_igual(recargados.partidas_jugadas, records.partidas_jugadas, "recarga las partidas")
+	_afirmar_igual(
+		recargados.mejores.size(), records.mejores.size(), "recarga la tabla de mejores marcas"
+	)
+	if not recargados.mejores.is_empty():
+		_afirmar_igual(
+			recargados.mejores[0]["dias"],
+			records.mejores[0]["dias"],
+			"y sus numeros vuelven como enteros",
+		)
 	_afirmar_igual(recargados.dias_maximos, records.dias_maximos, "recarga los dias maximos")
 	_afirmar_igual(recargados.puntos_maximos, records.puntos_maximos, "recarga los puntos maximos")
 	_afirmar_igual(recargados.faroles_usados, records.faroles_usados, "recarga los faroles usados")
@@ -339,6 +375,7 @@ func _test_ajustes() -> void:
 	elegidos.efectos_reducidos = true
 	elegidos.texto_grande = true
 	elegidos.sonido = false
+	elegidos.volumen_musica = 0.25
 	_afirmar(elegidos.guardar(RUTA_AJUSTES_TEST), "guardar devuelve true al escribir bien")
 
 	var recargados := Ajustes.cargar(RUTA_AJUSTES_TEST)
@@ -346,6 +383,17 @@ func _test_ajustes() -> void:
 	_afirmar(recargados.texto_grande, "recarga el texto grande")
 	_afirmar(not recargados.alto_contraste, "recarga el contraste como estaba")
 	_afirmar(not recargados.sonido, "recarga el sonido apagado")
+	_afirmar(absf(recargados.volumen_musica - 0.25) < 0.001, "recarga el volumen de la musica")
+
+	# Un archivo escrito a mano puede traer cualquier cosa: los booleanos y
+	# los volumenes se leen con el tipo del campo, y estos ultimos ademas
+	# acotados a [0, 1] (un bus no acepta un volumen de 7).
+	var archivo_raro := FileAccess.open(RUTA_AJUSTES_TEST, FileAccess.WRITE)
+	archivo_raro.store_string('{"volumen_efectos": 7, "sonido": 1}')
+	archivo_raro.close()
+	var raros := Ajustes.cargar(RUTA_AJUSTES_TEST)
+	_afirmar_igual(raros.volumen_efectos, 1.0, "un volumen fuera de rango se acota")
+	_afirmar(raros.sonido, "y un 1 se lee como un si")
 	# Un JSON devuelve true/false como bool, pero el contrato es el mismo
 	# que en Records: lo recargado tiene el tipo del campo, no el del JSON.
 	_afirmar(

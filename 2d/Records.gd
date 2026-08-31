@@ -10,14 +10,28 @@ extends RefCounted
 
 const RUTA_POR_DEFECTO := "user://records.json"
 
+## Cuantas partidas se guardan en la tabla de mejores marcas.
+const MAX_MEJORES := 5
+
 var partidas_jugadas := 0
 var dias_maximos := 0
 var puntos_maximos := 0
 var faroles_usados := 0
 var faroles_acertados := 0
 
+## Las MAX_MEJORES mejores partidas, de la mejor a la peor: diccionarios
+## con "dias", "puntos" y "fecha" (AAAA-MM-DD).
+##
+## Es lo unico que este modulo tiene y su hermano terminal/records.py no:
+## alli los records se leen de una linea de texto al arrancar, y aqui hay
+## una pantalla entera para enseñarlos. El resto de campos son los mismos y
+## el JSON sigue siendo compatible en los dos sentidos (cada version ignora
+## las claves que no conoce).
+var mejores: Array[Dictionary] = []
 
-## Actualiza los contadores tras una partida (gane o pierda).
+
+## Actualiza los contadores tras una partida (gane o pierda) y la mete en la
+## tabla de mejores marcas si da la talla.
 func registrar_partida(
 	dias: int, puntos: int, p_faroles_usados: int, p_faroles_acertados: int
 ) -> void:
@@ -26,6 +40,26 @@ func registrar_partida(
 	puntos_maximos = maxi(puntos_maximos, puntos)
 	faroles_usados += p_faroles_usados
 	faroles_acertados += p_faroles_acertados
+	_anotar_en_mejores(dias, puntos)
+
+
+## Mete la partida en la tabla y se queda con las MAX_MEJORES primeras.
+## Ordena por dias sobrevividos y, a igualdad, por puntos: el mismo
+## criterio con el que se decide quien gana un duelo (ver Jugador.ganadores).
+func _anotar_en_mejores(dias: int, puntos: int) -> void:
+	var fecha := Time.get_date_dict_from_system()
+	mejores.append({
+		"dias": dias,
+		"puntos": puntos,
+		"fecha": "%04d-%02d-%02d" % [fecha["year"], fecha["month"], fecha["day"]],
+	})
+	mejores.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if a["dias"] != b["dias"]:
+			return a["dias"] > b["dias"]
+		return a["puntos"] > b["puntos"]
+	)
+	if mejores.size() > MAX_MEJORES:
+		mejores.resize(MAX_MEJORES)
 
 
 ## Carga los records desde disco.
@@ -49,6 +83,14 @@ static func cargar(ruta := RUTA_POR_DEFECTO) -> Records:
 		return Records.new()
 
 	var records := Records.new()
+	if json.data.get("mejores") is Array:
+		for entrada in json.data["mejores"]:
+			if entrada is Dictionary and entrada.has("dias") and entrada.has("puntos"):
+				records.mejores.append({
+					"dias": int(entrada["dias"]),
+					"puntos": int(entrada["puntos"]),
+					"fecha": str(entrada.get("fecha", "")),
+				})
 	for campo in records._campos():
 		if json.data.has(campo):
 			# Los numeros de un JSON vuelven siempre como float en Godot,
@@ -73,6 +115,7 @@ func guardar(ruta := RUTA_POR_DEFECTO) -> bool:
 	var datos := {}
 	for campo in _campos():
 		datos[campo] = get(campo)
+	datos["mejores"] = mejores
 	archivo.store_string(JSON.stringify(datos, "  "))
 	archivo.close()
 	return true

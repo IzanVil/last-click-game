@@ -18,6 +18,10 @@
 
 ---
 
+<p align="center">
+  <img src="docs/img/partida.png" alt="Una partida en la versión gráfica: el tambor en escorzo, el HUD con día, puntos, pistas y marcas, y la bitácora de las últimas acciones" width="820">
+</p>
+
 Una colección de minijuegos de ruleta rusa en **dos sabores**: un clásico de
 **terminal** escrito en Python y una versión **gráfica 2D** hecha con Godot.
 Desde esta beta, las dos versiones juegan **la misma mecánica**:
@@ -40,11 +44,12 @@ objetivo no es una única partida: es acumular **días de vida**.
   completa, panel fijo con tus datos, bitácora de las últimas acciones y
   **finales alternativos** según cómo hayas jugado.
 - **🎮 Gráfica (Godot)** — misma mecánica en un taller en penumbra:
-  engranajes girando al fondo, tambor de chapa y latón con los huecos
-  candidatos **latiendo**, texto tecleado a máquina, viñeta que se cierra
-  en iris al terminar, bordón sonoro que **acelera** cuando el tambor se
-  calienta, y ajustes de accesibilidad (efectos reducidos, texto grande,
-  alto contraste y sonido).
+  engranajes girando en tres capas al fondo, **tambor de metal en escorzo**
+  que gira sobre su eje y frena en seco en cada disparo, huecos que se
+  eligen **con el ratón** y **laten** cuando las pistas los señalan, texto
+  tecleado a máquina, **banda sonora de dos capas** que acelera y se
+  encrespa según se vacía el tambor, y pantallas de récords y de final de
+  partida.
 
 > ⚠️ **Descargo de responsabilidad:** es solo un juego de ficción. No existe
 > ninguna arma real. Solo diversión para la terminal y la pantalla.
@@ -111,7 +116,8 @@ russian-roulette-2d/
 ├── run.bat              ← lanzador Windows
 ├── .github/workflows/   ← CI (tests Python + smoke test Godot)
 ├── docs/
-│   └── GUIA.md          ← guía técnica del proyecto
+│   ├── GUIA.md          ← guía técnica del proyecto
+│   └── img/             ← capturas de la versión gráfica
 ├── terminal/            ← versión de consola: El Tambor del Juicio
 │   ├── ruleta.py        ← interfaz de terminal (pantalla, teclado, colores)
 │   ├── estado.py        ← tambor y bala: posición, patrón, días de vida
@@ -134,12 +140,14 @@ russian-roulette-2d/
     ├── Jugador.gd       ← apuesta/marcas/disparos de un jugador y desempate
     ├── Dificultad.gd    ← presets fácil/normal/difícil
     ├── Records.gd       ← récords persistidos en user://records.json
-    ├── Ajustes.gd       ← accesibilidad persistida en user://ajustes.json
-    ├── MainGame.gd      ← vista: menú, Label/Button/Tween
-    ├── TamborView.gd    ← dibuja el tambor y sus animaciones
+    ├── Ajustes.gd       ← accesibilidad y mezcla, en user://ajustes.json
+    ├── MainGame.gd      ← vista: las cuatro pantallas y su cableado
+    ├── TamborView.gd    ← dibuja el tambor, lo gira y escucha al ratón
     ├── FondoTaller.gd   ← engranajes y luz del fondo
     ├── Vineta.gd        ← viñeta, resplandores de evento y cierre en iris
     ├── Maquina.gd       ← texto tecleado letra a letra
+    ├── Paleta.gd        ← los cinco colores del juego, en un solo sitio
+    ├── Icono.gd         ← iconos del HUD, dibujados con _draw()
     ├── tests/           ← scripts headless (lógica + integración de escena)
     ├── scenes/          ← escenas (UI)
     └── assets/          ← audio y tema (sintetizados/dibujados) + fuentes
@@ -356,37 +364,77 @@ latón de botones y campos.
 1. Abre Godot e importa el proyecto desde `2d/project.godot`.
 2. Pulsa **▶ Play** (o la tecla **F5**).
 3. En el **menú** eliges dificultad y, si quieres, marcas *Modo duelo* y
-   pones los nombres de los dos jugadores. Pulsa **Empezar**.
-4. Escribe una posición del tambor y pulsa **Enter** o uno de los tres
-   botones: **Disparar**, **Marcar** o **Retirarse** (las mismas
-   acciones que en la terminal, ver [Reglas](#reglas) más arriba).
+   pones los nombres de los dos jugadores. Pulsa **NUEVA PARTIDA** (o
+   **RÉCORDS** para ver la tabla de mejores marcas).
+4. **Pincha un hueco del tambor** —se ilumina al pasar por encima y se
+   queda marcado al hacer clic— o escribe su número. Después,
+   **Disparar**, **Marcar** o **Retirarse** (las mismas acciones que en la
+   terminal, ver [Reglas](#reglas) más arriba).
+5. Al morir o retirarte se abre la **pantalla de final** con el resumen, y
+   desde ahí puedes **REINTENTAR** con la misma configuración o volver al
+   menú.
 
-En el mismo menú hay cuatro casillas de **accesibilidad**, que se recuerdan
-entre partidas (`user://ajustes.json`):
-
-| Casilla | Qué hace |
-|---------|----------|
-| **Efectos visuales reducidos** | Para en seco todo lo que se mueve solo: engranajes, latido de los huecos, parpadeo de la luz, vibración de pantalla y tecleo del texto. De paso, con ella el juego no repinta nada por fotograma: es la opción para una máquina modesta. |
-| **Texto grande** | Sube el cuerpo de toda la tipografía. |
-| **Alto contraste** | Aclara los textos y sube el tono de los colores del tambor, a costa de la penumbra. |
-| **Sonido** | Efectos y ambiente (el equivalente de `--sin-sonido` en la terminal). |
+| Tecla | Qué hace |
+|-------|----------|
+| **Enter** | Dispara al hueco elegido |
+| **H** | Abre y cierra la ayuda |
+| **Esc** | Abre y cierra los ajustes (volumen, pantalla completa, accesibilidad) |
 
 El tambor se colorea igual que en la terminal: 🟡 amarillo = candidato
 según las pistas vigentes (y además **late**), 🟢 verde / 🔴 rojo =
-resultado de un farol, ⚪ gris = ya disparado.
+resultado de un farol, ⚪ gris = ya disparado (con un aspa encima, para que
+se distinga también sin depender del color).
 
 Los dos eventos aleatorios se ven y se oyen: el **clic metálico** suena a
-engranaje y sacude la pantalla, y el **tambor caliente** enrojece la luz
-del taller, acelera el bordón de fondo, hace destellar los huecos que
-señala la pista siguiente y la deja marcada como `(dudosa)` en la lista,
-que es justo lo que el evento acaba de anunciar por escrito.
+engranaje, cruza un reflejo por la chapa y sacude la pantalla; el **tambor
+caliente** enrojece la luz del taller, hace destellar los huecos que señala
+la pista siguiente y la deja marcada como `(dudosa)` en la lista, que es
+justo lo que el evento acaba de anunciar por escrito.
 
 Donde la terminal usa opciones de línea de comandos (`--dificultad`,
-`--duelo`, `--records`), aquí están en ese menú previo, que además
-muestra los récords; y donde la terminal vuelve al prompt al terminar
-una partida, aquí se vuelve al menú con los récords ya actualizados.
-Los récords se guardan en `user://records.json` (el equivalente
-idiomático en Godot de `~/.tambor_del_juicio/records.json`).
+`--duelo`, `--records`), aquí están en el menú y en la pantalla de récords;
+y donde la terminal vuelve al prompt al terminar una partida, aquí está la
+pantalla de final. Los récords se guardan en `user://records.json` (el
+equivalente idiomático en Godot de `~/.tambor_del_juicio/records.json`), y
+ahí van también las cinco mejores partidas con su fecha.
+
+### Accesibilidad y ajustes (tecla Esc)
+
+<img src="docs/img/ajustes.png" alt="Panel de ajustes con los deslizadores de música y efectos y las casillas de accesibilidad" width="460" align="right">
+
+Todo se recuerda entre partidas en `user://ajustes.json`:
+
+| Ajuste | Qué hace |
+|--------|----------|
+| **Música** / **Efectos** | Dos mezclas independientes (buses de audio). |
+| **Pantalla completa** | Ventana o pantalla completa. |
+| **Efectos visuales reducidos** | Para en seco todo lo que se mueve solo: engranajes, latido de los huecos, parpadeo de la luz, vibración de pantalla y tecleo del texto; el giro del tambor se acorta. De paso, con esto el juego no repinta nada por fotograma: es la opción para una máquina modesta. |
+| **Texto grande** | Sube el cuerpo de toda la tipografía, iconos del HUD incluidos. |
+| **Alto contraste** | Aclara los textos y sube el tono de los colores del tambor, a costa de la penumbra. |
+| **Sonido** | Efectos y música (el equivalente de `--sin-sonido` en la terminal). |
+
+<br clear="right">
+
+### Capturas
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/img/menu.png" alt="Menú principal con el título, el subtítulo y los botones de nueva partida y récords"></td>
+    <td width="50%"><img src="docs/img/tambor-caliente.png" alt="El evento «tambor caliente»: la sala se pone al rojo y la pista siguiente queda marcada como dudosa"></td>
+  </tr>
+  <tr>
+    <td align="center"><em>El taller, antes de empezar.</em></td>
+    <td align="center"><em>«Tambor caliente»: desconfía de la próxima pista.</em></td>
+  </tr>
+  <tr>
+    <td><img src="docs/img/final.png" alt="Pantalla de final de partida con el rótulo HAS MUERTO y el resumen"></td>
+    <td><img src="docs/img/records.png" alt="Pantalla de récords con la tabla de mejores partidas"></td>
+  </tr>
+  <tr>
+    <td align="center"><em>El final, con el resumen de la partida.</em></td>
+    <td align="center"><em>Las mejores marcas, con su fecha.</em></td>
+  </tr>
+</table>
 
 ### Arquitectura: lógica pura + señales, igual que en Python
 
@@ -572,8 +620,30 @@ de terceros más allá de las dos tipografías:
   bucle de 6 s hecho para encadenar sin costura, que sube de volumen en
   partida y acelera con el tambor caliente
 - [x] **Chapa y latón en la interfaz** — `Theme` propio
-  (`assets/tema/juicio.tres`) para botones, campos, desplegable y el panel
-  que enmarca el juego, con las casillas marcadas a máquina (`[X]`/`[ ]`)
+  (`assets/tema/juicio.tres`) para botones, campos, desplegable,
+  deslizadores y el panel que enmarca el juego, con las casillas marcadas
+  a máquina (`[X]`/`[ ]`)
+- [x] **Paleta cerrada de cinco colores** (`Paleta.gd`): negro, gris plomo,
+  bronce envejecido, óxido y un rojo punzante reservado al peligro
+- [x] **El tambor como pieza de metal** — cilindro en escorzo con su canto
+  estriado, chapa rayada, remaches y eje; gira sobre su eje al disparar
+  (coge carrerilla y frena en seco) mientras la cámara se acerca, y suelta
+  chispas por el hueco donde estaba la bala
+- [x] **Se juega con el ratón** — los huecos se iluminan al pasar por
+  encima y se quedan marcados al pincharlos, sin dejar de poder teclear el
+  número
+- [x] **HUD y bitácora** — barra superior con día, puntos, pistas y marcas
+  (iconos dibujados con `_draw()`, `Icono.gd`) y panel inferior con las
+  cinco últimas acciones, cada una del color de lo que pasó
+- [x] **Banda sonora de dos capas** a 70 pulsos por minuto: un piano en La
+  menor que suena siempre y una capa de latido y tritono que entra cuando
+  quedan tres huecos o menos, las dos acelerando conforme se vacía el tambor
+- [x] **Cuatro pantallas** — menú con título y subtítulo, récords con la
+  tabla de las cinco mejores partidas y su fecha, partida, y final con el
+  resumen y un botón de reintentar
+- [x] **Ayuda (H) y ajustes (Esc)** — panel de ayuda mecanografiado y menú
+  de ajustes con volumen de música y efectos por separado, pantalla
+  completa y las opciones de accesibilidad
 
 ### 🎯 Otros próximos pasos
 - [ ] Modo «borracho» 🍺 (menos suerte y más humor)

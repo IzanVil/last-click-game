@@ -5,10 +5,16 @@ codigo (sin banco externo, sin licencia que gestionar): placeholders limpios
 que se pueden sustituir mas adelante por SFX grabados sin tocar nada del lado
 de Godot (mismos nombres de archivo).
 
-Los cortos (disparo, derrota, victoria, engranaje, marca, fallo) van a 44100
-Hz; el ambiente, que es un bordon de frecuencias graves pensado para sonar en
-bucle todo el rato, va a 22050 Hz: a esas frecuencias no se pierde nada
+Los efectos cortos (disparo, derrota, victoria, engranaje, marca, fallo,
+clic, calor) van a 44100 Hz. Las dos capas de musica, que suenan en bucle
+todo el rato y son graves y oscuras, van a 22050 Hz: ahi no se pierde nada
 audible y el archivo ocupa la mitad en el repositorio.
+
+La musica son dos pistas de la misma duracion que se reproducen a la vez y
+en fase: `musica_base` suena siempre, y `musica_tension` entra por encima
+cuando quedan pocos huecos por probar. Que sean dos ficheros y no uno con
+mas notas es justo lo que permite que la tension aparezca y desaparezca sin
+cortar la musica.
 """
 
 import math
@@ -18,13 +24,17 @@ import wave
 
 SAMPLE_RATE = 44100
 
-# El ambiente en bucle usa su propia frecuencia de muestreo (ver docstring).
-SAMPLE_RATE_AMBIENTE = 22050
+# La musica en bucle usa su propia frecuencia de muestreo (ver docstring).
+SAMPLE_RATE_MUSICA = 22050
 
-# Duracion del bucle de ambiente. Todas las frecuencias que suenan en el
-# deben caber un numero entero de veces en estos segundos: asi el final
-# encaja con el principio y el bucle no da un chasquido al repetirse.
-DURACION_AMBIENTE = 6.0
+# Compas de la musica: 70 pulsos por minuto, cuatro por compas, ocho
+# compases de bucle. En segundos sale un numero feo (27.428571...), pero en
+# muestras es exacto: 22050 * 32 * 60 / 70 = 604800.
+BPM = 70
+PULSOS_POR_COMPAS = 4
+COMPASES = 8
+PULSO = 60.0 / BPM
+DURACION_MUSICA = PULSO * PULSOS_POR_COMPAS * COMPASES
 
 
 def _write_wav(path: str, samples: list[float], rate: int = SAMPLE_RATE) -> None:
@@ -174,43 +184,166 @@ def fallo() -> list[float]:
     return _normalizar(out, 0.85)
 
 
-def ambiente() -> list[float]:
-    """Ambiente en bucle: un bordon grave (La1 y su quinta, ligeramente
-    desafinada entre si para que "respire") con un tremolo lento y cuatro
-    latidos de corazon repartidos por el bucle.
+def clic() -> list[float]:
+    """Cartucho vacio: el clic hueco del percutor al caer sobre nada. Un
+    golpecito de ruido muy corto sobre dos resonancias metalicas que se
+    apagan enseguida; suena hueco justo porque no tiene cuerpo grave."""
+    duracion = 0.18
+    n = int(SAMPLE_RATE * duracion)
+    random.seed(23)
+    env = _envelope_exp(n, 45.0)
+    out = []
+    for i in range(n):
+        t = i / SAMPLE_RATE
+        percutor = random.uniform(-1, 1) * math.exp(-260.0 * t)
+        resonancia = math.sin(2 * math.pi * 720.0 * t) * math.exp(-30.0 * t)
+        cuerpo = math.sin(2 * math.pi * 265.0 * t) * math.exp(-22.0 * t) * 0.5
+        out.append((percutor + resonancia * 0.6 + cuerpo) * env[i] * 0.6)
+    return _normalizar(out, 0.8)
 
-    Todo esta elegido para que el final empalme con el principio: las
-    frecuencias caben un numero entero de ciclos en DURACION_AMBIENTE y los
-    latidos se apagan del todo antes de llegar al corte.
+
+def calor() -> list[float]:
+    """Tambor caliente: un zumbido que sube de tono y se queda vibrando, con
+    el temblor de algo que se dilata. Acompana al evento que hace dudar de
+    la pista siguiente, asi que no golpea: incomoda."""
+    duracion = 0.9
+    n = int(SAMPLE_RATE * duracion)
+    f_inicio, f_final = 90.0, 235.0
+    out = []
+    fase = 0.0
+    for i in range(n):
+        t = i / n
+        freq = f_inicio + (f_final - f_inicio) * t
+        fase += 2 * math.pi * freq / SAMPLE_RATE
+        # Diente de sierra pobre (dos armonicos): mas aspero que un seno.
+        onda = math.sin(fase) + 0.45 * math.sin(2 * fase)
+        temblor = 0.75 + 0.25 * math.sin(2 * math.pi * 11.0 * i / SAMPLE_RATE)
+        env = math.sin(math.pi * t) ** 0.7  # entra y sale sin cortes
+        out.append(onda * temblor * env * 0.5)
+    return _normalizar(out, 0.75)
+
+
+def _frecuencia_de_bucle(freq: float, duracion: float) -> float:
+    """Ajusta `freq` a la frecuencia mas cercana que cabe un numero entero de
+    ciclos en `duracion`. Solo hace falta para los sonidos sostenidos (el
+    bordon de fondo): si un ciclo se corta a medias en el punto de bucle, al
+    repetirse se oye un chasquido."""
+    ciclos = max(1, round(freq * duracion))
+    return ciclos / duracion
+
+
+def _sumar_con_vuelta(destino: list[float], inicio: int, muestras: list[float]) -> None:
+    """Suma `muestras` en `destino` a partir de `inicio`, dando la vuelta al
+    llegar al final.
+
+    Asi la cola de la ultima nota de un compas reaparece al principio del
+    bucle, que es exactamente lo que se oiria si la musica siguiera sonando:
+    la repeticion no corta ninguna nota a medias.
     """
-    rate = SAMPLE_RATE_AMBIENTE
-    n = int(rate * DURACION_AMBIENTE)
-    out = [0.0] * n
+    n = len(destino)
+    for i, muestra in enumerate(muestras):
+        destino[(inicio + i) % n] += muestra
 
-    # 55 Hz = 330 ciclos en 6 s; 82.5 Hz = 495; el tremolo, 3. Todos enteros.
+
+def _nota_piano(freq: float, duracion: float, rate: int) -> list[float]:
+    """Nota de piano de pobres: la fundamental y tres armonicos, cada uno
+    apagandose mas rapido que el anterior (como en una cuerda de verdad), con
+    un ataque de un par de milisegundos para que no chasquee al empezar."""
+    n = int(rate * duracion)
+    pesos = [(1.0, 1.0, 3.2), (2.0, 0.5, 4.6), (3.0, 0.25, 6.0), (4.0, 0.12, 7.4)]
+    out = []
     for i in range(n):
         t = i / rate
-        tremolo = 0.75 + 0.25 * math.sin(2 * math.pi * 0.5 * t)
-        grave = math.sin(2 * math.pi * 55.0 * t)
-        quinta = math.sin(2 * math.pi * 82.5 * t) * 0.45
-        out[i] += (grave + quinta) * tremolo * 0.5
+        ataque = 1.0 - math.exp(-120.0 * t)
+        muestra = 0.0
+        for armonico, peso, caida in pesos:
+            parcial = math.sin(2 * math.pi * freq * armonico * t)
+            muestra += peso * parcial * math.exp(-caida * t)
+        out.append(muestra * ataque * 0.25)
+    return out
 
-    # Latidos: cada 1.5 s (4 en el bucle), dos golpes por latido.
-    n_golpe = int(rate * 0.18)
-    env = _envelope_exp(n_golpe, 22.0, rate)
-    for latido in range(4):
-        base = latido * 1.5
-        for retardo, fuerza in ((0.0, 1.0), (0.22, 0.6)):
-            inicio = int((base + retardo) * rate)
-            for i in range(n_golpe):
-                if inicio + i >= n:
-                    break
-                t = i / rate
-                ataque = 1.0 - math.exp(-150.0 * t)
-                golpe = math.sin(2 * math.pi * 48.0 * t)
-                out[inicio + i] += golpe * env[i] * ataque * fuerza * 0.7
 
-    return _normalizar(out, 0.7)
+def musica_base() -> list[float]:
+    """Capa que suena siempre: un bordon grave de La menor y un arpegio lento
+    de piano, un acorde por compas, a 70 pulsos por minuto.
+
+    Todo esta calculado para encadenar: el bordon usa frecuencias que caben
+    un numero entero de veces en el bucle y las colas de las notas dan la
+    vuelta al principio (ver _sumar_con_vuelta).
+    """
+    rate = SAMPLE_RATE_MUSICA
+    n = int(rate * DURACION_MUSICA)
+    out = [0.0] * n
+
+    # Bordon: La1 y su quinta, mas un temblor lento de lampara.
+    grave = _frecuencia_de_bucle(55.0, DURACION_MUSICA)
+    quinta = _frecuencia_de_bucle(82.5, DURACION_MUSICA)
+    tremolo = _frecuencia_de_bucle(0.14, DURACION_MUSICA)
+    for i in range(n):
+        t = i / rate
+        respira = 0.7 + 0.3 * math.sin(2 * math.pi * tremolo * t)
+        bordon = math.sin(2 * math.pi * grave * t) * 0.55
+        bordon += math.sin(2 * math.pi * quinta * t) * 0.25
+        out[i] += bordon * respira
+
+    # Arpegio: La menor -> Fa -> Do -> Sol, dos compases cada acorde en el
+    # bajo y una nota suelta por cada dos pulsos encima.
+    acordes = [
+        [220.00, 261.63, 329.63],  # Am
+        [174.61, 220.00, 261.63],  # F
+        [261.63, 329.63, 392.00],  # C
+        [196.00, 246.94, 293.66],  # G
+    ]
+    pulsos = PULSOS_POR_COMPAS * COMPASES
+    for pulso in range(0, pulsos, 2):
+        compas = pulso // PULSOS_POR_COMPAS
+        acorde = acordes[(compas // 2) % len(acordes)]
+        freq = acorde[(pulso // 2) % len(acorde)]
+        inicio = int(pulso * PULSO * rate)
+        _sumar_con_vuelta(out, inicio, _nota_piano(freq, 2.6, rate))
+
+    return _normalizar(out, 0.55)
+
+
+def musica_tension() -> list[float]:
+    """Capa que se superpone a la base cuando quedan pocos huecos: un latido
+    en cada pulso y una nota alta a distancia de tritono, el intervalo que
+    lleva desde la Edad Media llamandose "el diablo en la musica".
+
+    Misma duracion y mismo tempo que musica_base, y se lanza a la vez, asi
+    que las dos van en fase mientras compartan `pitch_scale`.
+    """
+    rate = SAMPLE_RATE_MUSICA
+    n = int(rate * DURACION_MUSICA)
+    out = [0.0] * n
+
+    # Latido: un golpe grave por pulso, mas fuerte al empezar cada compas.
+    n_golpe = int(rate * 0.26)
+    env = _envelope_exp(n_golpe, 16.0, rate)
+    for pulso in range(PULSOS_POR_COMPAS * COMPASES):
+        fuerza = 1.0 if pulso % PULSOS_POR_COMPAS == 0 else 0.55
+        golpe = []
+        for i in range(n_golpe):
+            t = i / rate
+            ataque = 1.0 - math.exp(-140.0 * t)
+            # El tono cae mientras suena: un latido, no una nota.
+            freq = 62.0 * math.exp(-6.0 * t) + 38.0
+            onda = math.sin(2 * math.pi * freq * t)
+            golpe.append(onda * env[i] * ataque * fuerza * 0.8)
+        _sumar_con_vuelta(out, int(pulso * PULSO * rate), golpe)
+
+    # Tritono sostenido (La y Mi bemol), muy bajo y con temblor: no se
+    # escucha como melodia, se nota como desasosiego.
+    la = _frecuencia_de_bucle(440.0, DURACION_MUSICA)
+    mi_bemol = _frecuencia_de_bucle(622.25, DURACION_MUSICA)
+    vaiven = _frecuencia_de_bucle(0.5, DURACION_MUSICA)
+    for i in range(n):
+        t = i / rate
+        temblor = 0.35 + 0.3 * (0.5 + 0.5 * math.sin(2 * math.pi * vaiven * t))
+        tritono = math.sin(2 * math.pi * la * t) + math.sin(2 * math.pi * mi_bemol * t)
+        out[i] += tritono * temblor * 0.09
+
+    return _normalizar(out, 0.6)
 
 
 if __name__ == "__main__":
@@ -224,6 +357,12 @@ if __name__ == "__main__":
     _write_wav(os.path.join(out_dir, "engranaje.wav"), engranaje())
     _write_wav(os.path.join(out_dir, "marca.wav"), marca())
     _write_wav(os.path.join(out_dir, "fallo.wav"), fallo())
-    _write_wav(os.path.join(out_dir, "ambiente.wav"), ambiente(), SAMPLE_RATE_AMBIENTE)
-    generados = "disparo, derrota, victoria, engranaje, marca, fallo y ambiente"
-    print(f"Generados {generados} (.wav) en {out_dir}")
+    _write_wav(os.path.join(out_dir, "clic.wav"), clic())
+    _write_wav(os.path.join(out_dir, "calor.wav"), calor())
+    for nombre, generador in (
+        ("musica_base.wav", musica_base),
+        ("musica_tension.wav", musica_tension),
+    ):
+        _write_wav(os.path.join(out_dir, nombre), generador(), SAMPLE_RATE_MUSICA)
+    efectos = "disparo, derrota, victoria, engranaje, marca, fallo, clic y calor"
+    print(f"Generados {efectos}, y las dos capas de musica (.wav), en {out_dir}")

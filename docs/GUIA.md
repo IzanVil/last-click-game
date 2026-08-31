@@ -235,8 +235,11 @@ cd terminal && python3 -m unittest discover -s . -v
 - Ambientación (decorado puro, sin reglas): `2d/FondoTaller.gd`
   (engranajes y luz del fondo), `2d/Vineta.gd` (viñeta, resplandores de
   evento y cierre en iris) y `2d/Maquina.gd` (texto tecleado letra a letra).
-- Ajustes de accesibilidad: `2d/Ajustes.gd` (efectos reducidos, texto
-  grande, alto contraste y sonido, guardados en `user://ajustes.json`).
+- Aspecto: `2d/Paleta.gd` (los cinco colores del juego) y `2d/Icono.gd`
+  (los cuatro iconos del HUD, dibujados con `_draw()`).
+- Ajustes: `2d/Ajustes.gd` (efectos reducidos, texto grande, alto
+  contraste, sonido, volúmenes y pantalla completa, en
+  `user://ajustes.json`).
 
 Ningún script de lógica conoce nodos ni UI: `RuletaEstado.gd` orquesta los
 demás y emite señales (`partida_iniciada`, `entrada_invalida`,
@@ -351,6 +354,55 @@ función estática pura, testeable sin montar una partida.
   (`TamborView.girar()` desde `MainGame._on_partida_iniciada()`); antes de
   revelar un disparo o un farol se usa `TamborView.tension()` en su lugar.
 
+### Las cuatro pantallas
+
+`MainGame.gd` no cambia de escena: mantiene cuatro `VBoxContainer` dentro
+del mismo panel y enseña uno cada vez, desde un único sitio
+(`_mostrar(Pantalla)`), que además ajusta lo que las acompaña (el rótulo,
+la música, el foco del teclado). Un solo camino para cambiar de pantalla
+es lo que evita que la interfaz se quede a medias.
+
+- **Menú** — título, subtítulo, dificultad, duelo y los botones de nueva
+  partida y récords.
+- **Récords** — la tabla de las cinco mejores partidas (`Records.mejores`,
+  con su fecha) más el resumen de siempre. Las columnas se alinean
+  rellenando con espacios porque la tipografía es monoespaciada: para cinco
+  filas no hace falta un `Tree`.
+- **Partida** — HUD arriba, tambor, pistas, campo y botones, y la bitácora
+  de las últimas cinco acciones abajo.
+- **Final** — rótulo (`HAS MUERTO` o `TE RETIRAS CON VIDA`), resumen
+  narrativo y los botones de reintentar (repite dificultad y nombres, sin
+  pasar por el menú) y volver.
+
+Sobre todo eso hay dos paneles superpuestos, la **ayuda** (tecla H) y los
+**ajustes** (tecla Escape). Se atienden en `_unhandled_input` y no en
+`_input` a propósito: así escribir una "h" en el campo del número no abre
+nada, porque el `LineEdit` se queda el evento antes. El panel de ajustes no
+detiene el árbol (`get_tree().paused`): aquí no corre ningún reloj contra
+el jugador, así que lo único que hace falta congelar es el decorado.
+
+### El tambor
+
+`TamborView.gd` dibuja un cilindro visto en ángulo, no un disco plano: las
+posiciones de los huecos se aplastan en vertical (`PERSPECTIVA`) y por
+debajo se pinta el canto con sus estrías (`PROFUNDIDAD`). Tres detalles que
+no son evidentes:
+
+- Lo que gira es `_giro` (el ángulo de los huecos), **no** `rotation` del
+  nodo. Si girase el nodo, giraría también el escorzo y los números: lo que
+  rueda es el tambor dentro de su marco, no la cámara alrededor.
+- Los huecos se dibujan ordenados por su `y`, de atrás hacia delante, para
+  que los de abajo tapen a los de arriba. Sin eso se lee como un dibujo
+  plano.
+- El giro da siempre un número **entero** de vueltas, así que cada hueco
+  acaba donde empezó. Es dramatismo, no un sorteo: la bala se mueve por su
+  patrón (`TamborJuicio`), y eso no lo decide una animación.
+
+El ratón entra por `_gui_input`: al pasar por encima se ilumina el hueco,
+al hacer clic se emite `hueco_pulsado`, y quien decide qué significa ese
+clic es `MainGame.gd` (escribe el número en el campo, que es el mismo sitio
+donde acaba si se teclea a mano).
+
 ### La ambientación
 
 Tres nodos de decorado, ninguno de los cuales sabe nada del juego: reciben
@@ -373,9 +425,21 @@ Tres nodos de decorado, ninguno de los cuales sabe nada del juego: reciben
   cancelarlo si llega un mensaje nuevo antes de terminar el anterior.
 
 Los sonidos siguen el mismo reparto: `MainGame.gd` decide cuándo suena
-qué, y todo pasa por `_sonar()`, que respeta el ajuste de sonido. El
-bordón de ambiente sube de volumen al empezar la partida y acelera
-(`pitch_scale`) mientras el tambor está caliente.
+qué, y todo pasa por `_sonar()`, que respeta el ajuste de sonido.
+
+La música son **dos pistas de la misma duración** que se lanzan a la vez y
+en fase (`musica_base` y `musica_tension`): la primera suena siempre y la
+segunda entra por encima cuando quedan tres huecos o menos por probar. Las
+dos suben de volumen al empezar la partida y aceleran (`pitch_scale`)
+conforme el tambor se vacía, en `_ajustar_musica()`. Van por un bus de
+audio propio, separado del de los efectos, que es lo que permite los dos
+deslizadores del menú de ajustes; los buses se crean por código en
+`_preparar_buses()` para que quede a la vista de quien lea el archivo.
+
+En **headless** la música no se lanza siquiera: no hay dispositivo de audio
+y una reproducción en bucle no termina nunca por sí sola, así que seguiría
+viva al cerrarse el motor y Godot avisaría de recursos sin liberar — un
+`ERROR:` en el log que la CI toma, con razón, por un fallo.
 
 ### Accesibilidad
 
@@ -395,7 +459,10 @@ aquí se recuerdan entre partidas. Son cuatro casillas del menú:
 - **Alto contraste** — acerca al blanco cada color de texto (mezcla, no
   sustitución, para no perder el código de color) y cambia la paleta del
   tambor por `TamborView.PALETA_CONTRASTE`.
-- **Sonido** — efectos y ambiente.
+- **Sonido** — efectos y música.
+- **Música** y **Efectos** — un deslizador por bus de audio. A 0 el bus se
+  silencia en vez de bajarse: `linear_to_db(0)` sería `-inf`.
+- **Pantalla completa** — ventana o pantalla completa.
 
 `MainGame._recordar_estilos()` recorre el árbol una sola vez al arrancar y
 se apunta el color y el cuerpo de letra que cada nodo trae de la escena;
@@ -417,10 +484,13 @@ scripts headless en `2d/tests/`:
   (incluidos `Dificultad`, `Records` y el desempate de `Jugador`), sin
   nodos ni escena, igual que `terminal/test_estado.py` y compañía.
 - `test_escena.gd` — carga `MainGame.tscn` de verdad y simula partidas
-  completas (menú y dificultad, marcar acierto y fallo, disparo seguro,
-  retirada, duelo entero, impacto), esperando a que terminen los `Tween`
-  y las pausas entre una acción y la siguiente: cubre el cableado de
-  señales de `MainGame.gd` que el anterior no toca.
+  completas (menú, récords, ajustes, ayuda, dificultad, elección con el
+  ratón, marcar acierto y fallo, disparo seguro, retirada, duelo entero,
+  impacto y reintento), esperando a que terminen los `Tween` y las pausas
+  entre una acción y la siguiente: cubre el cableado de señales y el paso
+  entre pantallas de `MainGame.gd`, que el anterior no toca. Las esperas se
+  calculan a partir de las constantes de `MainGame` (`DURACION_GIRO`,
+  `PAUSA_FIN_PARTIDA`...) para que no se descuadren si alguna cambia.
 
 ```bash
 cd 2d
@@ -473,7 +543,8 @@ russian-roulette-2d/
 │   └── workflows/
 │       └── ci.yml
 ├── docs/
-│   └── GUIA.md
+│   ├── GUIA.md
+│   └── img/
 ├── terminal/
 │   ├── __init__.py
 │   ├── ruleta.py
@@ -517,6 +588,8 @@ russian-roulette-2d/
     ├── FondoTaller.gd
     ├── Vineta.gd
     ├── Maquina.gd
+    ├── Paleta.gd
+    ├── Icono.gd
     ├── tests/
     │   ├── test_logica.gd
     │   └── test_escena.gd
