@@ -77,13 +77,20 @@ jobs:
           # hace el escaneo/reimportacion y sale solo (no necesita --quit).
           ./godot --headless --import --path 2d
 
-      - name: Tests de RuletaEstado (headless)
+      - name: Tests de la logica 2D (headless)
         run: |
           # Al reves que el smoke test de abajo, aqui el veredicto es el
           # exit code y NO el log: los casos de dificultad invalida
           # imprimen lineas "ERROR:" a proposito (son el push_error que
           # se esta comprobando), asi que grepear daria un falso fallo.
-          ./godot --headless --script res://tests/test_ruleta_estado.gd --path 2d
+          # El bucle recorre todos los test_*.gd para no tener que tocar
+          # la CI cada vez que se anade una suite (harness.gd no empieza
+          # por test_ y queda fuera, que es lo que se quiere).
+          for prueba in 2d/tests/test_*.gd; do
+            echo "::group::$(basename "$prueba")"
+            ./godot --headless --script "res://tests/$(basename "$prueba")" --path 2d
+            echo "::endgroup::"
+          done
 
       - name: Smoke test (--headless --check-only, falla si hay SCRIPT ERROR)
         run: |

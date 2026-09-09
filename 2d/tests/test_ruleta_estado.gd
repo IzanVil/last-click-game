@@ -11,6 +11,7 @@ extends SceneTree
 ## proposito (son su push_error), asi que el veredicto va por exit code y
 ## no grepeando el log, al reves que el smoke test de la escena.
 
+const Harness := preload("res://tests/harness.gd")
 const RuletaEstado := preload("res://RuletaEstado.gd")
 
 ## Numero de repartos por ronda en la prueba de propiedades de las balas.
@@ -18,8 +19,7 @@ const RuletaEstado := preload("res://RuletaEstado.gd")
 ## para cualquier barajado, no para uno con suerte.
 const REPARTOS_POR_RONDA := 200
 
-var _fallos: Array[String] = []
-var _pasadas := 0
+var _h := Harness.new()
 
 
 func _init() -> void:
@@ -33,30 +33,18 @@ func _init() -> void:
 	for nombre in nombres:
 		call(nombre)
 
-	if _fallos.is_empty():
-		print("\nOK: %d comprobaciones en %d tests." % [_pasadas, nombres.size()])
-		quit(0)
-		return
-
-	print("\nFALLOS (%d):" % _fallos.size())
-	for fallo in _fallos:
-		print("  - %s" % fallo)
-	print("\n%d comprobaciones pasaron, %d fallaron." % [_pasadas, _fallos.size()])
-	quit(1)
+	quit(_h.resumen(nombres.size()))
 
 
 # --- Utilidades de test ------------------------------------------------
 
 
 func _ok(condicion: bool, que: String) -> void:
-	if condicion:
-		_pasadas += 1
-	else:
-		_fallos.append(que)
+	_h.ok(condicion, que)
 
 
 func _igual(obtenido: Variant, esperado: Variant, que: String) -> void:
-	_ok(obtenido == esperado, "%s | obtenido: %s | esperado: %s" % [que, obtenido, esperado])
+	_h.igual(obtenido, esperado, que)
 
 
 ## Apunta en orden toda senal que emita `estado`, como [nombre, args...].
