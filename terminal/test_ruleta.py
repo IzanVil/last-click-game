@@ -111,7 +111,9 @@ class TestJugarPartida(unittest.TestCase):
         self, mock_colocar_balas, mock_fracaso, mock_limpiar, mock_sleep
     ):
         mock_colocar_balas.side_effect = lambda cantidad, huecos=None: {1}
-        entradas = iter(["2", "2", "1", ""])  # click, click, BOOM ronda 3, Enter
+        # Sin entrada extra tras el BOOM: la pregunta de "otra partida?"
+        # la hace ahora jugar(), no jugar_partida().
+        entradas = iter(["2", "2", "1"])  # click, click, BOOM en la ronda 3
         with (
             patch("builtins.input", side_effect=lambda _p="": next(entradas)),
             patch("builtins.print"),
@@ -204,7 +206,8 @@ class TestFlujoJuego(unittest.TestCase):
         mock_colocar_balas.side_effect = colocar_balas_por_partida
 
         entradas = iter(
-            ["2", "2", "1", ""]  # partida 1: click, click, BOOM ronda 3, Enter
+            ["2", "2", "1"]  # partida 1: click, click, BOOM en la ronda 3
+            + ["s"]  # si, otra partida (antes aqui iba un Enter a secas)
             + ["1"] * ruleta.RONDAS  # partida 2: gana las 8 rondas
             + ["n"]  # no quiere jugar otra vez
         )
@@ -246,6 +249,106 @@ class TestFlujoJuego(unittest.TestCase):
         self.assertIn(str(3), mensajes)
 
 
+def _lineas_impresas(mock_print):
+    """Extrae las lineas que se pasaron a print() en un mock."""
+    return [
+        str(llamada.args[0]) for llamada in mock_print.call_args_list if llamada.args
+    ]
+
+
+class TestDibujo(unittest.TestCase):
+    # Todos estos con el color desactivado: len() de una linea coloreada
+    # cuenta los codigos ANSI, que no ocupan columnas en pantalla, y lo
+    # que se comprueba aqui es justo la anchura visible.
+    def _dibujar(self, funcion, *args, columnas=80):
+        with (
+            patch("ruleta._color_activo", return_value=False),
+            patch("ruleta._ancho_terminal", return_value=columnas),
+            patch("builtins.print") as mock_print,
+        ):
+            funcion(*args)
+        return _lineas_impresas(mock_print)
+
+    def test_cabecera_cierra_el_marco_a_la_misma_anchura(self):
+        # Antes el ancho del marco (44) estaba fijo mientras las filas
+        # interiores se rellenaban a ojo: las cuatro lineas salian con
+        # anchuras distintas y el borde derecho quedaba dentado.
+        lineas = self._dibujar(ruleta.cabecera, 1, 1, 10, 8)
+        self.assertEqual(len(lineas), 4)
+        self.assertEqual(len({len(linea) for linea in lineas}), 1, lineas)
+
+    def test_cabecera_se_ensancha_si_los_datos_no_caben(self):
+        # Con numeros de 3 cifras la linea de datos pasa de ANCHO_MARCO:
+        # el marco tiene que crecer, no desbordarse por la derecha.
+        lineas = self._dibujar(ruleta.cabecera, 100, 100, 200, 150)
+        self.assertEqual(len({len(linea) for linea in lineas}), 1, lineas)
+        self.assertGreater(len(lineas[0]), ruleta.ANCHO_MARCO)
+
+    def test_tambor_alinea_cada_numero_bajo_su_celda(self):
+        # La fila de ceros y la de etiquetas comparten rejilla: antes se
+        # separaban con 3 y 2 espacios respectivamente, asi que ya con
+        # los 10 huecos por defecto los numeros no caian bajo su hueco.
+        marco_sup, celdas, marco_inf, etiquetas = self._dibujar(
+            ruleta.dibujar_tambor, 10
+        )
+        self.assertEqual(len(marco_sup), len(marco_inf))
+        for posicion in ("1", "10"):
+            columna_etiqueta = etiquetas.index(posicion)
+            # El "0" de esa misma celda cae dentro del ancho de la celda.
+            self.assertNotEqual(celdas[columna_etiqueta - 2 : columna_etiqueta + 2], "")
+        self.assertEqual(etiquetas.split()[-1], "10")
+
+    def test_tambor_grande_se_parte_en_filas_y_no_desborda(self):
+        # --huecos 40 en una terminal de 80 columnas: antes salia una
+        # unica linea de mas de 150 caracteres.
+        lineas = self._dibujar(ruleta.dibujar_tambor, 40, columnas=80)
+        self.assertGreater(len(lineas), 4)  # mas de una fila de tambor
+        for linea in lineas:
+            # Las lineas ya llegan con el margen izquierdo incluido.
+            self.assertLessEqual(len(linea), 80, linea)
+
+    def test_escena_avisa_del_numero_real_de_balas(self):
+        # El texto viejo hablaba de "la bala" en singular (y de unas
+        # marcas que ya no existen) aunque en la ronda N haya N balas.
+        with patch("ruleta.limpiar"):
+            lineas = self._dibujar(ruleta.escena, 3, 3, 10, 8)
+        texto = " ".join(lineas)
+        self.assertIn("3 balas", texto)
+        self.assertNotIn("marcas", texto)
+
+
+class TestSalidaTrasDerrota(unittest.TestCase):
+    @patch("ruleta.jugar_partida", return_value=False)
+    def test_perder_y_decir_no_termina_el_juego(self, mock_partida):
+        # Antes jugar() solo preguntaba "volver a jugar?" al ganar, asi
+        # que tras una derrota reiniciaba sin dar opcion de salir: la
+        # unica via era Ctrl+C. Si esto vuelve a romperse el test no
+        # falla, se cuelga en el bucle -> input() agota las entradas y
+        # StopIteration lo delata.
+        entradas = iter(["n"])
+        with (
+            patch("builtins.input", side_effect=lambda _p="": next(entradas)),
+            patch("builtins.print") as mock_print,
+        ):
+            ruleta.jugar()
+
+        mock_partida.assert_called_once()
+        self.assertIn("Hasta la proxima", " ".join(_lineas_impresas(mock_print)))
+
+    @patch("ruleta.victoria")
+    @patch("ruleta.jugar_partida", side_effect=[False, True])
+    def test_perder_y_decir_si_juega_otra_partida(self, mock_partida, mock_victoria):
+        entradas = iter(["s", "n"])
+        with (
+            patch("builtins.input", side_effect=lambda _p="": next(entradas)),
+            patch("builtins.print"),
+        ):
+            ruleta.jugar()
+
+        self.assertEqual(mock_partida.call_count, 2)
+        mock_victoria.assert_called_once()  # solo la segunda partida se gano
+
+
 class TestMain(unittest.TestCase):
     # argv=[] explicito en todos estos: main() ahora parsea argumentos
     # (_parsear_args), y sin esto argparse leeria el sys.argv real del
@@ -268,6 +371,18 @@ class TestMain(unittest.TestCase):
             if llamada.args
         )
         self.assertIn("Hasta la proxima", mensajes)
+
+    def test_eof_sale_con_mensaje_sin_traceback(self):
+        # El juego vive de input(), que lanza EOFError cuando se acaba la
+        # entrada: Ctrl+D, o stdin redirigido y agotado (`echo | ruleta`).
+        # Antes eso terminaba en un traceback de EOFError en pantalla.
+        with (
+            patch("ruleta.jugar", side_effect=EOFError),
+            patch("builtins.print") as mock_print,
+        ):
+            ruleta.main(argv=[])  # no debe propagar la excepcion
+
+        self.assertIn("Hasta la proxima", " ".join(_lineas_impresas(mock_print)))
 
     def test_sin_interrupcion_no_imprime_despedida(self):
         with (

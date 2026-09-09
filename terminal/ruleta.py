@@ -1,12 +1,18 @@
 import argparse
 import os
 import random
+import shutil
 import sys
 import time
 from importlib.metadata import PackageNotFoundError, version
 
 HUECOS = 10
 RONDAS = 8
+
+# Ancho minimo (en columnas visibles) del interior del marco de cabecera().
+# Es un minimo, no un maximo: si los datos de la ronda no caben, el marco
+# se ensancha en vez de desbordarse.
+ANCHO_MARCO = 44
 
 ROJO = "\033[91m"
 VERDE = "\033[92m"
@@ -50,34 +56,74 @@ def limpiar() -> None:
     os.system("cls" if os.name == "nt" else "clear")
 
 
+def _ancho_terminal() -> int:
+    """Columnas disponibles en la terminal, con un fallback razonable si
+    no se pueden averiguar (salida redirigida, CI...).
+    """
+    return shutil.get_terminal_size(fallback=(80, 24)).columns
+
+
 def dibujar_tambor(huecos: int = HUECOS) -> None:
-    """Imprime el tambor ASCII con sus huecos numerados."""
-    marco = "┌" + "─┬" * (huecos - 1) + "─┐"
-    celdas = []
-    etiquetas = []
-    for i in range(1, huecos + 1):
-        celdas.append(_c("0", CELESTE))
-        etiquetas.append(str(i))
-    print("   " + _c(marco, NEGRITA))
-    print("   " + "   ".join(celdas))
-    print("   " + _c("└" + "─┴" * (huecos - 1) + "─┘", NEGRITA))
-    print("   " + "  ".join(etiquetas))
+    """Imprime el tambor ASCII con sus huecos numerados.
+
+    Todas las columnas miden lo mismo (el ancho del numero mas largo, mas
+    un margen), asi que el numero de cada hueco cae siempre justo debajo
+    de su celda: antes las celdas se separaban con 3 espacios y las
+    etiquetas con 2, de modo que ya con los 10 huecos por defecto la
+    fila de numeros iba corriendose respecto al tambor. Si el tambor no
+    cabe a lo ancho de la terminal se parte en varias filas en vez de
+    desbordarse (p. ej. --huecos 40).
+    """
+    ancho_celda = len(str(huecos)) + 2
+    # +1 por el separador (┬) que va entre celda y celda; el margen de 3
+    # de la izquierda y el borde final (┐) se descuentan aparte.
+    por_fila = max(1, (_ancho_terminal() - 4) // (ancho_celda + 1))
+
+    for inicio in range(0, huecos, por_fila):
+        posiciones = range(inicio + 1, min(inicio + por_fila, huecos) + 1)
+        segmentos = ["─" * ancho_celda] * len(posiciones)
+        # Se colorea la fila entera y no celda a celda: asi el .rstrip()
+        # (que quita el relleno sobrante de la ultima celda) actua sobre
+        # espacios de verdad y no sobre el codigo RESET que iria detras.
+        celdas = " ".join("0".center(ancho_celda) for _ in posiciones).rstrip()
+        etiquetas = " ".join(str(i).center(ancho_celda) for i in posiciones).rstrip()
+
+        print("   " + _c("┌" + "┬".join(segmentos) + "┐", NEGRITA))
+        print("    " + _c(celdas, CELESTE))
+        print("   " + _c("└" + "┴".join(segmentos) + "┘", NEGRITA))
+        print("    " + etiquetas)
 
 
 def cabecera(
     ronda: int, balas: int, huecos: int = HUECOS, rondas: int = RONDAS
 ) -> None:
-    """Imprime el marco superior con la ronda actual, balas y huecos vacios."""
+    """Imprime el marco superior con la ronda actual, balas y huecos vacios.
+
+    El relleno de cada fila se calcula sobre el texto *sin* color: len()
+    de una cadena ya coloreada cuenta tambien los codigos ANSI, que no
+    ocupan ninguna columna en pantalla, y usarlo descuadraba el cierre
+    del marco.
+    """
     vacios = huecos - balas
     doble = NEGRITA + CELESTE
-    print(_c("╔" + "═" * 44 + "╗", doble))
-    print(_c("║", doble) + "            RULETA RUSA              " + _c("║", doble))
-    print(
-        _c("║", doble) + f"   Ronda {_c(f'{ronda:^2}', AMARILLO)}/{rondas}"
-        f"  ·  Balas {_c(f'{balas:^2}', ROJO)}"
-        f"  ·  Vacios {_c(f'{vacios:^2}', VERDE)}  " + _c("║", doble)
+
+    datos_plano = f"   Ronda {ronda}/{rondas}  ·  Balas {balas}  ·  Vacios {vacios}"
+    datos_color = (
+        f"   Ronda {_c(str(ronda), AMARILLO)}/{rondas}"
+        f"  ·  Balas {_c(str(balas), ROJO)}"
+        f"  ·  Vacios {_c(str(vacios), VERDE)}"
     )
-    print(_c("╚" + "═" * 44 + "╝", doble))
+    # Un tambor grande (--huecos 200) hace la linea de datos mas larga que
+    # ANCHO_MARCO: en ese caso manda el contenido, +3 para dejar el mismo
+    # margen a la derecha que el que lleva a la izquierda.
+    ancho = max(ANCHO_MARCO, len(datos_plano) + 3)
+
+    print(_c("╔" + "═" * ancho + "╗", doble))
+    print(_c("║", doble) + "RULETA RUSA".center(ancho) + _c("║", doble))
+    print(
+        _c("║", doble) + datos_color + " " * (ancho - len(datos_plano)) + _c("║", doble)
+    )
+    print(_c("╚" + "═" * ancho + "╝", doble))
 
 
 def colocar_balas(cantidad: int, huecos: int = HUECOS) -> set[int]:
@@ -109,11 +155,21 @@ def elegir_posicion(huecos: int = HUECOS) -> int:
 
 
 def escena(ronda: int, balas: int, huecos: int = HUECOS, rondas: int = RONDAS) -> None:
-    """Limpia la pantalla y dibuja la cabecera y el tambor de la ronda."""
+    """Limpia la pantalla y dibuja la cabecera y el tambor de la ronda.
+
+    El aviso dice cuantas balas hay de verdad en esta ronda: el texto
+    anterior ("La bala descansa en un hueco. Tu huella deja marcas.")
+    hablaba de una sola bala cuando en la ronda N hay N, y prometia unas
+    marcas de posiciones ya probadas que se eliminaron del juego.
+    """
     limpiar()
     cabecera(ronda, balas, huecos, rondas)
     print()
-    print(_c("   La bala descansa en un hueco. Tu huella deja marcas.", GRIS))
+    if balas == 1:
+        aviso = "Hay 1 bala escondida en el tambor."
+    else:
+        aviso = f"Hay {balas} balas escondidas en el tambor."
+    print(_c(f"   {aviso} Elige donde apretar el gatillo.", GRIS))
     dibujar_tambor(huecos)
     print()
 
@@ -176,7 +232,6 @@ def jugar_partida(huecos: int = HUECOS, rondas: int = RONDAS) -> bool:
 
         if elegida in posiciones_bala:
             fracaso(ronda, rondas)
-            input(_c("   Pulsa Enter para volver a empezar...", NEGRITA))
             return False
 
         if ronda < rondas:
@@ -191,17 +246,32 @@ def jugar_partida(huecos: int = HUECOS, rondas: int = RONDAS) -> bool:
     return True
 
 
+def _quiere_otra_partida() -> bool:
+    """Pregunta si se juega otra partida. Devuelve True solo ante un si
+    explicito: cualquier otra cosa (incluido Enter a secas) se toma como
+    "no", que es la respuesta segura para una pregunta de salida.
+    """
+    respuesta = input(_c("   Otra partida? (s/n): ", NEGRITA)).strip().lower()
+    return respuesta in ("s", "si", "y", "yes")
+
+
 def jugar(huecos: int = HUECOS, rondas: int = RONDAS) -> None:
-    """Ejecuta el bucle principal del juego hasta que el jugador se retira."""
+    """Ejecuta el bucle principal del juego hasta que el jugador se retira.
+
+    La pregunta de "otra partida?" se hace tanto al ganar como al perder.
+    Antes solo se preguntaba al ganar: perder reiniciaba directamente el
+    bucle, asi que la unica forma de salir del juego tras una derrota era
+    matar el proceso con Ctrl+C.
+    """
     while True:
         gano = jugar_partida(huecos, rondas)
 
         if gano:
             victoria(rondas)
-            otra = input(_c("   Volver a jugar? (s/n): ", NEGRITA)).strip().lower()
-            if otra not in ("s", "si", "y", "yes"):
-                print(_c("   Hasta la proxima. El tambor siempre espera.", AMARILLO))
-                break
+
+        if not _quiere_otra_partida():
+            print(_c("   Hasta la proxima. El tambor siempre espera.", AMARILLO))
+            break
 
 
 def _version_texto() -> str:
@@ -271,7 +341,12 @@ def main(argv: list[str] | None = None) -> None:
     args = _parsear_args(argv)
     try:
         jugar(args.huecos, args.rondas)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, EOFError):
+        # EOFError ademas de KeyboardInterrupt: el juego se apoya en
+        # input(), que lo lanza cuando ya no queda entrada que leer
+        # (Ctrl+D, o `echo | ruleta` / cualquier stdin redirigido y
+        # agotado). Sin capturarlo, esos casos terminaban escupiendo un
+        # traceback de EOFError en vez de la despedida.
         print()
         print(_c("   Hasta la proxima. El tambor siempre espera.", AMARILLO))
 
