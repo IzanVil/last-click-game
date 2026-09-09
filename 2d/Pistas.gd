@@ -43,7 +43,8 @@ static func generar_pista(
 				izquierda = not izquierda
 			if izquierda:
 				return Pista.new(
-					"La bala esta en la mitad izquierda del tambor.", _por_mitad(huecos, mitad, true)
+					"La bala esta en la mitad izquierda del tambor.",
+					_por_mitad(huecos, mitad, true)
 				)
 			return Pista.new(
 				"La bala esta en la mitad derecha del tambor.", _por_mitad(huecos, mitad, false)

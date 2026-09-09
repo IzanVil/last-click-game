@@ -166,8 +166,10 @@ func _comprobar_chapa_del_tema() -> void:
 			"el tema viste los controles de tipo %s" % tipo,
 		)
 	_afirmar(
-		_main.disparar_btn.get_theme_stylebox("normal")
-		== _main.theme.get_stylebox("normal", "Button"),
+		(
+			_main.disparar_btn.get_theme_stylebox("normal")
+			== _main.theme.get_stylebox("normal", "Button")
+		),
 		"los botones cogen su chapa del tema",
 	)
 
@@ -401,7 +403,9 @@ func _simular_retirada_y_pantalla_final() -> void:
 
 
 func _comprobar_records_guardados() -> void:
-	_afirmar(FileAccess.file_exists(RUTA_RECORDS_TEST), "la partida ha escrito el archivo de records")
+	_afirmar(
+		FileAccess.file_exists(RUTA_RECORDS_TEST), "la partida ha escrito el archivo de records"
+	)
 	var guardados := Records.cargar(RUTA_RECORDS_TEST)
 	_afirmar(guardados.partidas_jugadas == 1, "el archivo cuenta una partida jugada")
 	_afirmar(guardados.puntos_maximos == 300, "el archivo guarda los puntos de esa partida")
@@ -489,9 +493,7 @@ func _simular_pista_dudosa() -> void:
 		_main.etiqueta_pistas.text.find("(dudosa)") != -1,
 		"la pista que llega despues sale marcada como dudosa",
 	)
-	_afirmar(
-		not _main._proxima_pista_dudosa, "y la sospecha no se arrastra a la pista siguiente"
-	)
+	_afirmar(not _main._proxima_pista_dudosa, "y la sospecha no se arrastra a la pista siguiente")
 
 	_main._on_retirarse_btn_pressed()
 	await create_timer(_espera_final).timeout
@@ -509,9 +511,7 @@ func _simular_impacto_y_reintento() -> void:
 	await process_frame
 	await create_timer(_espera_disparo).timeout
 	_afirmar(_main._accion_bloqueada, "tras un impacto, las acciones quedan bloqueadas")
-	_afirmar(
-		_main.etiqueta_resultado.text.find("BOOM") != -1, "la pantalla de impacto grita BOOM"
-	)
+	_afirmar(_main.etiqueta_resultado.text.find("BOOM") != -1, "la pantalla de impacto grita BOOM")
 	_afirmar(_main.bitacora.text.find("La bala estaba en el 3") != -1, "la bitacora lo anota")
 
 	await create_timer(_espera_final).timeout

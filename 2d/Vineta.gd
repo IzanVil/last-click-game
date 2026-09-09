@@ -122,9 +122,13 @@ func _dibujar_iris() -> void:
 func _crear_degradado(codo: float, opacidad_codo: float) -> GradientTexture2D:
 	var degradado := Gradient.new()
 	degradado.offsets = PackedFloat32Array([0.0, codo, 1.0])
-	degradado.colors = PackedColorArray([
-		Color(1, 1, 1, 0), Color(1, 1, 1, opacidad_codo), Color(1, 1, 1, 1),
-	])
+	degradado.colors = PackedColorArray(
+		[
+			Color(1, 1, 1, 0),
+			Color(1, 1, 1, opacidad_codo),
+			Color(1, 1, 1, 1),
+		]
+	)
 
 	var textura := GradientTexture2D.new()
 	textura.gradient = degradado

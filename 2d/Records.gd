@@ -48,15 +48,21 @@ func registrar_partida(
 ## criterio con el que se decide quien gana un duelo (ver Jugador.ganadores).
 func _anotar_en_mejores(dias: int, puntos: int) -> void:
 	var fecha := Time.get_date_dict_from_system()
-	mejores.append({
-		"dias": dias,
-		"puntos": puntos,
-		"fecha": "%04d-%02d-%02d" % [fecha["year"], fecha["month"], fecha["day"]],
-	})
-	mejores.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		if a["dias"] != b["dias"]:
-			return a["dias"] > b["dias"]
-		return a["puntos"] > b["puntos"]
+	(
+		mejores
+		. append(
+			{
+				"dias": dias,
+				"puntos": puntos,
+				"fecha": "%04d-%02d-%02d" % [fecha["year"], fecha["month"], fecha["day"]],
+			}
+		)
+	)
+	mejores.sort_custom(
+		func(a: Dictionary, b: Dictionary) -> bool:
+			if a["dias"] != b["dias"]:
+				return a["dias"] > b["dias"]
+			return a["puntos"] > b["puntos"]
 	)
 	if mejores.size() > MAX_MEJORES:
 		mejores.resize(MAX_MEJORES)
@@ -86,11 +92,17 @@ static func cargar(ruta := RUTA_POR_DEFECTO) -> Records:
 	if json.data.get("mejores") is Array:
 		for entrada in json.data["mejores"]:
 			if entrada is Dictionary and entrada.has("dias") and entrada.has("puntos"):
-				records.mejores.append({
-					"dias": int(entrada["dias"]),
-					"puntos": int(entrada["puntos"]),
-					"fecha": str(entrada.get("fecha", "")),
-				})
+				(
+					records
+					. mejores
+					. append(
+						{
+							"dias": int(entrada["dias"]),
+							"puntos": int(entrada["puntos"]),
+							"fecha": str(entrada.get("fecha", "")),
+						}
+					)
+				)
 	for campo in records._campos():
 		if json.data.has(campo):
 			# Los numeros de un JSON vuelven siempre como float en Godot,
@@ -130,8 +142,10 @@ func resumen() -> String:
 	if faroles_usados > 0:
 		porcentaje = 100.0 * faroles_acertados / faroles_usados
 	return (
-		"Record: %d dia(s) sobrevividos y %d puntos en una sola partida, en %d partida(s) jugada(s). "
-		% [dias_maximos, puntos_maximos, partidas_jugadas]
+		(
+			"Record: %d dia(s) sobrevividos y %d puntos en una sola partida, en %d partida(s) jugada(s). "
+			% [dias_maximos, puntos_maximos, partidas_jugadas]
+		)
 		+ "Faroles acertados: %d/%d (%.0f%%)." % [faroles_acertados, faroles_usados, porcentaje]
 	)
 

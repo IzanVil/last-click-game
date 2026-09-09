@@ -63,15 +63,20 @@ func _afirmar_igual(obtenido, esperado, descripcion: String) -> void:
 
 func _test_tambor_juicio_movimiento() -> void:
 	var casos := [
-		["avanza", 3, 4], ["avanza", 8, 1],
-		["retrocede", 3, 2], ["retrocede", 1, 8],
-		["salta_dos", 3, 5], ["salta_dos", 7, 1],
+		["avanza", 3, 4],
+		["avanza", 8, 1],
+		["retrocede", 3, 2],
+		["retrocede", 1, 8],
+		["salta_dos", 3, 5],
+		["salta_dos", 7, 1],
 		["espejo", 3, 6],
 	]
 	for caso in casos:
 		var tambor := TamborJuicio.new(8, caso[0], caso[1])
 		tambor.disparar(1 if caso[1] != 1 else 2)  # falla a proposito
-		_afirmar_igual(tambor.posicion_bala, caso[2], "movimiento '%s' desde %d" % [caso[0], caso[1]])
+		_afirmar_igual(
+			tambor.posicion_bala, caso[2], "movimiento '%s' desde %d" % [caso[0], caso[1]]
+		)
 
 
 func _test_tambor_juicio_disparo() -> void:
@@ -101,7 +106,10 @@ func _test_pistas_candidatos() -> void:
 	_afirmar_igual(relativa.candidatos, [1, 2, 3, 4], "candidatos de relativa a la izquierda")
 
 	var mentira := Pistas.generar_pista(4, 8, -1, "paridad", true)
-	_afirmar(mentira.texto.find("no esta en los huecos pares") != -1, "paridad mentirosa dice lo contrario")
+	_afirmar(
+		mentira.texto.find("no esta en los huecos pares") != -1,
+		"paridad mentirosa dice lo contrario"
+	)
 
 
 func _test_pistas_interseccion() -> void:
@@ -145,7 +153,9 @@ func _test_eventos() -> void:
 
 func _test_historial() -> void:
 	var vacio := Historial.new()
-	_afirmar(vacio.resumen(2).find("sin faroles ni sobresaltos") != -1, "resumen sin faroles ni eventos")
+	_afirmar(
+		vacio.resumen(2).find("sin faroles ni sobresaltos") != -1, "resumen sin faroles ni eventos"
+	)
 
 	var lleno := Historial.new()
 	lleno.registrar_farol(true)
@@ -168,11 +178,15 @@ func _test_ruleta_estado_flujo_completo() -> void:
 	var dias_completados: Array[int] = []
 	var retiradas: Array[Dictionary] = []
 
-	juego.pista_nueva.connect(func(texto: String, _candidatos: Array): pistas_recibidas.append(texto))
+	juego.pista_nueva.connect(
+		func(texto: String, _candidatos: Array): pistas_recibidas.append(texto)
+	)
 	juego.dia_completado.connect(func(dia: int): dias_completados.append(dia))
 	juego.retirada.connect(
 		func(disparos: int, ganados: int, dias: int, resumen: String):
-			retiradas.append({"disparos": disparos, "ganados": ganados, "dias": dias, "resumen": resumen})
+			retiradas.append(
+				{"disparos": disparos, "ganados": ganados, "dias": dias, "resumen": resumen}
+			)
 	)
 
 	juego.iniciar_juego(8)
@@ -208,9 +222,7 @@ func _test_dias_sobrevividos() -> void:
 	_afirmar_igual(TamborJuicio.dias_sobrevividos(3), 1, "3 disparos son 1 dia")
 	_afirmar_igual(TamborJuicio.dias_sobrevividos(5), 1, "5 disparos siguen siendo 1 dia")
 	_afirmar_igual(TamborJuicio.dias_sobrevividos(6), 2, "6 disparos son 2 dias")
-	_afirmar_igual(
-		TamborJuicio.dias_sobrevividos(4, 2), 2, "admite una duracion de dia distinta"
-	)
+	_afirmar_igual(TamborJuicio.dias_sobrevividos(4, 2), 2, "admite una duracion de dia distinta")
 
 
 func _test_dificultad() -> void:
@@ -230,9 +242,7 @@ func _test_dificultad() -> void:
 		Dificultad.huecos_de("normal"), RuletaEstado.HUECOS, "normal usa los huecos por defecto"
 	)
 	_afirmar_igual(
-		Dificultad.marcas_de("normal"),
-		Farol.MARCAS_INICIALES,
-		"normal usa las marcas por defecto"
+		Dificultad.marcas_de("normal"), Farol.MARCAS_INICIALES, "normal usa las marcas por defecto"
 	)
 
 
@@ -290,9 +300,7 @@ func _test_mejores_marcas() -> void:
 	# Solo caben MAX_MEJORES: la peor se cae al entrar una mejor.
 	for i in range(Records.MAX_MEJORES + 3):
 		records.registrar_partida(9, 1000 + i, 0, 0)
-	_afirmar_igual(
-		records.mejores.size(), Records.MAX_MEJORES, "la tabla no crece sin limite"
-	)
+	_afirmar_igual(records.mejores.size(), Records.MAX_MEJORES, "la tabla no crece sin limite")
 	_afirmar_igual(records.mejores[0]["dias"], 9, "y se queda con las mejores")
 
 
@@ -351,9 +359,7 @@ func _test_records_en_disco(records: Records) -> void:
 	var archivo3 := FileAccess.open(RUTA_RECORDS_TEST, FileAccess.WRITE)
 	archivo3.store_string('{"dias_maximos": 3, "campo_futuro": "x"}')
 	archivo3.close()
-	_afirmar_igual(
-		Records.cargar(RUTA_RECORDS_TEST).dias_maximos, 3, "ignora claves desconocidas"
-	)
+	_afirmar_igual(Records.cargar(RUTA_RECORDS_TEST).dias_maximos, 3, "ignora claves desconocidas")
 
 	_borrar_records_test()
 
@@ -372,7 +378,9 @@ func _test_ajustes() -> void:
 
 	_borrar_ajustes_test()
 	var inexistente := Ajustes.cargar(RUTA_AJUSTES_TEST)
-	_afirmar(not inexistente.efectos_reducidos, "cargar sin archivo devuelve los ajustes de fabrica")
+	_afirmar(
+		not inexistente.efectos_reducidos, "cargar sin archivo devuelve los ajustes de fabrica"
+	)
 	_afirmar(inexistente.sonido, "y el sonido sigue puesto")
 
 	var elegidos := Ajustes.new()
@@ -400,9 +408,7 @@ func _test_ajustes() -> void:
 	_afirmar(raros.sonido, "y un 1 se lee como un si")
 	# Un JSON devuelve true/false como bool, pero el contrato es el mismo
 	# que en Records: lo recargado tiene el tipo del campo, no el del JSON.
-	_afirmar(
-		typeof(recargados.efectos_reducidos) == TYPE_BOOL, "lo recargado son booleanos"
-	)
+	_afirmar(typeof(recargados.efectos_reducidos) == TYPE_BOOL, "lo recargado son booleanos")
 
 	# Un archivo corrupto no debe impedir jugar: se vuelve a los de fabrica.
 	var archivo := FileAccess.open(RUTA_AJUSTES_TEST, FileAccess.WRITE)
@@ -442,7 +448,9 @@ func _test_jugador_ganadores() -> void:
 	ganadores = Jugador.ganadores([ana, beto])
 	_afirmar_igual(ganadores.size(), 1, "el empate en dias lo rompe un solo ganador")
 	if ganadores.size() == 1:
-		_afirmar_igual(ganadores[0].nombre, "Beto", "con los mismos dias gana quien tiene mas puntos")
+		_afirmar_igual(
+			ganadores[0].nombre, "Beto", "con los mismos dias gana quien tiene mas puntos"
+		)
 
 	# Mismos dias y mismos puntos: empate de verdad, sin ganador unico.
 	ana.puntos_finales = 900

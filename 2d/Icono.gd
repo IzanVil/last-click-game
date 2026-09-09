@@ -57,8 +57,7 @@ func _draw() -> void:
 ## Hoja de calendario: marco, la barra del encabezado y las dos anillas.
 func _dibujar_calendario(caja: Rect2, grosor: float) -> void:
 	var hoja := Rect2(
-		caja.position + Vector2(0, caja.size.y * 0.18),
-		Vector2(caja.size.x, caja.size.y * 0.82)
+		caja.position + Vector2(0, caja.size.y * 0.18), Vector2(caja.size.x, caja.size.y * 0.82)
 	)
 	draw_rect(hoja, color, false, grosor)
 	var barra := Rect2(hoja.position, Vector2(hoja.size.x, hoja.size.y * 0.28))
@@ -90,13 +89,15 @@ func _dibujar_lupa(caja: Rect2, grosor: float) -> void:
 func _dibujar_escudo(caja: Rect2, grosor: float) -> void:
 	var ancho := caja.size.x
 	var alto := caja.size.y
-	var puntos := PackedVector2Array([
-		caja.position + Vector2(ancho * 0.08, alto * 0.12),
-		caja.position + Vector2(ancho * 0.92, alto * 0.12),
-		caja.position + Vector2(ancho * 0.92, alto * 0.55),
-		caja.position + Vector2(ancho * 0.5, alto * 0.95),
-		caja.position + Vector2(ancho * 0.08, alto * 0.55),
-	])
+	var puntos := PackedVector2Array(
+		[
+			caja.position + Vector2(ancho * 0.08, alto * 0.12),
+			caja.position + Vector2(ancho * 0.92, alto * 0.12),
+			caja.position + Vector2(ancho * 0.92, alto * 0.55),
+			caja.position + Vector2(ancho * 0.5, alto * 0.95),
+			caja.position + Vector2(ancho * 0.08, alto * 0.55),
+		]
+	)
 	# El poligono se cierra repitiendo el primer punto: draw_polyline no lo
 	# hace solo, y un escudo abierto por arriba se ve raro.
 	puntos.append(puntos[0])
