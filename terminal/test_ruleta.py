@@ -1049,6 +1049,19 @@ class TestAmbientacion(unittest.TestCase):
         self.assertEqual(bitacora.acciones[-1].tipo, "dia")
         self.assertIn("3", bitacora.acciones[-1].texto)
 
+    @staticmethod
+    def _texto_del_cartel(lineas):
+        """Contenido de un cartel, devuelto como texto corrido.
+
+        ambiente.cartel() enmarca, centra y reparte en varias lineas un
+        texto que no quepa de una (los de evento no caben: miden ~53
+        caracteres frente a los 46 del cartel). Asi que el mensaje
+        original no esta ahi como subcadena literal: hay que quitarle el
+        marco y volver a juntar las palabras antes de buscarlo.
+        """
+        sin_marco = " ".join(linea.strip("║╔╗╚╝═ ") for linea in lineas)
+        return " ".join(sin_marco.split())
+
     def test_el_cartel_de_evento_lleva_su_texto_y_su_pitido(self):
         with (
             patch("ruleta.efectos.banner") as mock_banner,
@@ -1057,7 +1070,7 @@ class TestAmbientacion(unittest.TestCase):
             ruleta.cartel_evento("tambor_caliente")
         self.assertIn(
             eventos.texto_de("tambor_caliente"),
-            "\n".join(mock_banner.call_args.args[0]),
+            self._texto_del_cartel(mock_banner.call_args.args[0]),
         )
         mock_beep.assert_called_once_with("zumbido")
 
