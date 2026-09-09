@@ -2,6 +2,7 @@ import random
 import unittest
 
 import ambiente
+import eventos
 
 
 class TestMensajeDeDia(unittest.TestCase):
@@ -95,6 +96,37 @@ class TestEpilogo(unittest.TestCase):
         primero = ambiente.epilogo(4, retirado=True, puntos=100)
         segundo = ambiente.epilogo(4, retirado=True, puntos=100)
         self.assertEqual(primero, segundo)
+
+
+class TestCartelQueNoSeDescuadra(unittest.TestCase):
+    def test_un_texto_largo_se_reparte_en_varias_lineas(self):
+        # str.center() devuelve la cadena intacta cuando ya es mas larga
+        # que el ancho pedido, asi que un texto largo se salia del marco
+        # y dejaba esa linea mas ancha que el resto.
+        texto = "palabra " * 12
+        lineas = ambiente.cartel("TITULO", texto.strip())
+        self.assertEqual(len({len(linea) for linea in lineas}), 1, lineas)
+        self.assertGreater(len(lineas), 7)  # el texto ocupa varias lineas
+
+    def test_los_carteles_de_evento_reales_cuadran(self):
+        # Es el caso que fallaba de verdad: los textos de evento miden
+        # ~53 caracteres frente a los 46 de ANCHO_CARTEL, y el cartel de
+        # evento aparece muy a menudo durante la partida.
+        for tipo in eventos.TIPOS_EVENTO:
+            with self.subTest(tipo=tipo):
+                lineas = ambiente.cartel_evento(tipo, eventos.texto_de(tipo))
+                self.assertEqual(len({len(linea) for linea in lineas}), 1, lineas)
+
+    def test_un_titulo_que_no_cabe_ensancha_el_marco(self):
+        titulo = "T" * (ambiente.ANCHO_CARTEL + 10)
+        lineas = ambiente.cartel(titulo)
+        self.assertEqual(len({len(linea) for linea in lineas}), 1, lineas)
+        self.assertIn(titulo, "".join(lineas))
+
+    def test_el_caso_corto_de_siempre_no_cambia(self):
+        lineas = ambiente.cartel("HOLA", "adios")
+        self.assertEqual(len({len(linea) for linea in lineas}), 1)
+        self.assertEqual(len(lineas[0]), ambiente.ANCHO_CARTEL + 2)
 
 
 if __name__ == "__main__":

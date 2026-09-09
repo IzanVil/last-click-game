@@ -197,5 +197,26 @@ class TestSeleccionar(unittest.TestCase):
         self.assertEqual(elegido, 6)
 
 
+class TestSeleccionarTeclasRaras(unittest.TestCase):
+    @staticmethod
+    def _seleccionar_con(teclas, huecos=8):
+        pulsaciones = iter(teclas)
+        with patch("entrada.leer_tecla", side_effect=lambda: next(pulsaciones)):
+            return entrada.seleccionar(huecos, pintar=lambda _hueco: None)
+
+    def test_un_superindice_no_tumba_la_seleccion(self):
+        # "²" y "³" salen con AltGr+2/3 en varias distribuciones de
+        # teclado. str.isdigit() los da por buenos pero int() no sabe
+        # leerlos: pulsarlos aqui reventaba con un ValueError. Deben
+        # ignorarse como cualquier otra tecla que no interesa.
+        self.assertEqual(self._seleccionar_con(["²", "³", "4", entrada.ENTER]), 4)
+
+    def test_los_digitos_normales_siguen_saltando_al_hueco(self):
+        self.assertEqual(self._seleccionar_con(["7", entrada.ENTER]), 7)
+
+    def test_un_digito_fuera_del_tambor_se_ignora(self):
+        self.assertEqual(self._seleccionar_con(["9", "2", entrada.ENTER]), 2)
+
+
 if __name__ == "__main__":
     unittest.main()
