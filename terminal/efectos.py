@@ -11,11 +11,15 @@ Con las animaciones apagadas nada duerme ni parpadea, que es justo lo
 que necesitan los tests y CI, donde no hay una terminal delante.
 """
 
+import io
+import os
 import re
+import shutil
 import sys
 import time
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from typing import TextIO
 
 # Prefijo de las secuencias ANSI ("Control Sequence Introducer"): todo lo
 # que mueve el cursor o borra pantalla empieza asi.
@@ -50,6 +54,11 @@ PATRONES_SONIDO: dict[str, tuple[float, ...]] = {
 # gaste tiempo "escribiendo" codigos de color, que son invisibles.
 _SECUENCIA_ANSI = re.compile(r"\033\[[0-9;?]*[A-Za-z]")
 
+# Solo las secuencias SGR (las que acaban en "m"): color, negrita, video
+# inverso. Deliberadamente NO casa con las que mueven el cursor o borran
+# pantalla, que son las que montan la animacion y deben pasar siempre.
+_SECUENCIA_COLOR = re.compile(r"\033\[[0-9;]*m")
+
 
 @dataclass
 class Ajustes:
@@ -60,6 +69,77 @@ class Ajustes:
 
 
 AJUSTES = Ajustes()
+
+
+class _SalidaSinColor(io.TextIOBase):
+    """Envoltorio de un stream que borra los colores segun se escriben.
+
+    Filtrar en la salida, y no en cada sitio que imprime, es lo que hace
+    viable apagar el color: los mensajes del juego llevan los codigos
+    incrustados en casi cien f-strings repartidas por ruleta.py, y
+    envolverlas una a una seria un cambio enorme y facil de olvidar en el
+    siguiente mensaje que se anada. Aqui basta un punto.
+    """
+
+    def __init__(self, destino: TextIO) -> None:
+        self._destino = destino
+
+    @property
+    def destino(self) -> TextIO:
+        """El stream original, para poder desenvolverlo luego."""
+        return self._destino
+
+    def write(self, texto: str) -> int:
+        self._destino.write(_SECUENCIA_COLOR.sub("", texto))
+        # Se devuelve lo que pidio quien llama, no lo que se escribio de
+        # verdad: para el emisor el color es transparente.
+        return len(texto)
+
+    def flush(self) -> None:
+        self._destino.flush()
+
+    def isatty(self) -> bool:
+        return self._destino.isatty()
+
+    def fileno(self) -> int:
+        return self._destino.fileno()
+
+    def writable(self) -> bool:
+        return True
+
+
+def color_activo(sin_color: bool = False) -> bool:
+    """Decide si tiene sentido emitir codigos de color.
+
+    Se apaga si se pide explicitamente (--sin-color), si esta puesta la
+    variable NO_COLOR (https://no-color.org) o si la salida no es una
+    terminal: los codigos en un fichero de log o en un pipe solo estorban
+    a quien luego lo lee.
+    """
+    if sin_color or os.environ.get("NO_COLOR"):
+        return False
+    return hay_terminal()
+
+
+def filtrar_color(activo: bool) -> None:
+    """Instala (o quita) el filtro de color sobre sys.stdout.
+
+    Es idempotente en los dos sentidos: llamarla dos veces seguidas con
+    el mismo valor no apila envoltorios ni deja el stdout original
+    perdido por el camino.
+    """
+    salida = sys.stdout
+    if activo and not isinstance(salida, _SalidaSinColor):
+        sys.stdout = _SalidaSinColor(salida)
+    elif not activo and isinstance(salida, _SalidaSinColor):
+        # La variable local, y no sys.stdout directamente: es la que
+        # isinstance estrecha a _SalidaSinColor y deja ver `.destino`.
+        sys.stdout = salida.destino
+
+
+def ancho_terminal() -> int:
+    """Columnas de la terminal, con un fallback si no se pueden saber."""
+    return shutil.get_terminal_size(fallback=(80, 24)).columns
 
 
 def hay_terminal() -> bool:

@@ -1,4 +1,6 @@
 import io
+import os
+import sys
 import unittest
 from unittest.mock import patch
 
@@ -205,6 +207,71 @@ class TestBanner(_EfectosTestCase):
         with patch("efectos.time.sleep") as mock_sleep, patch("builtins.print"):
             self.capturar(efectos.banner, ["HOLA"], segundos=2.0)
         mock_sleep.assert_called_once_with(2.0)
+
+
+class TestColorActivo(unittest.TestCase):
+    def test_no_color_lo_apaga_aunque_haya_terminal(self):
+        # https://no-color.org
+        with patch.dict(os.environ, {"NO_COLOR": "1"}):
+            with patch("efectos.hay_terminal", return_value=True):
+                self.assertFalse(efectos.color_activo())
+
+    def test_sin_color_explicito_lo_apaga(self):
+        with patch.dict(os.environ, {}, clear=True):
+            with patch("efectos.hay_terminal", return_value=True):
+                self.assertFalse(efectos.color_activo(sin_color=True))
+
+    def test_depende_de_la_terminal_si_no_se_pide_nada(self):
+        # clear=True: nos aislamos del NO_COLOR real del entorno donde
+        # corran los tests, no solo del que pusieramos nosotros.
+        with patch.dict(os.environ, {}, clear=True):
+            with patch("efectos.hay_terminal", return_value=True):
+                self.assertTrue(efectos.color_activo())
+            with patch("efectos.hay_terminal", return_value=False):
+                self.assertFalse(efectos.color_activo())
+
+
+class TestFiltroDeColor(unittest.TestCase):
+    def setUp(self):
+        self.original = sys.stdout
+        self.addCleanup(setattr, sys, "stdout", self.original)
+        self.addCleanup(efectos.filtrar_color, False)
+
+    def _escribir(self, texto):
+        buffer = io.StringIO()
+        sys.stdout = buffer
+        efectos.filtrar_color(True)
+        sys.stdout.write(texto)
+        return buffer.getvalue()
+
+    def test_borra_los_colores(self):
+        salida = self._escribir(f"{efectos.ROJO}peligro{efectos.RESET}")
+        self.assertEqual(salida, "peligro")
+
+    def test_respeta_los_codigos_que_mueven_el_cursor(self):
+        # Filtrar tambien estos romperia la animacion: son los que
+        # repintan la escena en su sitio.
+        salida = self._escribir(f"{efectos.CSI}2A{efectos.CSI}K{efectos.VERDE}ok")
+        self.assertEqual(salida, f"{efectos.CSI}2A{efectos.CSI}K" + "ok")
+
+    def test_instalar_y_quitar_es_idempotente(self):
+        sys.stdout = io.StringIO()
+        efectos.filtrar_color(True)
+        una_vez = sys.stdout
+        efectos.filtrar_color(True)  # no debe apilar otro envoltorio
+        self.assertIs(sys.stdout, una_vez)
+
+        efectos.filtrar_color(False)
+        efectos.filtrar_color(False)  # ni perder el stdout original
+        self.assertIsInstance(sys.stdout, io.StringIO)
+
+    def test_devuelve_lo_escrito_al_emisor(self):
+        # write() debe devolver lo que pidio quien llama, no lo que se
+        # escribio de verdad: para el emisor el filtro es transparente.
+        sys.stdout = io.StringIO()
+        efectos.filtrar_color(True)
+        texto = f"{efectos.ROJO}hola{efectos.RESET}"
+        self.assertEqual(sys.stdout.write(texto), len(texto))
 
 
 if __name__ == "__main__":
