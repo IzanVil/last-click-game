@@ -1,5 +1,6 @@
 import unittest
 
+import estado
 import pistas
 
 
@@ -117,6 +118,46 @@ class TestInterseccion(unittest.TestCase):
         par = pistas.generar_pista(4, 8, None, tipo="paridad")
         impar = pistas.generar_pista(3, 8, None, tipo="paridad")
         self.assertEqual(pistas.interseccion([par, impar]), frozenset())
+
+
+class TestRelativaCuandoLaBalaCaeEnElUltimoDisparo(unittest.TestCase):
+    """La bala se mueve DESPUES de un disparo fallido, asi que puede
+    acabar justo en el hueco recien probado: con el patron "avanza"
+    basta con disparar un hueco por delante de ella. El codigo daba por
+    imposible ese caso."""
+
+    def test_el_caso_es_alcanzable_jugando(self):
+        tambor = estado.TamborJuicio(huecos=8, patron="avanza", posicion_inicial=3)
+        self.assertFalse(tambor.disparar(4))  # falla: la bala estaba en 3
+        self.assertEqual(tambor.posicion_bala, tambor.ultimo_disparo)
+
+    def test_sin_mentir_dice_la_verdad(self):
+        pista = pistas.generar_pista(4, 8, ultimo_disparo=4, tipo="relativa")
+        self.assertIn("justo donde acabas de disparar", pista.texto)
+        self.assertEqual(pista.candidatos, frozenset({4}))
+
+    def test_mintiendo_no_regala_la_posicion_exacta(self):
+        # Antes esta rama ignoraba `mentir`, asi que un evento
+        # "tambor_caliente" (que existe justo para mentir) acababa
+        # revelando el hueco exacto en vez de enganiar.
+        pista = pistas.generar_pista(
+            4, 8, ultimo_disparo=4, tipo="relativa", mentir=True
+        )
+        self.assertNotIn("justo donde", pista.texto)
+        self.assertNotIn(4, pista.candidatos)
+        self.assertTrue(pista.candidatos)  # y afirma algo, no el conjunto vacio
+
+    def test_mintiendo_en_un_extremo_elige_el_lado_que_existe(self):
+        # Disparando al hueco 1 no hay "izquierda" posible: mentir hacia
+        # ese lado daria una pista con cero candidatos, que se delata
+        # sola en cuanto se cruza con cualquier otra.
+        for disparo, esperado in ((1, "derecha"), (8, "izquierda")):
+            with self.subTest(disparo=disparo):
+                pista = pistas.generar_pista(
+                    disparo, 8, ultimo_disparo=disparo, tipo="relativa", mentir=True
+                )
+                self.assertIn(esperado, pista.texto)
+                self.assertTrue(pista.candidatos)
 
 
 if __name__ == "__main__":
