@@ -1,3 +1,4 @@
+import re
 import unittest
 from functools import partial
 from unittest.mock import patch
@@ -1307,6 +1308,55 @@ class TestFlujoAvanzado(unittest.TestCase):
         self.assertEqual(mock_oscurecer.call_count, 3)
         self.assertEqual(mock_latido.call_count, 3)
         mock_retirada.assert_called_once()
+
+
+class TestTamborQueCabe(unittest.TestCase):
+    @staticmethod
+    def _sin_color(texto):
+        return re.sub(r"\033\[[0-9;]*m", "", texto)
+
+    def test_hueco_resaltado_se_ve_sin_color(self):
+        # Antes el resaltado era solo video inverso + color: al apagar el
+        # color (--sin-color, NO_COLOR, salida a fichero) la celda
+        # elegida quedaba identica a las demas y el selector de flechas
+        # se volvia invisible. Los corchetes lo marcan pase lo que pase.
+        plano = self._sin_color(ruleta.tambor_ascii({}, huecos=8, resaltado=3))
+        self.assertIn("[0]", plano)
+        self.assertEqual(plano.count("[0]"), 1)
+
+    def test_sin_resaltado_no_hay_corchetes(self):
+        plano = self._sin_color(ruleta.tambor_ascii({}, huecos=8))
+        self.assertNotIn("[", plano)
+
+    def test_el_tambor_grande_se_parte_para_caber(self):
+        # Antes salia en una unica linea que la terminal partia por su
+        # cuenta, y eso descuadra la pantalla entera: la escena se
+        # repinta con posicionamiento absoluto contando sus lineas.
+        with patch("ruleta.efectos.ancho_terminal", return_value=80):
+            dibujo = ruleta.tambor_ascii({}, huecos=24)
+        lineas = dibujo.split("\n")
+
+        self.assertGreater(len(lineas), 4)  # mas de una fila de tambor
+        for linea in lineas:
+            self.assertLessEqual(len(self._sin_color(linea)), 80, linea)
+        # Y no se pierde ningun hueco por el camino.
+        self.assertIn("24", self._sin_color(lineas[-1]))
+
+    def test_el_tambor_pequeno_sigue_en_una_fila(self):
+        with patch("ruleta.efectos.ancho_terminal", return_value=80):
+            dibujo = ruleta.tambor_ascii({}, huecos=8)
+        self.assertEqual(len(dibujo.split("\n")), 4)
+
+    def test_todas_las_filas_conservan_el_alto_entre_fotogramas(self):
+        # repintar() da por hecho que los fotogramas miden lo mismo: si
+        # resaltar un hueco cambiara el numero de lineas, la animacion
+        # dejaria restos del fotograma anterior en pantalla.
+        with patch("ruleta.efectos.ancho_terminal", return_value=80):
+            altos = {
+                efectos.alto_de(ruleta.tambor_ascii({}, 24, resaltado=h))
+                for h in range(1, 25)
+            }
+        self.assertEqual(len(altos), 1)
 
 
 class TestSemilla(CasoQueLlamaMain):

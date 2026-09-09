@@ -195,31 +195,48 @@ def tambor_ascii(
     latido de cuando quedan pocos huecos por probar).
     """
     color_marco = f"{NEGRITA}{ROJO}" if alerta else NEGRITA
-    superior = f"{color_marco}┌{'───┬' * (huecos - 1)}───┐{RESET}"
-    inferior = f"{color_marco}└{'───┴' * (huecos - 1)}───┘{RESET}"
     barra = f"{color_marco}│{RESET}"
 
-    celdas = []
-    etiquetas = []
-    for hueco in range(1, huecos + 1):
-        estado_hueco = estados.get(hueco, "")
-        color = COLORES_ESTADO.get(estado_hueco, CELESTE)
-        glifo = GLIFOS_ESTADO.get(estado_hueco, "0")
-        if hueco == resaltado:
-            celdas.append(f"{INVERSO}{NEGRITA} {glifo} {RESET}")
-            etiquetas.append(f"{NEGRITA}{AMARILLO}{str(hueco).center(3)}{RESET}")
-        else:
-            celdas.append(f" {color}{glifo}{RESET} ")
-            etiquetas.append(str(hueco).center(3))
+    # Cada hueco ocupa 4 columnas (3 de celda + el separador) y la fila
+    # arrastra un margen de 3 mas el borde de cierre. Con muchos huecos
+    # el tambor no cabe de una pieza y se parte en varias filas: antes
+    # salia en una sola linea que la terminal partia por su cuenta, y eso
+    # descuadraba la pantalla entera, porque la escena se repinta con
+    # posicionamiento absoluto contando las lineas que ocupa.
+    por_fila = max(1, (efectos.ancho_terminal() - 4) // 4)
 
-    return "\n".join(
-        (
-            "   " + superior,
-            "   " + barra + barra.join(celdas) + barra,
-            "   " + inferior,
-            "    " + " ".join(etiquetas),
+    lineas: list[str] = []
+    for inicio in range(0, huecos, por_fila):
+        tramo = range(inicio + 1, min(inicio + por_fila, huecos) + 1)
+        celdas = []
+        etiquetas = []
+        for hueco in tramo:
+            estado_hueco = estados.get(hueco, "")
+            color = COLORES_ESTADO.get(estado_hueco, CELESTE)
+            glifo = GLIFOS_ESTADO.get(estado_hueco, "0")
+            if hueco == resaltado:
+                # Los corchetes, y no solo el video inverso, son lo que
+                # hace visible el hueco elegido cuando no hay color
+                # (--sin-color, NO_COLOR, salida a un fichero): sin ellos
+                # la celda resaltada quedaba exactamente igual que las
+                # demas y el selector se volvia invisible.
+                celdas.append(f"{INVERSO}{NEGRITA}[{glifo}]{RESET}")
+                etiquetas.append(f"{NEGRITA}{AMARILLO}{str(hueco).center(3)}{RESET}")
+            else:
+                celdas.append(f" {color}{glifo}{RESET} ")
+                etiquetas.append(str(hueco).center(3))
+
+        marco = "┬".join(["───"] * len(tramo))
+        lineas.extend(
+            (
+                "   " + f"{color_marco}┌{marco}┐{RESET}",
+                "   " + barra + barra.join(celdas) + barra,
+                "   " + f"{color_marco}└{marco.replace('┬', '┴')}┘{RESET}",
+                "    " + " ".join(etiquetas),
+            )
         )
-    )
+
+    return "\n".join(lineas)
 
 
 def dibujar_tambor(
@@ -1032,6 +1049,14 @@ def _parsear_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Sin giros, latidos ni pausas: la partida como un registro (util en CI).",
     )
     parser.add_argument(
+        "--sin-color",
+        action="store_true",
+        help=(
+            "Sin codigos de color. Tambien se apagan solos con NO_COLOR "
+            "en el entorno o si la salida no es una terminal."
+        ),
+    )
+    parser.add_argument(
         "--sin-sonido",
         action="store_true",
         help="Silencia el timbre de la terminal.",
@@ -1090,6 +1115,11 @@ def main(argv: list[str] | None = None) -> int:
         random.seed(args.seed)
 
     efectos.configurar(animaciones=not args.sin_animaciones, sonido=not args.sin_sonido)
+    # El filtro va sobre sys.stdout, asi que se instala antes de la
+    # primera linea de juego y se quita en el finally: dejarlo puesto
+    # ensuciaria la salida de quien importe este modulo en vez de
+    # ejecutarlo.
+    efectos.filtrar_color(not efectos.color_activo(sin_color=args.sin_color))
 
     try:
         if args.duelo:
@@ -1115,6 +1145,7 @@ def main(argv: list[str] | None = None) -> int:
         return 130 if isinstance(interrupcion, KeyboardInterrupt) else 0
     finally:
         efectos.cursor(True)
+        efectos.filtrar_color(False)
 
     return 0
 
