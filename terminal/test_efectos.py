@@ -265,6 +265,20 @@ class TestFiltroDeColor(unittest.TestCase):
         efectos.filtrar_color(False)  # ni perder el stdout original
         self.assertIsInstance(sys.stdout, io.StringIO)
 
+    def test_se_comporta_como_el_stream_que_envuelve(self):
+        # No es cosmetico: hay_terminal() consulta sys.stdout.isatty() y
+        # se llama durante la partida, con el filtro ya puesto. Si el
+        # envoltorio no delegara, apagar el color cambiaria ademas la
+        # deteccion de terminal (y con ella el sonido).
+        falso = io.StringIO()
+        falso.isatty = lambda: True  # type: ignore[method-assign]
+        sys.stdout = falso
+        efectos.filtrar_color(True)
+
+        self.assertTrue(sys.stdout.isatty())
+        self.assertTrue(efectos.hay_terminal())
+        self.assertTrue(sys.stdout.writable())
+
     def test_devuelve_lo_escrito_al_emisor(self):
         # write() debe devolver lo que pidio quien llama, no lo que se
         # escribio de verdad: para el emisor el filtro es transparente.
