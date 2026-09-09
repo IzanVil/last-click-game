@@ -103,3 +103,32 @@ jobs:
         # esperando a las animaciones (Tween) entre cada accion: cubre el
         # cableado de señales de MainGame.gd que test_logica.gd no toca.
         run: ./godot --headless --script res://tests/test_escena.gd --path 2d
+
+  gdscript-lint:
+    name: gdscript-lint
+    runs-on: ubuntu-latest
+    # Job aparte del de Godot a proposito: gdtoolkit es un paquete de
+    # Python y no necesita el binario del motor, asi que da feedback de
+    # estilo en segundos, sin bajarse los ~100 MB de la release. Es a
+    # GDScript lo que ruff/black son al lado Python.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Instalar gdtoolkit (gdlint + gdformat)
+        run: python -m pip install --upgrade pip && python -m pip install "gdtoolkit>=4.5"
+
+      - name: Lint (gdlint)
+        # find en vez de un glob fijo para que no se quede fuera ninguna
+        # subcarpeta nueva (2d/tests/ y 2d/tools/ ya lo son). Las reglas
+        # que se apartan de las de serie estan en gdlintrc, en la raiz.
+        run: find 2d -name '*.gd' -print0 | xargs -0 --no-run-if-empty gdlint
+
+      - name: Formato (gdformat --check)
+        run: find 2d -name '*.gd' -print0 | xargs -0 --no-run-if-empty gdformat --check
+
