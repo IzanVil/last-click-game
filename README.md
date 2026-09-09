@@ -94,7 +94,7 @@ russian-roulette-2d/
 ├── instalar.bat         ← instalador (Windows)
 ├── run.sh               ← lanzador Linux / macOS
 ├── run.bat              ← lanzador Windows
-├── .github/workflows/   ← CI (tests Python + smoke test Godot)
+├── .github/workflows/   ← CI (Python + GDScript: tests, lint, formato, tipos)
 ├── docs/
 │   └── GUIA.md          ← guía técnica del proyecto
 ├── terminal/            ← versión de consola
@@ -104,6 +104,8 @@ russian-roulette-2d/
     ├── project.godot    ← proyecto Godot
     ├── RuletaEstado.gd  ← estado y reglas del juego (sin UI)
     ├── MainGame.gd      ← vista: Label/ColorRect/Tween
+    ├── TamborView.gd    ← vista del tambor (dibujo y animaciones)
+    ├── tests/           ← pruebas de la lógica, headless
     ├── scenes/          ← escenas (UI)
     └── assets/          ← recursos visuales
 ```
@@ -210,9 +212,18 @@ menos huecos vacíos. Sobrevive a las 8 rondas para coronarte como leyenda.
   mypy
   ```
 
-- **Pruebas y cobertura**: los juegos se pueden verificar desde línea de
-  comandos con Godot `--headless` para la versión gráfica, y ejecutando el
-  script para la terminal. La versión Python incluye una batería de tests en
+  Para GDScript, el equivalente es
+  [gdtoolkit](https://github.com/Scony/godot-gdscript-toolkit) (`gdlint` es a
+  GDScript lo que ruff a Python; `gdformat`, lo que black), que sigue el orden
+  de declaraciones y el ancho de línea del estilo oficial del motor:
+
+  ```bash
+  pip install "gdtoolkit>=4.5"
+  find 2d -name '*.gd' -print0 | xargs -0 gdlint
+  find 2d -name '*.gd' -print0 | xargs -0 gdformat --check
+  ```
+
+- **Pruebas y cobertura**: la versión Python incluye una batería de tests en
   `terminal/test_ruleta.py`, medida con [coverage.py](https://coverage.readthedocs.io/):
 
   ```bash
@@ -221,9 +232,22 @@ menos huecos vacíos. Sobrevive a las 8 rondas para coronarte como leyenda.
   coverage run -m unittest discover -s terminal && coverage report
   ```
 
+  La versión Godot prueba su lógica (`RuletaEstado.gd`, que no toca nodos ni
+  UI) en `2d/tests/`, sin addons ni dependencias, igual que la de terminal usa
+  solo `unittest` de la stdlib. Sale con código 1 si algo falla:
+
+  ```bash
+  godot --headless --script res://tests/test_ruleta_estado.gd --path 2d
+  # y, aparte, que la escena importe y parsee sin errores:
+  godot --headless --check-only --quit --path 2d
+  ```
+
 - **Integración continua**: GitHub Actions (`.github/workflows/ci.yml`) corre
-  en cada push/PR el lint, el formato, los tests con cobertura (matriz Python
-  3.11-3.13) y un smoke test de Godot en modo `--headless`.
+  en cada push/PR tres jobs en paralelo: `python-tests` (ruff, black, mypy y
+  tests con cobertura sobre la matriz Python 3.11-3.13), `godot-smoke-test`
+  (tests de la lógica en `--headless` más el chequeo de que la escena importa
+  y parsea) y `gdscript-lint` (gdlint y gdformat, sin necesidad de bajarse el
+  motor).
 
 ## 🧭 Hoja de ruta
 
@@ -239,6 +263,7 @@ menos huecos vacíos. Sobrevive a las 8 rondas para coronarte como leyenda.
 - [x] **Selector de dificultad** por CLI (`--huecos`/`--rondas` en la versión terminal)
 - [x] **Efectos de sonido** de disparo, victoria y derrota (versión Godot)
 - [x] **Animación del tambor** girando y revelando el disparo (versión Godot)
+- [x] **Tests de la lógica Godot** en `--headless`, y `gdlint`/`gdformat` en la CI
 
 ### 🎯 Próximos pasos
 - [ ] Modo «borracho» 🍺 (menos suerte y más humor)

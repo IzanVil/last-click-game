@@ -77,6 +77,14 @@ jobs:
           # hace el escaneo/reimportacion y sale solo (no necesita --quit).
           ./godot --headless --import --path 2d
 
+      - name: Tests de RuletaEstado (headless)
+        run: |
+          # Al reves que el smoke test de abajo, aqui el veredicto es el
+          # exit code y NO el log: los casos de dificultad invalida
+          # imprimen lineas "ERROR:" a proposito (son el push_error que
+          # se esta comprobando), asi que grepear daria un falso fallo.
+          ./godot --headless --script res://tests/test_ruleta_estado.gd --path 2d
+
       - name: Smoke test (--headless --check-only, falla si hay SCRIPT ERROR)
         run: |
           set -o pipefail
@@ -91,3 +99,31 @@ jobs:
             grep -E "SCRIPT ERROR|ERROR:" godot-check.log
             exit 1
           fi
+
+  gdscript-lint:
+    name: gdscript-lint
+    runs-on: ubuntu-latest
+    # Job aparte del de Godot a proposito: gdtoolkit es un paquete de
+    # Python y no necesita el binario del motor, asi que da feedback de
+    # estilo sin bajarse los ~100 MB de la release. Es a GDScript lo que
+    # ruff/black son al lado Python.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Instalar gdtoolkit (gdlint + gdformat)
+        run: python -m pip install --upgrade pip && python -m pip install "gdtoolkit>=4.5"
+
+      - name: Lint (gdlint)
+        # find en vez de un glob fijo para no olvidarse de subcarpetas
+        # nuevas (2d/tests/ ya es una). .godot/ esta en .gitignore, asi
+        # que en un checkout limpio no hay nada generado que excluir.
+        run: find 2d -name '*.gd' -print0 | xargs -0 --no-run-if-empty gdlint
+
+      - name: Formato (gdformat --check)
+        run: find 2d -name '*.gd' -print0 | xargs -0 --no-run-if-empty gdformat --check
