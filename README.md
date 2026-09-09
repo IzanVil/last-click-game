@@ -105,7 +105,7 @@ russian-roulette-2d/
     ├── RuletaEstado.gd  ← estado y reglas del juego (sin UI)
     ├── MainGame.gd      ← vista: Label/ColorRect/Tween
     ├── TamborView.gd    ← vista del tambor (dibujo y animaciones)
-    ├── tests/           ← pruebas de la lógica, headless
+    ├── tests/           ← pruebas headless (lógica y geometría del tambor)
     ├── scenes/          ← escenas (UI)
     └── assets/          ← recursos visuales
 ```
@@ -172,10 +172,13 @@ campo de número, botón para disparar y mensaje de resultado en pantalla.
 
 1. Abre Godot e importa el proyecto desde `2d/project.godot`.
 2. Pulsa **▶ Play** (o la tecla **F5**).
-3. Escribe un número del 1 al 10 (posición del tambor).
-4. Pulsa **Enter** o el botón **Disparar**.
+3. **Haz clic directamente en un hueco del tambor**; o, si prefieres el
+   teclado, escribe su número y pulsa **Enter** o el botón **Disparar**.
 
 En pantalla verás si sobrevives (`Click`) o si te ha tocado la bala (`BOOM`).
+Al perder se **destapa el resto del tambor**, para que veas lo cerca (o lo
+lejos) que estuviste: la bala que te alcanzó queda resaltada y las demás
+aparecen en un rojo más apagado.
 
 ### Sistema de 8 rondas
 
@@ -232,12 +235,15 @@ menos huecos vacíos. Sobrevive a las 8 rondas para coronarte como leyenda.
   coverage run -m unittest discover -s terminal && coverage report
   ```
 
-  La versión Godot prueba su lógica (`RuletaEstado.gd`, que no toca nodos ni
-  UI) en `2d/tests/`, sin addons ni dependencias, igual que la de terminal usa
-  solo `unittest` de la stdlib. Sale con código 1 si algo falla:
+  La versión Godot prueba en `2d/tests/` tanto su lógica (`RuletaEstado.gd`,
+  que no toca nodos ni UI) como la geometría pulsable del tambor —que lo que se
+  dibuja sea exactamente lo que se puede pulsar—, sin addons ni dependencias,
+  igual que la de terminal usa solo `unittest` de la stdlib. Salen con código 1
+  si algo falla:
 
   ```bash
   godot --headless --script res://tests/test_ruleta_estado.gd --path 2d
+  godot --headless --script res://tests/test_tambor_view.gd --path 2d
   # y, aparte, que la escena importe y parsee sin errores:
   godot --headless --check-only --quit --path 2d
   ```
@@ -264,6 +270,7 @@ menos huecos vacíos. Sobrevive a las 8 rondas para coronarte como leyenda.
 - [x] **Efectos de sonido** de disparo, victoria y derrota (versión Godot)
 - [x] **Animación del tambor** girando y revelando el disparo (versión Godot)
 - [x] **Tests de la lógica Godot** en `--headless`, y `gdlint`/`gdformat` en la CI
+- [x] **Tambor pulsable** con el ratón, y revelado del tambor completo al perder
 
 ### 🎯 Próximos pasos
 - [ ] Modo «borracho» 🍺 (menos suerte y más humor)
