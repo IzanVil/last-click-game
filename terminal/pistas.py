@@ -87,12 +87,38 @@ def generar_pista(
         if ultimo_disparo is None:
             raise ValueError("No hay disparo previo para dar una pista relativa.")
         if posicion_bala == ultimo_disparo:
-            # No deberia ocurrir en la practica: si coincidieran habria
-            # sido un impacto y la partida ya habria terminado antes de
-            # pedir pista. `mentir` no tiene un opuesto claro aqui.
+            # Ocurre de verdad, y ni siquiera es raro: la bala se mueve
+            # DESPUES de un disparo fallido (ver TamborJuicio.disparar),
+            # asi que puede acabar justo en el hueco que se acaba de
+            # probar. Con el patron "avanza" basta con disparar un hueco
+            # por delante de ella. Aqui `mentir` si tiene un opuesto
+            # claro: si la bala esta exactamente en el ultimo disparo,
+            # cualquiera de los dos lados es falso. Antes esta rama lo
+            # ignoraba, de modo que un evento "tambor_caliente" -que
+            # existe justo para mentir- acababa regalando la posicion
+            # exacta de la bala.
+            if not mentir:
+                return Pista(
+                    "La bala esta justo donde acabas de disparar.",
+                    frozenset({ultimo_disparo}),
+                )
+            # Se miente hacia un lado que exista: disparar al hueco 1 (o
+            # al ultimo) deja un lado sin ningun hueco, y una pista con
+            # cero candidatos se delataria sola al cruzarla.
+            lados = []
+            if ultimo_disparo > 1:
+                lados.append("izquierda")
+            if ultimo_disparo < huecos:
+                lados.append("derecha")
+            izquierda = generador.choice(lados) == "izquierda"
+            if izquierda:
+                return Pista(
+                    "La bala esta a la izquierda de tu ultimo disparo.",
+                    frozenset(h for h in rango if h < ultimo_disparo),
+                )
             return Pista(
-                "La bala esta justo donde acabas de disparar.",
-                frozenset({ultimo_disparo}),
+                "La bala esta a la derecha de tu ultimo disparo.",
+                frozenset(h for h in rango if h > ultimo_disparo),
             )
         izquierda = posicion_bala < ultimo_disparo
         if mentir:

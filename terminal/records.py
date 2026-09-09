@@ -44,6 +44,21 @@ class Records:
         self.faroles_acertados += faroles_acertados
 
 
+def _es_contador(valor: object) -> bool:
+    """True si `valor` sirve como contador de records: un entero >= 0.
+
+    Los campos de `Records` se escriben todos con aritmetica (`+= 1`,
+    `max(...)`), asi que un valor de otro tipo colado en el JSON no
+    revienta al cargarlo sino mucho despues, al terminar la partida:
+    `{"partidas_jugadas": "muchas"}` cargaba tal cual y estallaba con un
+    TypeError al registrar el resultado. Se descartan aqui y el campo se
+    queda con su valor por defecto. `bool` se excluye a proposito: es un
+    `int` para Python, pero un `true` en el JSON es un dato corrupto, no
+    un contador a 1.
+    """
+    return isinstance(valor, int) and not isinstance(valor, bool) and valor >= 0
+
+
 def cargar(ruta: Path | None = None) -> Records:
     """Carga los récords desde disco.
 
@@ -54,18 +69,26 @@ def cargar(ruta: Path | None = None) -> Records:
     ruta = ruta or ruta_por_defecto()
     try:
         datos = json.loads(ruta.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
+    except (OSError, ValueError):
+        # OSError cubre que el fichero no exista (FileNotFoundError lo es)
+        # y cualquier problema de lectura; ValueError cubre las dos formas
+        # de contenido invalido: JSON mal formado (JSONDecodeError) y
+        # bytes que no son UTF-8 (UnicodeDecodeError). Antes se listaba
+        # JSONDecodeError a mano y el fichero no-UTF-8 se escapaba, asi
+        # que unos records corruptos impedian arrancar el juego.
         return Records()
 
     campos_validos = {campo.name for campo in fields(Records)}
     if not isinstance(datos, dict):
         return Records()
     datos_filtrados = {
-        clave: valor for clave, valor in datos.items() if clave in campos_validos
+        clave: valor
+        for clave, valor in datos.items()
+        if clave in campos_validos and _es_contador(valor)
     }
     try:
         return Records(**datos_filtrados)
-    except TypeError:
+    except TypeError:  # pragma: no cover - _es_contador ya filtra el caso
         return Records()
 
 

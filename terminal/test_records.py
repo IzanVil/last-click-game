@@ -113,5 +113,57 @@ class TestResumen(unittest.TestCase):
         self.assertIn("0/0", texto)
 
 
+class TestCargarCorrupto(unittest.TestCase):
+    """cargar() promete no reventar con un fichero roto: un records
+    corrupto no deberia impedir jugar. Estos son los dos casos en los
+    que esa promesa no se cumplia."""
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.ruta = Path(self.dir.name) / "records.json"
+
+    def test_fichero_que_no_es_utf8_no_revienta(self):
+        # Antes se capturaba json.JSONDecodeError a mano, pero unos bytes
+        # que no son UTF-8 fallan antes, en read_text(), con
+        # UnicodeDecodeError: el juego no arrancaba.
+        self.ruta.write_bytes(b"\xff\xfe{}")
+        self.assertEqual(records.cargar(self.ruta), records.Records())
+
+    def test_valores_de_tipo_erroneo_caen_al_valor_por_defecto(self):
+        # El JSON es valido, asi que cargaba tal cual: los contadores
+        # quedaban con un str/None dentro y la partida estallaba mucho
+        # despues, al registrar el resultado (`+= 1` sobre un str).
+        self.ruta.write_text(
+            json.dumps(
+                {
+                    "partidas_jugadas": "muchas",
+                    "dias_maximos": None,
+                    "puntos_maximos": True,
+                    "faroles_usados": -3,
+                    "faroles_acertados": 7,
+                }
+            ),
+            encoding="utf-8",
+        )
+        cargados = records.cargar(self.ruta)
+
+        # Solo sobrevive el unico contador que era un entero valido.
+        self.assertEqual(cargados, records.Records(faroles_acertados=7))
+        # Y lo cargado se puede usar sin que reviente al cerrar partida.
+        cargados.registrar_partida(
+            dias=2, puntos=10, faroles_usados=1, faroles_acertados=1
+        )
+        self.assertEqual(cargados.partidas_jugadas, 1)
+
+    def test_ida_y_vuelta_de_un_fichero_sano(self):
+        # La red de seguridad no debe cargarse el caso normal.
+        original = records.Records(
+            partidas_jugadas=2, dias_maximos=4, puntos_maximos=64
+        )
+        records.guardar(original, self.ruta)
+        self.assertEqual(records.cargar(self.ruta), original)
+
+
 if __name__ == "__main__":
     unittest.main()
