@@ -43,7 +43,7 @@ func _on_disparar_btn_pressed() -> void:
 		return
 
 	var numero: int = entrada_numero.text.to_int()
-	if numero < 1 or numero > RuletaEstado.HUECOS:
+	if not RuletaEstado.es_numero_valido(numero):
 		_estado.disparar(numero)  # deja que RuletaEstado emita entrada_invalida
 		return
 
