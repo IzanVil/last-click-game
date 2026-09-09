@@ -1,9 +1,11 @@
-extends Control
 class_name TamborView
+extends Control
 ## Vista del tambor de la ruleta: dibuja los huecos en corona y anima el
 ## giro y el revelado de un disparo. No conoce reglas del juego (rondas,
 ## balas, condicion de victoria): solo pinta los estados que le pasa
 ## MainGame.gd via preparar_ronda()/revelar().
+
+enum EstadoHueco { OCULTO, VACIO, BALA }
 
 const RADIO_TAMBOR := 90.0
 const RADIO_HUECO := 18.0
@@ -16,8 +18,6 @@ const COLOR_TEXTO := Color(0.95, 0.95, 0.95, 1)
 const COLOR_ANILLO := Color(0.5, 0.45, 0.15, 1)
 const COLOR_TENSION := Color(0.95, 0.85, 0.25, 1)
 
-enum EstadoHueco { OCULTO, VACIO, BALA }
-
 var _num_huecos := 10
 var _estados: Array[int] = []
 
@@ -28,7 +28,9 @@ var _pulso_tension := 0.0
 
 
 func _ready() -> void:
-	custom_minimum_size = Vector2((RADIO_TAMBOR + RADIO_HUECO) * 2, (RADIO_TAMBOR + RADIO_HUECO) * 2)
+	custom_minimum_size = Vector2(
+		(RADIO_TAMBOR + RADIO_HUECO) * 2, (RADIO_TAMBOR + RADIO_HUECO) * 2
+	)
 	resized.connect(func(): pivot_offset = size / 2.0)
 	pivot_offset = size / 2.0
 
@@ -126,6 +128,11 @@ func _draw() -> void:
 		var texto := str(i + 1)
 		var text_size := font.get_string_size(texto, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
 		draw_string(
-			font, pos - text_size / 2.0 + Vector2(0, text_size.y * 0.35),
-			texto, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, COLOR_TEXTO
+			font,
+			pos - text_size / 2.0 + Vector2(0, text_size.y * 0.35),
+			texto,
+			HORIZONTAL_ALIGNMENT_CENTER,
+			-1,
+			font_size,
+			COLOR_TEXTO
 		)

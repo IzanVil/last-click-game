@@ -3,10 +3,18 @@ extends Control
 ## actualiza Label/ColorRect/Tween en pantalla. No conoce reglas del
 ## juego (rondas, balas, condicion de victoria viven en RuletaEstado).
 
+const RuletaEstado := preload("res://RuletaEstado.gd")
+
 const COLOR_NORMAL := Color(0.15, 0.15, 0.2, 1)
 const COLOR_BOOM := Color(0.45, 0.05, 0.05, 1)
 const COLOR_CLICK := Color(0.05, 0.3, 0.1, 1)
 const COLOR_VICTORIA := Color(0.25, 0.2, 0.05, 1)
+
+var _estado := RuletaEstado.new()
+
+## Evita disparos dobles mientras tambor.tension() esta en marcha: el
+## resultado ya esta decidido, pero la vista aun no lo ha revelado.
+var _disparo_bloqueado := false
 
 @onready var fondo: ColorRect = $Fondo
 @onready var etiqueta_resultado: Label = $Centro/Columnas/Resultado
@@ -17,14 +25,6 @@ const COLOR_VICTORIA := Color(0.25, 0.2, 0.05, 1)
 @onready var sonido_disparo: AudioStreamPlayer = $SonidoDisparo
 @onready var sonido_victoria: AudioStreamPlayer = $SonidoVictoria
 @onready var sonido_derrota: AudioStreamPlayer = $SonidoDerrota
-
-const RuletaEstado := preload("res://RuletaEstado.gd")
-
-var _estado := RuletaEstado.new()
-
-## Evita disparos dobles mientras tambor.tension() esta en marcha: el
-## resultado ya esta decidido, pero la vista aun no lo ha revelado.
-var _disparo_bloqueado := false
 
 
 func _ready() -> void:
@@ -57,11 +57,10 @@ func _on_disparar_btn_pressed() -> void:
 
 func _on_ronda_preparada(ronda: int, balas: int, vacios: int) -> void:
 	etiqueta_instrucciones.text = (
-		"Ronda " + str(ronda) + " de " + str(RuletaEstado.RONDAS)
-		+ " - Tambor de " + str(RuletaEstado.HUECOS) + " huecos: "
-		+ str(balas) + " balas y " + str(vacios) + " vacios."
+		"Ronda %d de %d - Tambor de %d huecos: %d balas y %d vacios."
+		% [ronda, RuletaEstado.RONDAS, RuletaEstado.HUECOS, balas, vacios]
 	)
-	etiqueta_resultado.text = "Elige un numero del 1 al 10 y dispara..."
+	etiqueta_resultado.text = ("Elige un numero del 1 al %d y dispara..." % RuletaEstado.HUECOS)
 	_disparo_bloqueado = false
 	entrada_numero.editable = true
 	disparar_btn.disabled = false
@@ -69,13 +68,15 @@ func _on_ronda_preparada(ronda: int, balas: int, vacios: int) -> void:
 	entrada_numero.grab_focus()
 	tambor.preparar_ronda(RuletaEstado.HUECOS)
 	tambor.girar()
-	print("\n--- RULETA RUSA - Ronda ", ronda, "/", RuletaEstado.RONDAS, " ---")
-	print("Balas: ", _estado.posiciones_bala, " / Vacios: 1-", RuletaEstado.HUECOS, " menos las balas.")
+	print("\n--- RULETA RUSA - Ronda %d/%d ---" % [ronda, RuletaEstado.RONDAS])
+	print(
+		"Balas: %s / Vacios: 1-%d menos las balas." % [_estado.posiciones_bala, RuletaEstado.HUECOS]
+	)
 
 
 func _on_entrada_invalida(_numero: int) -> void:
 	etiqueta_resultado.text = (
-		"Ese numero no esta en el tambor. Elige entre 1 y " + str(RuletaEstado.HUECOS) + "."
+		"Ese numero no esta en el tambor. Elige entre 1 y %d." % RuletaEstado.HUECOS
 	)
 	entrada_numero.clear()
 	entrada_numero.grab_focus()
@@ -83,10 +84,9 @@ func _on_entrada_invalida(_numero: int) -> void:
 
 func _on_impacto(ronda: int, numero: int) -> void:
 	etiqueta_resultado.text = (
-		"BOOM. La posicion " + str(numero) + " tenia una bala. Perdiste en la ronda "
-		+ str(ronda) + "."
+		"BOOM. La posicion %d tenia una bala. Perdiste en la ronda %d." % [numero, ronda]
 	)
-	print("💥 BOOM. Perdiste en la ronda ", ronda, ". Bala en ", numero, ".")
+	print("💥 BOOM. Perdiste en la ronda %d. Bala en %d." % [ronda, numero])
 	tambor.revelar(numero, true)
 	sonido_disparo.play()
 	sonido_derrota.play()
@@ -97,10 +97,9 @@ func _on_impacto(ronda: int, numero: int) -> void:
 
 func _on_click_seguro(ronda: int, numero: int) -> void:
 	etiqueta_resultado.text = (
-		"Click. La posicion " + str(numero) + " estaba vacia. Sobreviviste a la ronda "
-		+ str(ronda) + "."
+		"Click. La posicion %d estaba vacia. Sobreviviste a la ronda %d." % [numero, ronda]
 	)
-	print("👉 Click. Sobreviviste a la ronda ", ronda, ".")
+	print("👉 Click. Sobreviviste a la ronda %d." % ronda)
 	tambor.revelar(numero, false)
 	sonido_disparo.play()
 	if ronda < RuletaEstado.RONDAS:
@@ -113,8 +112,8 @@ func _on_click_seguro(ronda: int, numero: int) -> void:
 
 
 func _on_partida_ganada(rondas: int) -> void:
-	etiqueta_resultado.text = "🏆 Sobreviviste las " + str(rondas) + " rondas. ERES UNA LEYENDA."
-	print("🏆 Sobreviviste las ", rondas, " rondas. Eres una leyenda.")
+	etiqueta_resultado.text = ("🏆 Sobreviviste las %d rondas. ERES UNA LEYENDA." % rondas)
+	print("🏆 Sobreviviste las %d rondas. Eres una leyenda." % rondas)
 	sonido_victoria.play()
 	_flash(COLOR_VICTORIA)
 	await get_tree().create_timer(2.5).timeout

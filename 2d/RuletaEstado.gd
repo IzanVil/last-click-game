@@ -9,9 +9,6 @@ extends RefCounted
 ## (terminal/ruleta.py): tambor de HUECOS huecos, RONDAS rondas y una bala
 ## mas en cada ronda.
 
-const HUECOS := 10
-const RONDAS := 8
-
 ## Se emite al preparar una ronda nueva, con las balas ya colocadas.
 signal ronda_preparada(ronda: int, balas: int, vacios: int)
 ## Se emite cuando el numero elegido no esta entre 1 y HUECOS.
@@ -22,6 +19,9 @@ signal impacto(ronda: int, numero: int)
 signal click_seguro(ronda: int, numero: int)
 ## Se emite al sobrevivir la ultima ronda.
 signal partida_ganada(rondas: int)
+
+const HUECOS := 10
+const RONDAS := 8
 
 var ronda_actual := 1
 var posiciones_bala: Array[int] = []
@@ -44,11 +44,22 @@ static func validar_dificultad(huecos: int, rondas: int) -> bool:
 		push_error("rondas debe ser al menos 1 (recibido: %d)." % rondas)
 		return false
 	if rondas > huecos:
+		var motivo := "necesitaria mas balas de las que caben en el tambor."
 		push_error(
-			"rondas (%d) no puede ser mayor que huecos (%d): la ultima ronda necesitaria mas balas de las que caben en el tambor." % [rondas, huecos]
+			(
+				"rondas (%d) no puede ser mayor que huecos (%d): la ultima ronda %s"
+				% [rondas, huecos, motivo]
+			)
 		)
 		return false
 	return true
+
+
+## Unico sitio donde vive la regla "que numeros acepta el tambor". La
+## vista la consulta para decidir si merece la pena animar el disparo,
+## en vez de repetir el rango 1..HUECOS por su cuenta.
+static func es_numero_valido(numero: int) -> bool:
+	return numero >= 1 and numero <= HUECOS
 
 
 ## Arranca una partida desde la ronda 1. Devuelve false (sin emitir nada)
@@ -100,13 +111,6 @@ func disparar(numero: int) -> void:
 	click_seguro.emit(ronda_actual, numero)
 	if ronda_actual >= RONDAS:
 		partida_ganada.emit(RONDAS)
-
-
-## Unico sitio donde vive la regla "que numeros acepta el tambor". La
-## vista la consulta para decidir si merece la pena animar el disparo,
-## en vez de repetir el rango 1..HUECOS por su cuenta.
-static func es_numero_valido(numero: int) -> bool:
-	return numero >= 1 and numero <= HUECOS
 
 
 ## Reparte `cantidad` balas en huecos distintos del tambor.
