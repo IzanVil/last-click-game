@@ -35,14 +35,26 @@ func _ready() -> void:
 	_estado.click_seguro.connect(_on_click_seguro)
 	_estado.partida_ganada.connect(_on_partida_ganada)
 	entrada_numero.text_submitted.connect(func(_texto): _on_disparar_btn_pressed())
+	tambor.hueco_pulsado.connect(_on_hueco_pulsado)
 	_estado.iniciar_juego()
 
 
 func _on_disparar_btn_pressed() -> void:
+	_intentar_disparo(entrada_numero.text.to_int())
+
+
+## Pulsar un hueco es otra forma de escribir su numero: se refleja en la
+## caja para que quede claro a que se disparo, y sigue el mismo camino.
+func _on_hueco_pulsado(numero: int) -> void:
+	entrada_numero.text = str(numero)
+	_intentar_disparo(numero)
+
+
+## Unico camino de disparo, venga del boton, del Enter o del tambor.
+func _intentar_disparo(numero: int) -> void:
 	if _disparo_bloqueado:
 		return
 
-	var numero: int = entrada_numero.text.to_int()
 	if not RuletaEstado.es_numero_valido(numero):
 		_estado.disparar(numero)  # deja que RuletaEstado emita entrada_invalida
 		return
@@ -60,7 +72,7 @@ func _on_ronda_preparada(ronda: int, balas: int, vacios: int) -> void:
 		"Ronda %d de %d - Tambor de %d huecos: %d balas y %d vacios."
 		% [ronda, RuletaEstado.RONDAS, RuletaEstado.HUECOS, balas, vacios]
 	)
-	etiqueta_resultado.text = ("Elige un numero del 1 al %d y dispara..." % RuletaEstado.HUECOS)
+	etiqueta_resultado.text = "Pulsa un hueco del tambor, o escribe su numero y dispara..."
 	_disparo_bloqueado = false
 	entrada_numero.editable = true
 	disparar_btn.disabled = false
@@ -88,6 +100,7 @@ func _on_impacto(ronda: int, numero: int) -> void:
 	)
 	print("💥 BOOM. Perdiste en la ronda %d. Bala en %d." % [ronda, numero])
 	tambor.revelar(numero, true)
+	tambor.revelar_balas(_estado.posiciones_bala)
 	sonido_disparo.play()
 	sonido_derrota.play()
 	_flash(COLOR_BOOM)
