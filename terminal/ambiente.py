@@ -7,6 +7,7 @@ cierra la partida, y decide con que color y a que ritmo pintarlo.
 """
 
 import random
+import textwrap
 from typing import NamedTuple
 
 # Ancho interior de los carteles (ver `cartel`). Cabe de sobra en los 80
@@ -67,17 +68,34 @@ def mensaje_de_dia(dia: int, rng: random.Random | None = None) -> str:
 
 
 def cartel(titulo: str, texto: str = "", ancho: int = ANCHO_CARTEL) -> tuple[str, ...]:
-    """Monta un cartel enmarcado con el titulo (y el texto) centrados."""
-    marco_superior = "╔" + "═" * ancho + "╗"
-    marco_inferior = "╚" + "═" * ancho + "╝"
-    vacia = "║" + " " * ancho + "║"
+    """Monta un cartel enmarcado con el titulo (y el texto) centrados.
 
-    lineas = [marco_superior, vacia, "║" + titulo.center(ancho) + "║"]
-    if texto:
+    El texto se reparte en varias lineas si no cabe de una, y el marco se
+    ensancha si ni el titulo ni una palabra suelta caben en `ancho`.
+    str.center() devuelve la cadena intacta cuando ya es mas larga que el
+    ancho pedido, asi que sin esto un texto largo no se ajustaba: se
+    salia por los lados y dejaba esa linea mas ancha que el marco. Los
+    textos de evento (~53 caracteres frente a los 46 de ANCHO_CARTEL) ya
+    lo hacian, y el cartel de evento sale muy a menudo.
+    """
+    lineas_texto = textwrap.wrap(texto, width=ancho - 2) if texto else []
+    # El +2 deja un espacio a cada lado; se toma el mayor por si el
+    # titulo, o una palabra que textwrap no haya podido partir, se pasan.
+    ancho_real = max(
+        [ancho, len(titulo) + 2] + [len(linea) + 2 for linea in lineas_texto]
+    )
+
+    vacia = "║" + " " * ancho_real + "║"
+    lineas = [
+        "╔" + "═" * ancho_real + "╗",
+        vacia,
+        "║" + titulo.center(ancho_real) + "║",
+    ]
+    if lineas_texto:
         lineas.append(vacia)
-        lineas.append("║" + texto.center(ancho) + "║")
+        lineas.extend("║" + linea.center(ancho_real) + "║" for linea in lineas_texto)
     lineas.append(vacia)
-    lineas.append(marco_inferior)
+    lineas.append("╚" + "═" * ancho_real + "╝")
     return tuple(lineas)
 
 

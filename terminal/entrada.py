@@ -153,7 +153,11 @@ def seleccionar(
             return seleccion
         elif tecla in (ESCAPE, "q"):
             return None
-        elif tecla.isdigit() and 1 <= int(tecla) <= huecos:
+        # isdecimal() y no isdigit(): isdigit() tambien da True para los
+        # superindices ("²", "³", que salen con AltGr+2/3 en varias
+        # distribuciones de teclado), y con esos int() lanza ValueError.
+        # Pulsarlos aqui tumbaba la seleccion con un traceback.
+        elif tecla.isdecimal() and 1 <= int(tecla) <= huecos:
             seleccion = int(tecla)
         else:
             continue
