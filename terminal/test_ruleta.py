@@ -5,6 +5,7 @@ from unittest.mock import patch
 import ambiente
 import apuestas
 import efectos
+import estado
 import eventos
 import farol
 import historial
@@ -727,19 +728,27 @@ class TestVersionTexto(unittest.TestCase):
             self.assertIn("sin instalar", ruleta._version_texto())
 
 
-class TestMain(unittest.TestCase):
+class CasoQueLlamaMain(unittest.TestCase):
+    """Base para los tests que ejecutan main() de verdad.
+
+    main() enciende los efectos segun los flags que reciba, y AJUSTES es
+    global: sin devolverlo a su sitio despues de cada test, el resto del
+    modulo se queda con las animaciones encendidas y cada pausa() y cada
+    escribir() pasan a dormir de verdad (la suite entera se iba a mas de
+    25 segundos por esto). Tambien silencia el cursor, que si no escribe
+    codigos de escape en la terminal de quien lanza los tests.
+    """
+
     def setUp(self):
-        # main() vuelve a mostrar el cursor al salir, y eso escribe un
-        # codigo de escape en la terminal de quien lanza los tests.
         parche = patch("ruleta.efectos.cursor")
         parche.start()
         self.addCleanup(parche.stop)
 
     def tearDown(self):
-        # main() enciende o apaga los efectos segun los flags que reciba:
-        # despues de cada test hay que volver a dejar la interfaz muda
-        # para el resto del modulo (ver setUpModule).
         efectos.configurar(animaciones=False, sonido=False)
+
+
+class TestMain(CasoQueLlamaMain):
 
     @patch("ruleta.jugar")
     def test_pasa_huecos_y_marcas_a_jugar(self, mock_jugar):
@@ -1298,6 +1307,70 @@ class TestFlujoAvanzado(unittest.TestCase):
         self.assertEqual(mock_oscurecer.call_count, 3)
         self.assertEqual(mock_latido.call_count, 3)
         mock_retirada.assert_called_once()
+
+
+class TestSemilla(CasoQueLlamaMain):
+    def test_seed_hace_la_partida_reproducible(self):
+        # Los modulos de logica caen en el `random` global cuando no se
+        # les pasa un rng propio, que es lo que hace la partida de
+        # verdad: sembrarlo fija tambor, patron, pistas y eventos.
+        def tirada():
+            tambor = estado.TamborJuicio(huecos=8)
+            return (tambor.patron, tambor.posicion_bala, eventos.tirar_evento(1.0))
+
+        with patch("ruleta.jugar"):
+            ruleta.main(["--seed", "1234"])
+        primera = tirada()
+
+        with patch("ruleta.jugar"):
+            ruleta.main(["--seed", "1234"])
+        self.assertEqual(tirada(), primera)
+
+    def test_semillas_distintas_dan_partidas_distintas(self):
+        def tirada_larga():
+            return [estado.TamborJuicio(huecos=8).posicion_bala for _ in range(20)]
+
+        with patch("ruleta.jugar"):
+            ruleta.main(["--seed", "1"])
+        con_1 = tirada_larga()
+
+        with patch("ruleta.jugar"):
+            ruleta.main(["--seed", "2"])
+        self.assertNotEqual(tirada_larga(), con_1)
+
+    def test_sin_seed_no_toca_el_generador(self):
+        # Sin --seed la partida debe seguir siendo aleatoria: si main()
+        # sembrara siempre, dos arranques seguidos darian lo mismo.
+        with patch("ruleta.jugar"), patch("ruleta.random.seed") as mock_seed:
+            ruleta.main([])
+        mock_seed.assert_not_called()
+
+
+class TestCodigoDeSalida(CasoQueLlamaMain):
+    # main() devuelve ahora el codigo de salida (lo consume el
+    # sys.exit(main()) del __main__ y el comando `ruleta` de setuptools).
+    # Antes devolvia None y el juego salia siempre con 0.
+    def test_partida_normal_sale_con_cero(self):
+        with patch("ruleta.jugar"):
+            self.assertEqual(ruleta.main([]), 0)
+
+    def test_records_sale_con_cero(self):
+        with patch("ruleta.records.cargar", return_value=records.Records()):
+            with patch("builtins.print"):
+                self.assertEqual(ruleta.main(["--records"]), 0)
+
+    def test_ctrl_c_sale_con_130(self):
+        # Convencion del shell para una interrupcion: 128 + SIGINT(2).
+        with patch("ruleta.jugar", side_effect=KeyboardInterrupt):
+            with patch("builtins.print"):
+                self.assertEqual(ruleta.main([]), 130)
+
+    def test_eof_sale_con_cero(self):
+        # Quedarse sin entrada no es un fallo, solo el final de la
+        # partida: no merece un codigo de error.
+        with patch("ruleta.jugar", side_effect=EOFError):
+            with patch("builtins.print"):
+                self.assertEqual(ruleta.main([]), 0)
 
 
 if __name__ == "__main__":

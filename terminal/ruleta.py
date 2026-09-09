@@ -13,6 +13,8 @@ paquete (`terminal.ruleta`, con imports relativos) como ejecutado suelto
 
 import argparse
 import os
+import random
+import sys
 import textwrap
 from dataclasses import dataclass, field
 from functools import partial
@@ -988,6 +990,15 @@ def _parsear_args(argv: list[str] | None = None) -> argparse.Namespace:
         version=f"%(prog)s {_version_texto()}",
     )
     parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help=(
+            "Semilla para que la partida sea reproducible "
+            "(mismo tambor, mismas pistas y mismos eventos)."
+        ),
+    )
+    parser.add_argument(
         "--dificultad",
         choices=sorted(DIFICULTADES),
         default="normal",
@@ -1049,7 +1060,7 @@ def _parsear_args(argv: list[str] | None = None) -> argparse.Namespace:
     return args
 
 
-def main(argv: list[str] | None = None) -> None:
+def main(argv: list[str] | None = None) -> int:
     """Punto de entrada real del juego (usado por `run.sh`/`run.bat` via
     `__main__` y por el comando `ruleta` instalable via pyproject.toml):
     envuelve jugar()/jugar_duelo() para que Ctrl+C siempre salga con el
@@ -1057,12 +1068,26 @@ def main(argv: list[str] | None = None) -> None:
     de las dos vias se haya lanzado. `argv=None` hace que argparse lea
     sys.argv real (comportamiento normal); se le puede pasar una lista
     para lanzar el juego con otros parametros sin pasar por la terminal.
+
+    Devuelve el codigo de salida del proceso, que es lo que espera tanto
+    el `sys.exit(main())` de aqui abajo como el comando `ruleta` que
+    genera setuptools: antes no devolvia nada, asi que el juego salia
+    siempre con 0 y un `ruleta && algo` encadenaba aunque el jugador
+    hubiera abortado con Ctrl+C.
     """
     args = _parsear_args(argv)
 
     if args.records:
         print(records.resumen(records.cargar()))
-        return
+        return 0
+
+    if args.seed is not None:
+        # Basta con sembrar el generador global: todos los modulos de
+        # logica (estado, pistas, eventos, ambiente) aceptan un `rng`
+        # propio pero caen en `random` cuando no se les pasa ninguno,
+        # que es justo lo que hace la partida de verdad. Sembrarlo aqui
+        # fija de una vez el tambor, el patron, las pistas y los eventos.
+        random.seed(args.seed)
 
     efectos.configurar(animaciones=not args.sin_animaciones, sonido=not args.sin_sonido)
 
@@ -1073,7 +1098,7 @@ def main(argv: list[str] | None = None) -> None:
             )
         else:
             jugar(huecos=args.huecos, marcas=args.marcas, oscuridad=args.oscuridad)
-    except (KeyboardInterrupt, EOFError):
+    except (KeyboardInterrupt, EOFError) as interrupcion:
         # EOFError ademas de KeyboardInterrupt: el juego se apoya en
         # input() en seis sitios (la accion del turno, la posicion, el
         # farol, las dos preguntas de "otra partida?" y la pausa entre
@@ -1084,9 +1109,15 @@ def main(argv: list[str] | None = None) -> None:
         # traceback de EOFError en vez de la despedida.
         print()
         print(AMARILLO + "   Hasta la proxima. El tambor siempre espera." + RESET)
+        # Ctrl+C es una interrupcion de verdad, y la convencion del shell
+        # para eso es 128+SIGINT = 130; quedarse sin entrada (Ctrl+D, un
+        # pipe agotado) no es ningun fallo, solo el final de la partida.
+        return 130 if isinstance(interrupcion, KeyboardInterrupt) else 0
     finally:
         efectos.cursor(True)
 
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
