@@ -152,15 +152,23 @@ func _dibujar_engranaje(
 	for i in range(dientes):
 		var angulo := giro + i * TAU / dientes
 		var direccion := Vector2(cos(angulo), sin(angulo))
-		draw_line(centro + direccion * (radio * 0.78), centro + direccion * (radio * 0.78 + largo),
-			color, grosor)
+		draw_line(
+			centro + direccion * (radio * 0.78),
+			centro + direccion * (radio * 0.78 + largo),
+			color,
+			grosor
+		)
 
 	# Radios y buje: sin ellos la rueda gira sin que se note que gira.
 	for i in range(6):
 		var angulo := giro + i * TAU / 6.0
 		var direccion := Vector2(cos(angulo), sin(angulo))
-		draw_line(centro + direccion * (radio * 0.22), centro + direccion * (radio * 0.74),
-			color_hueco, radio * 0.05)
+		draw_line(
+			centro + direccion * (radio * 0.22),
+			centro + direccion * (radio * 0.74),
+			color_hueco,
+			radio * 0.05
+		)
 	draw_arc(centro, radio * 0.20, 0, TAU, 24, color_hueco, radio * 0.06)
 
 
@@ -170,9 +178,13 @@ func _dibujar_engranaje(
 func _crear_luz() -> GradientTexture2D:
 	var degradado := Gradient.new()
 	degradado.offsets = PackedFloat32Array([0.0, 0.45, 1.0])
-	degradado.colors = PackedColorArray([
-		Color(1, 1, 1, 1), Color(1, 1, 1, 0.35), Color(1, 1, 1, 0),
-	])
+	degradado.colors = PackedColorArray(
+		[
+			Color(1, 1, 1, 1),
+			Color(1, 1, 1, 0.35),
+			Color(1, 1, 1, 0),
+		]
+	)
 
 	var textura := GradientTexture2D.new()
 	textura.gradient = degradado

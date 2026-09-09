@@ -1,0 +1,19 @@
+# Configuracion de gdlint (gdtoolkit) para los scripts de 2d/.
+# Solo se listan las desviaciones; el resto de reglas quedan como vienen
+# por defecto (ver `gdlint --dump-default-config`).
+
+disable:
+# Orden de declaraciones del estilo oficial (signals, enums, consts,
+# vars, @onready vars, metodos). Ponerlo en verde hoy obliga a mover
+# bloques enteros en MainGame.gd y RuletaEstado.gd, que son los dos
+# ficheros mas grandes y los que mas se estan tocando: mucho conflicto
+# y mucho `git blame` roto a cambio de valor solo estetico. Se deja
+# apagado a proposito, no por descuido; activarlo merece su propio
+# cambio, coordinado con quien este editando esos ficheros.
+- class-definitions-order
+
+# MainGame.gd pasa de las 1000 lineas por defecto. El limite se sube
+# para que la regla siga avisando si el fichero se dispara, en vez de
+# apagarla: que ese fichero pida partirse es un problema real, pero es
+# una refactorizacion, no algo que deba colar un linter recien puesto.
+max-file-lines: 1400

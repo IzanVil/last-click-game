@@ -327,19 +327,33 @@ func _pintar_records() -> void:
 	# La cabecera va en color, no en negrita: la negrita de Courier Prime no
 	# mide lo mismo que la redonda y desalinearia las columnas.
 	var lineas: Array[String] = [
-		"[color=#%s]%s %s %s  %s[/color]" % [
-			_con_contraste(Paleta.BRONCE).to_html(false),
-			"  #", "DIAS".rpad(6), "PUNTOS".rpad(8), "FECHA",
-		]
+		(
+			"[color=#%s]%s %s %s  %s[/color]"
+			% [
+				_con_contraste(Paleta.BRONCE).to_html(false),
+				"  #",
+				"DIAS".rpad(6),
+				"PUNTOS".rpad(8),
+				"FECHA",
+			]
+		)
 	]
 	for i in range(_records.mejores.size()):
 		var marca: Dictionary = _records.mejores[i]
-		lineas.append("%s %s %s  %s" % [
-			("%d." % (i + 1)).lpad(3),
-			str(marca["dias"]).rpad(6),
-			str(marca["puntos"]).rpad(8),
-			marca.get("fecha", ""),
-		])
+		(
+			lineas
+			. append(
+				(
+					"%s %s %s  %s"
+					% [
+						("%d." % (i + 1)).lpad(3),
+						str(marca["dias"]).rpad(6),
+						str(marca["puntos"]).rpad(8),
+						marca.get("fecha", ""),
+					]
+				)
+			)
+		)
 	records_tabla.text = "\n".join(lineas)
 
 
@@ -399,8 +413,9 @@ func _preparar_controles_de_ajustes() -> void:
 ## terminal. El icono se tapa con una textura de un pixel transparente.
 func _vestir_casillas() -> void:
 	var invisible := _icono_invisible()
-	for casilla in [duelo_check, efectos_check, texto_check, contraste_check, sonido_check,
-			pantalla_check]:
+	for casilla in [
+		duelo_check, efectos_check, texto_check, contraste_check, sonido_check, pantalla_check
+	]:
 		casilla.set_meta("texto_base", casilla.text)
 		casilla.add_theme_icon_override("checked", invisible)
 		casilla.add_theme_icon_override("unchecked", invisible)
@@ -519,7 +534,8 @@ func _iconos_del_hud() -> Array[Icono]:
 
 func _aplicar_pantalla_completa() -> void:
 	var modo := (
-		DisplayServer.WINDOW_MODE_FULLSCREEN if _ajustes.pantalla_completa
+		DisplayServer.WINDOW_MODE_FULLSCREEN
+		if _ajustes.pantalla_completa
 		else DisplayServer.WINDOW_MODE_WINDOWED
 	)
 	if DisplayServer.window_get_mode() != modo:
@@ -544,8 +560,14 @@ func _preparar_buses() -> void:
 	for reproductor in [musica_base, musica_tension]:
 		reproductor.bus = BUS_MUSICA
 	for reproductor in [
-		sonido_disparo, sonido_victoria, sonido_derrota, sonido_engranaje,
-		sonido_marca, sonido_fallo, sonido_clic, sonido_calor,
+		sonido_disparo,
+		sonido_victoria,
+		sonido_derrota,
+		sonido_engranaje,
+		sonido_marca,
+		sonido_fallo,
+		sonido_clic,
+		sonido_calor,
 	]:
 		reproductor.bus = BUS_EFECTOS
 
@@ -714,7 +736,8 @@ func _on_cerrar_pausa_pressed() -> void:
 
 
 func _texto_de_ayuda() -> String:
-	return """El tambor tiene una bala. Cada disparo que falla la mueve un
+	return (
+		"""El tambor tiene una bala. Cada disparo que falla la mueve un
 paso segun un patron oculto: deducirlo es el juego.
 
 DISPARAR arriesga la vida y dobla lo que llevas en juego.
@@ -726,9 +749,9 @@ Cada %d disparos sobrevividos son un dia de vida, que es lo
 que de verdad cuenta para el record.
 
 Elige hueco con el raton o escribiendo su numero. H abre esta
-ayuda, Escape abre los ajustes.""" % [
-		RuletaEstado.BONO_MARCA_ACERTADA, RuletaEstado.DISPAROS_POR_DIA
-	]
+ayuda, Escape abre los ajustes."""
+		% [RuletaEstado.BONO_MARCA_ACERTADA, RuletaEstado.DISPAROS_POR_DIA]
+	)
 
 
 # --- Menu previo a la partida -------------------------------------------------
@@ -964,8 +987,10 @@ func _on_dia_completado(dia: int) -> void:
 func _on_farol_resuelto(hueco: int, acierto: bool, en_juego: int, marcas_restantes: int) -> void:
 	if acierto:
 		_mostrar_resultado(
-			"Farol acertado: el hueco %d estaba vacio. +%d puntos."
-			% [hueco, RuletaEstado.BONO_MARCA_ACERTADA]
+			(
+				"Farol acertado: el hueco %d estaba vacio. +%d puntos."
+				% [hueco, RuletaEstado.BONO_MARCA_ACERTADA]
+			)
 		)
 		_sonar(sonido_marca)
 		_flash(COLOR_FAROL_ACIERTO)
@@ -996,8 +1021,15 @@ func _on_turno_cambiado(nombre: String, rival_nombre: String, rival_dias: int) -
 func _on_impacto(disparos: int, perdidos: int, dias: int, resumen: String) -> void:
 	var nuevo_record := _registrar_en_records(dias, perdidos)
 	_mostrar_resultado(
-		"BOOM. %sCaiste tras %d disparo(s) (%d dia(s) sobrevivido(s)), perdiendo %d puntos."
-		% [_prefijo_jugador(), disparos, dias, perdidos, ]
+		(
+			"BOOM. %sCaiste tras %d disparo(s) (%d dia(s) sobrevivido(s)), perdiendo %d puntos."
+			% [
+				_prefijo_jugador(),
+				disparos,
+				dias,
+				perdidos,
+			]
+		)
 	)
 	_anotar("muerte", "%sLa bala estaba en el %d" % [_prefijo_jugador(), _ultimo_disparo])
 
@@ -1019,9 +1051,17 @@ func _on_impacto(disparos: int, perdidos: int, dias: int, resumen: String) -> vo
 func _on_retirada(disparos: int, ganados: int, dias: int, resumen: String) -> void:
 	var nuevo_record := _registrar_en_records(dias, ganados)
 	_mostrar_resultado(
-		"%sTe retira%s a tiempo. Cobra%s %d puntos tras %d disparo(s) (%d dia(s) sobrevivido(s))."
-		% [_prefijo_jugador(), "" if _estado.es_duelo() else "s",
-			"" if _estado.es_duelo() else "s", ganados, disparos, dias]
+		(
+			"%sTe retira%s a tiempo. Cobra%s %d puntos tras %d disparo(s) (%d dia(s) sobrevivido(s))."
+			% [
+				_prefijo_jugador(),
+				"" if _estado.es_duelo() else "s",
+				"" if _estado.es_duelo() else "s",
+				ganados,
+				disparos,
+				dias
+			]
+		)
 	)
 	_anotar("acierto", "%sTe retiras con %d puntos" % [_prefijo_jugador(), ganados])
 
@@ -1037,8 +1077,10 @@ func _on_duelo_terminado(jugadores: Array, ganadores: Array) -> void:
 	var lineas: Array[String] = [""]
 	for jugador in jugadores:
 		lineas.append(
-			"%s: %d dia(s) sobrevividos, %d puntos."
-			% [jugador.nombre, jugador.dias, jugador.puntos_finales]
+			(
+				"%s: %d dia(s) sobrevividos, %d puntos."
+				% [jugador.nombre, jugador.dias, jugador.puntos_finales]
+			)
 		)
 	if ganadores.size() == 1:
 		lineas.append("¡Gana %s!" % ganadores[0].nombre)
@@ -1077,8 +1119,7 @@ func _cerrar_partida(titulo_final: String, resumen: String, nuevo_record: bool) 
 	_bloquear_acciones(true)
 	fin_titulo.text = titulo_final
 	fin_titulo.add_theme_color_override(
-		"font_color",
-		_con_contraste(Paleta.ROJO if titulo_final == "HAS MUERTO" else Paleta.BRONCE)
+		"font_color", _con_contraste(Paleta.ROJO if titulo_final == "HAS MUERTO" else Paleta.BRONCE)
 	)
 	fin_resumen.text = resumen
 	if nuevo_record:
@@ -1206,9 +1247,10 @@ func _actualizar_hud() -> void:
 ## Un dato del HUD: el numero resaltado y su unidad en gris al lado. Es un
 ## RichTextLabel y no un Label porque son dos colores en la misma linea.
 func _poner_dato(etiqueta: RichTextLabel, valor: String, sufijo: String) -> void:
-	etiqueta.text = "[b]%s[/b] [color=#%s]%s[/color]" % [
-		valor, _con_contraste(Paleta.BRONCE_APAGADO).to_html(false), sufijo
-	]
+	etiqueta.text = (
+		"[b]%s[/b] [color=#%s]%s[/color]"
+		% [valor, _con_contraste(Paleta.BRONCE_APAGADO).to_html(false), sufijo]
+	)
 
 
 ## Reescribe la lista de pistas. Va dentro de un ScrollContainer de alto
@@ -1252,7 +1294,9 @@ func _bloquear_acciones(bloqueada: bool) -> void:
 	entrada_numero.editable = not bloqueada
 	disparar_btn.disabled = bloqueada
 	retirarse_btn.disabled = bloqueada
-	_actualizar_boton_marcar(_estado.farol.marcas_restantes if not _estado.jugadores.is_empty() else 0)
+	_actualizar_boton_marcar(
+		_estado.farol.marcas_restantes if not _estado.jugadores.is_empty() else 0
+	)
 
 
 ## Tiñe el fondo un instante para subrayar lo que acaba de pasar. Con los

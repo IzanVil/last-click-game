@@ -22,6 +22,7 @@ static func dias_sobrevividos(
 ) -> int:
 	return disparos_superados / disparos_por_dia
 
+
 var huecos: int
 var patron: String
 var posicion_bala: int
@@ -35,9 +36,13 @@ var historial: Array[int] = []
 ## sortea la posicion de la bala. Ambos son los valores por defecto.
 func _init(p_huecos: int, p_patron: String = "", p_posicion_inicial: int = -1) -> void:
 	assert(p_huecos >= 2, "El tambor necesita al menos 2 huecos.")
-	assert(p_patron == "" or PATRONES.has(p_patron), "Patron de movimiento desconocido: %s" % p_patron)
-	assert(p_posicion_inicial == -1 or (p_posicion_inicial >= 1 and p_posicion_inicial <= p_huecos),
-		"Posicion inicial fuera de rango: %d" % p_posicion_inicial)
+	assert(
+		p_patron == "" or PATRONES.has(p_patron), "Patron de movimiento desconocido: %s" % p_patron
+	)
+	assert(
+		p_posicion_inicial == -1 or (p_posicion_inicial >= 1 and p_posicion_inicial <= p_huecos),
+		"Posicion inicial fuera de rango: %d" % p_posicion_inicial
+	)
 
 	huecos = p_huecos
 	patron = p_patron if p_patron != "" else PATRONES[randi() % PATRONES.size()]

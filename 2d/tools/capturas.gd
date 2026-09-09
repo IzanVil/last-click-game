@@ -29,6 +29,7 @@ const MARGEN := 46.0
 
 var _main
 
+
 ## Fotografia la ventana y guarda solo el rectangulo del panel `nodo_marco`,
 ## con MARGEN alrededor.
 ##
@@ -56,6 +57,7 @@ func _captura(nombre: String, nodo_marco: Control) -> void:
 	recorte = recorte.intersection(Rect2i(Vector2i.ZERO, imagen.get_size()))
 	imagen.get_region(recorte).save_png("user://" + nombre)
 	print("guardada ", nombre, " ", recorte.size)
+
 
 func _init() -> void:
 	_main = ESCENA.instantiate()

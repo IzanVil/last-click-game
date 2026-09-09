@@ -23,7 +23,8 @@ var disparos := 0
 var puntos_finales := 0
 
 var dias: int:
-	get: return TamborJuicio.dias_sobrevividos(disparos)
+	get:
+		return TamborJuicio.dias_sobrevividos(disparos)
 
 
 func _init(p_nombre: String, p_apuesta: Apuesta, p_farol: Farol) -> void:

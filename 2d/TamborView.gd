@@ -382,8 +382,15 @@ func _dibujar_chapa(centro: Vector2) -> void:
 	draw_set_transform(centro, 0.0, Vector2(1.0, PERSPECTIVA))
 	draw_circle(Vector2.ZERO, radio, _color(Paleta.GRIS_PLOMO))
 	draw_arc(Vector2.ZERO, radio, 0, TAU, 64, _color(Paleta.BRONCE), 2.5)
-	draw_arc(Vector2.ZERO, RADIO_TAMBOR - RADIO_HUECO * 1.2, 0, TAU, 48,
-		_color(Paleta.BRONCE_APAGADO), 1.5)
+	draw_arc(
+		Vector2.ZERO,
+		RADIO_TAMBOR - RADIO_HUECO * 1.2,
+		0,
+		TAU,
+		48,
+		_color(Paleta.BRONCE_APAGADO),
+		1.5
+	)
 
 	# Rayas de uso, giradas con el tambor.
 	for raya in _rayas:
@@ -397,8 +404,8 @@ func _dibujar_chapa(centro: Vector2) -> void:
 	# Remaches: uno entre cada par de huecos, en su sitio de la elipse.
 	for i in range(_num_huecos):
 		var angulo := -PI / 2.0 + (i + 0.5) * TAU / _num_huecos + _giro
-		var pos := centro + Vector2(
-			cos(angulo) * radio * 0.94, sin(angulo) * radio * 0.94 * PERSPECTIVA
+		var pos := (
+			centro + Vector2(cos(angulo) * radio * 0.94, sin(angulo) * radio * 0.94 * PERSPECTIVA)
 		)
 		draw_circle(pos, 2.5, _color(Paleta.BRONCE))
 
@@ -476,8 +483,13 @@ func _dibujar_numero(indice: int, pos: Vector2) -> void:
 	if _estados[indice] in [EstadoHueco.CANDIDATO, EstadoHueco.SEGURO, EstadoHueco.PELIGRO]:
 		color_texto = _color(Paleta.NEGRO)
 	draw_string(
-		font, pos - medida / 2.0 + Vector2(0, medida.y * 0.35),
-		texto, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, color_texto
+		font,
+		pos - medida / 2.0 + Vector2(0, medida.y * 0.35),
+		texto,
+		HORIZONTAL_ALIGNMENT_CENTER,
+		-1,
+		font_size,
+		color_texto
 	)
 
 

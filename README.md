@@ -110,6 +110,7 @@ russian-roulette-2d/
 ├── README.md            ← esta documentación
 ├── LICENSE              ← licencia MIT
 ├── pyproject.toml       ← metadata, entry point y config de ruff/black/coverage
+├── gdlintrc             ← reglas de gdlint para los scripts de Godot
 ├── instalar.sh          ← instalador + acceso directo (Linux / macOS)
 ├── instalar.bat         ← instalador (Windows)
 ├── run.sh               ← lanzador Linux / macOS
@@ -496,6 +497,17 @@ de quien los ejecuta**.
   mypy
   ```
 
+  Para GDScript el equivalente es
+  [gdtoolkit](https://github.com/Scony/godot-gdscript-toolkit): `gdlint` es a
+  GDScript lo que ruff a Python, y `gdformat` lo que black. Las reglas que se
+  apartan de las de serie están en `gdlintrc`, en la raíz:
+
+  ```bash
+  pip install "gdtoolkit>=4.5"
+  find 2d -name '*.gd' -print0 | xargs -0 gdlint
+  find 2d -name '*.gd' -print0 | xargs -0 gdformat --check
+  ```
+
 - **Pruebas y cobertura**: los juegos se pueden verificar desde línea de
   comandos con Godot `--headless` para la versión gráfica, y ejecutando el
   script para la terminal. La versión Python incluye una batería de tests
@@ -509,8 +521,11 @@ de quien los ejecuta**.
   ```
 
 - **Integración continua**: GitHub Actions (`.github/workflows/ci.yml`) corre
-  en cada push/PR el lint, el formato, los tests con cobertura (matriz Python
-  3.11-3.13) y un smoke test de Godot en modo `--headless`.
+  en cada push/PR tres jobs en paralelo: `python-tests` (ruff, black, mypy y
+  tests con cobertura sobre la matriz Python 3.11-3.13), `godot-smoke-test`
+  (los tests de lógica y de escena en `--headless`, más el chequeo de que el
+  proyecto importa y parsea) y `gdscript-lint` (gdlint y gdformat, que no
+  necesitan descargar el motor).
 
 ## 🧭 Hoja de ruta
 

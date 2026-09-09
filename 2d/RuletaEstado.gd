@@ -66,19 +66,24 @@ var probabilidad_eventos := Eventos.PROBABILIDAD
 ## se lee antes de iniciar_juego() no hay jugadores entre los que elegir
 ## (la vista se apoya en eso, ver MainGame._bloquear_acciones).
 var jugador_activo: Jugador:
-	get: return jugadores[turno % jugadores.size()]
+	get:
+		return jugadores[turno % jugadores.size()]
 
 # Atajos al jugador activo. En solitario "el jugador" es el unico que
 # hay, asi que la vista y los tests siguen leyendo _estado.apuesta,
 # _estado.disparos... igual que antes de existir el modo duelo.
 var apuesta: Apuesta:
-	get: return jugador_activo.apuesta
+	get:
+		return jugador_activo.apuesta
 var farol: Farol:
-	get: return jugador_activo.farol
+	get:
+		return jugador_activo.farol
 var historial: Historial:
-	get: return jugador_activo.historial
+	get:
+		return jugador_activo.historial
 var disparos: int:
-	get: return jugador_activo.disparos
+	get:
+		return jugador_activo.disparos
 
 
 ## Una partida en solitario es un duelo de un solo jugador, asi que "es un
@@ -125,11 +130,14 @@ func disparar(numero: int) -> void:
 
 	if impacto_ocurrido:
 		activo.puntos_finales = activo.apuesta.perder()
-		impacto.emit(
-			activo.disparos,
-			activo.puntos_finales,
-			activo.dias,
-			activo.historial.resumen(activo.dias),
+		(
+			impacto
+			. emit(
+				activo.disparos,
+				activo.puntos_finales,
+				activo.dias,
+				activo.historial.resumen(activo.dias),
+			)
 		)
 		_terminar_duelo_si_procede()
 		return
@@ -179,11 +187,14 @@ func marcar(hueco: int) -> void:
 func retirarse() -> void:
 	var activo := jugador_activo
 	activo.puntos_finales = activo.apuesta.retirarse()
-	retirada.emit(
-		activo.disparos,
-		activo.puntos_finales,
-		activo.dias,
-		activo.historial.resumen(activo.dias),
+	(
+		retirada
+		. emit(
+			activo.disparos,
+			activo.puntos_finales,
+			activo.dias,
+			activo.historial.resumen(activo.dias),
+		)
 	)
 	_terminar_duelo_si_procede()
 
