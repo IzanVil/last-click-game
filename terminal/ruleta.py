@@ -1073,7 +1073,15 @@ def main(argv: list[str] | None = None) -> None:
             )
         else:
             jugar(huecos=args.huecos, marcas=args.marcas, oscuridad=args.oscuridad)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, EOFError):
+        # EOFError ademas de KeyboardInterrupt: el juego se apoya en
+        # input() en seis sitios (la accion del turno, la posicion, el
+        # farol, las dos preguntas de "otra partida?" y la pausa entre
+        # pantallas), y todos lo lanzan cuando ya no queda entrada que
+        # leer: Ctrl+D, o stdin redirigido y agotado (`echo | ruleta`,
+        # un script que alimente la partida, un run de CI). Sin
+        # capturarlo, cualquiera de esos casos terminaba escupiendo un
+        # traceback de EOFError en vez de la despedida.
         print()
         print(AMARILLO + "   Hasta la proxima. El tambor siempre espera." + RESET)
     finally:

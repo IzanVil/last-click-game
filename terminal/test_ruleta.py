@@ -794,6 +794,38 @@ class TestMain(unittest.TestCase):
         )
         self.assertIn("Hasta la proxima", mensajes)
 
+    @patch("ruleta.jugar", side_effect=EOFError)
+    def test_eof_sale_con_mensaje_sin_traceback(self, mock_jugar):
+        # El juego vive de input(), que lanza EOFError en cuanto se
+        # acaba la entrada: Ctrl+D, o stdin redirigido y agotado
+        # (`echo | ruleta`, un script que alimente la partida, CI).
+        # Antes solo se capturaba KeyboardInterrupt y eso terminaba en
+        # un traceback de EOFError en pantalla.
+        with patch("builtins.print") as mock_print:
+            ruleta.main([])  # no debe propagar la excepcion
+
+        mensajes = " ".join(
+            str(llamada.args[0])
+            for llamada in mock_print.call_args_list
+            if llamada.args
+        )
+        self.assertIn("Hasta la proxima", mensajes)
+
+    @patch("ruleta.jugar_duelo", side_effect=EOFError)
+    def test_eof_en_modo_duelo_tambien_sale_limpio(self, mock_duelo):
+        # --duelo entra por la otra rama del try, asi que se comprueba
+        # aparte: es justo el caso que se escapaba de una captura puesta
+        # solo alrededor de jugar().
+        with patch("builtins.print") as mock_print:
+            ruleta.main(["--duelo"])
+
+        mensajes = " ".join(
+            str(llamada.args[0])
+            for llamada in mock_print.call_args_list
+            if llamada.args
+        )
+        self.assertIn("Hasta la proxima", mensajes)
+
     @patch("ruleta.jugar")
     def test_sin_interrupcion_no_imprime_despedida(self, mock_jugar):
         with patch("builtins.print") as mock_print:
