@@ -53,10 +53,38 @@ static func generar_pista(
 		"relativa":
 			assert(ultimo_disparo != -1, "No hay disparo previo para dar una pista relativa.")
 			if posicion_bala == ultimo_disparo:
-				# No deberia ocurrir en la practica: si coincidieran habria
-				# sido un impacto y la partida ya habria terminado antes
-				# de pedir pista. `mentir` no tiene un opuesto claro aqui.
-				return Pista.new("La bala esta justo donde acabas de disparar.", [ultimo_disparo])
+				# Ocurre de verdad, y ni siquiera es raro: la bala se mueve
+				# DESPUES de un disparo fallido (ver TamborJuicio.disparar),
+				# asi que puede acabar justo en el hueco que se acaba de
+				# probar; con el patron "avanza" basta con disparar un hueco
+				# por delante de ella. Y aqui `mentir` si tiene un opuesto
+				# claro: si la bala esta exactamente en el ultimo disparo,
+				# cualquiera de los dos lados es falso. Antes esta rama lo
+				# ignoraba, de modo que un evento "tambor_caliente" -que
+				# existe justo para mentir- acababa regalando la posicion
+				# exacta de la bala.
+				if not mentir:
+					return Pista.new(
+						"La bala esta justo donde acabas de disparar.", [ultimo_disparo]
+					)
+				# Se miente hacia un lado que exista: disparar al hueco 1 (o
+				# al ultimo) deja un lado sin ningun hueco, y una pista con
+				# cero candidatos se delataria sola al cruzarla.
+				var lados: Array[bool] = []
+				if ultimo_disparo > 1:
+					lados.append(true)
+				if ultimo_disparo < huecos:
+					lados.append(false)
+				var miente_a_la_izquierda: bool = lados[randi() % lados.size()]
+				if miente_a_la_izquierda:
+					return Pista.new(
+						"La bala esta a la izquierda de tu ultimo disparo.",
+						_por_relativa(huecos, ultimo_disparo, true)
+					)
+				return Pista.new(
+					"La bala esta a la derecha de tu ultimo disparo.",
+					_por_relativa(huecos, ultimo_disparo, false)
+				)
 			var izquierda := posicion_bala < ultimo_disparo
 			if mentir:
 				izquierda = not izquierda
@@ -112,6 +140,13 @@ static func _por_mitad(huecos: int, mitad: int, izquierda: bool) -> Array[int]:
 static func _por_relativa(huecos: int, ultimo_disparo: int, izquierda: bool) -> Array[int]:
 	var resultado: Array[int] = []
 	for h in range(1, huecos + 1):
-		if (h < ultimo_disparo) == izquierda:
+		# A un lado en sentido estricto: el propio hueco disparado no esta
+		# ni a la izquierda ni a la derecha de si mismo. La condicion
+		# anterior, "(h < ultimo_disparo) == izquierda", equivalia a
+		# h >= ultimo_disparo en la rama derecha y colaba ahi el hueco
+		# recien disparado, que la pista precisamente descarta (en
+		# terminal/pistas.py la comparacion ya era estricta).
+		var cumple := h < ultimo_disparo if izquierda else h > ultimo_disparo
+		if cumple:
 			resultado.append(h)
 	return resultado
