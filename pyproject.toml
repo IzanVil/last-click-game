@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tambor-del-juicio"
-version = "0.1.0"
+version = "0.2.0"
 description = "El Tambor del Juicio: juego de deduccion y riesgo sobre un tambor de ficcion, en terminal (Python puro) y en 2D (Godot)."
 readme = "README.md"
 license = { file = "LICENSE" }

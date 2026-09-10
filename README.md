@@ -547,7 +547,7 @@ de quien los ejecuta**.
 
 ## 🧭 Hoja de ruta
 
-### ✅ Hecho en esta beta `v0.1.0`
+### ✅ Hecho en esta beta `v0.2.0`
 - [x] **El Tambor del Juicio** en las dos versiones (terminal y Godot):
   bala móvil, pistas, apuesta doblar-o-retirarse, farol, eventos y días
   de vida — ver el detalle fase a fase más abajo
@@ -578,6 +578,23 @@ de quien los ejecuta**.
   sonoro en bucle y tema de chapa y latón (ver el detalle más abajo)
 - [x] **Accesibilidad** en la versión gráfica: efectos reducidos, texto
   grande, alto contraste y sonido, recordados entre partidas
+
+Lo que añadió la `v0.2.0` sobre la anterior, casi todo robustez:
+
+- [x] **Sale limpio siempre**: sin entrada (Ctrl+D, un *pipe* agotado) se
+  despide en vez de soltar un *traceback*, y `main()` devuelve código de
+  salida (130 al abortar con Ctrl+C)
+- [x] **Un `records.json` corrupto ya no impide jugar**, ni siquiera si no
+  es UTF-8 o trae valores de otro tipo
+- [x] **La pista mentirosa miente** de verdad en las dos versiones: el
+  evento «tambor caliente» regalaba la posición exacta de la bala
+- [x] **`--seed`** para partidas reproducibles y **`--sin-color`** /
+  [`NO_COLOR`](https://no-color.org) para salida sin códigos ANSI
+- [x] **El dibujo cuadra**: el tambor se parte en filas si no cabe en la
+  terminal, el hueco elegido se ve sin color y los carteles de evento ya
+  no se salen del marco
+- [x] **Windows en la CI**, que hasta ahora iba a ciegas — encontró a la
+  primera que el juego no arrancaba ahí si la salida no era UTF-8
 
 ### 🃏 Rediseño «El Tambor del Juicio»
 
