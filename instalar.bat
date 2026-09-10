@@ -1,6 +1,6 @@
 @echo off
 rem ---------------------------------------------------------------
-rem Instalador de Russian Roulette (version terminal Python) para Windows
+rem Instalador de El Tambor del Juicio (version terminal Python) para Windows
 rem Uso: doble click en este archivo, o desde CMD:
 rem   instalar.bat          -> instala y ejecuta el juego
 rem   instalar.bat --solo   -> solo instala (sin abrir el juego)
@@ -39,7 +39,7 @@ echo Se detecto: %PY%
 
 if /i "%~1"=="--solo" goto :fin
 
-echo Abriendo Russian Roulette...
+echo Abriendo El Tambor del Juicio...
 %PY% terminal\ruleta.py
 goto :eof
 

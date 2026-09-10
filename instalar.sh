@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------
-# Instalador de Russian Roulette (version terminal Python)
+# Instalador de El Tambor del Juicio (version terminal Python)
 # Uso:
 #   ./instalar.sh          -> instala y ejecuta el juego
 #   ./instalar.sh --solo   -> instala sin abrir el juego de golpe
@@ -54,25 +54,32 @@ if [ "$INSTALAR_DIRTO" = "1" ]; then
 fi
 
 if [ -n "$ESC" ]; then
-    cat > "$ESC/RussianRoulette.desktop" <<EOF
+    cat > "$ESC/TamborDelJuicio.desktop" <<EOF
 [Desktop Entry]
-Name=Russian Roulette
-Comment=Juego de ruleta rusa en terminal
+Name=El Tambor del Juicio
+Comment=Juego de deduccion y riesgo en terminal
 Exec=${RUTA_RAIZ}/run.sh
 Icon=${RUTA_RAIZ}/2d/icon.svg
 Terminal=true
 Type=Application
 Categories=Game;
 EOF
-    chmod +x "$ESC/RussianRoulette.desktop"
-    echo "Acceso directo creado en: $ESC/RussianRoulette.desktop"
+    chmod +x "$ESC/TamborDelJuicio.desktop"
+    echo "Acceso directo creado en: $ESC/TamborDelJuicio.desktop"
+    # Las versiones anteriores lo creaban con el nombre viejo. Se avisa en
+    # vez de borrarlo: esta en el escritorio del usuario, y que hacer con
+    # sus cosas lo decide el, no el instalador.
+    if [ -e "$ESC/RussianRoulette.desktop" ]; then
+        echo "Aviso: quedo el acceso directo antiguo en $ESC/RussianRoulette.desktop"
+        echo "       Apunta al mismo run.sh y sigue funcionando; puedes borrarlo."
+    fi
 else
     echo "Aviso: no se detecto escritorio, no se creo acceso directo."
 fi
 
 # --- 4. Lanzar el juego ---------------------------------------------
 if [ "$INSTALAR_DIRTO" = "1" ]; then
-    echo "Abriendo Russian Roulette..."
+    echo "Abriendo El Tambor del Juicio..."
     exec "${PY}" "${TERMINAL_DIR}/ruleta.py"
 fi
 

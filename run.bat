@@ -1,5 +1,5 @@
 @echo off
-rem Lanzador de Russian Roulette (version terminal Python) para Windows
+rem Lanzador de El Tambor del Juicio (version terminal Python) para Windows
 rem Uso: run.bat                 -> juega en la terminal
 rem       run.bat --huecos 6     -> dificultad personalizada (ver --help)
 rem       run.bat -g             -> abre el proyecto en el editor Godot
@@ -15,7 +15,7 @@ if errorlevel 1 (
     goto :eof
 )
 
-echo Lanzando Russian Roulette (terminal)...
+echo Lanzando El Tambor del Juicio (terminal)...
 python terminal\ruleta.py %*
 goto :eof
 

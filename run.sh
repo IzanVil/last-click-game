@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Lanzador del juego de ruleta rusa (versión terminal Python)
+# Lanzador de El Tambor del Juicio (versión terminal Python)
 # Uso:
-#   ./run.sh                    -> juega a la ruleta rusa en la terminal
-#   ./run.sh --huecos 6         -> dificultad personalizada (ver --help)
+#   ./run.sh                    -> juega en la terminal
+#   ./run.sh --dificultad facil -> presets de dificultad (ver --help)
 #   ./run.sh -g                 -> abre el proyecto en el editor Godot
 set -euo pipefail
 
@@ -31,7 +31,7 @@ case "${1:-}" in
         fi
         ;;
     *)
-        echo "Lanzando Russian Roulette (terminal)..."
+        echo "Lanzando El Tambor del Juicio (terminal)..."
         "$PYTHON" "${TERMINAL_DIR}/ruleta.py" "$@"
         ;;
 esac

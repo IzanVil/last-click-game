@@ -982,7 +982,7 @@ def _version_texto() -> str:
     hay metadata de paquete que leer en ese caso: PackageNotFoundError).
     """
     try:
-        return version("russian-roulette-2d")
+        return version("tambor-del-juicio")
     except PackageNotFoundError:
         return "sin instalar (ejecutado directamente)"
 
