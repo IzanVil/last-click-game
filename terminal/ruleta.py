@@ -1100,6 +1100,10 @@ def main(argv: list[str] | None = None) -> int:
     siempre con 0 y un `ruleta && algo` encadenaba aunque el jugador
     hubiera abortado con Ctrl+C.
     """
+    # Lo primero de todo: sin esto, en Windows con la salida redirigida
+    # (cp1252) el primer caracter de marco aborta la partida.
+    efectos.asegurar_utf8()
+
     args = _parsear_args(argv)
 
     if args.records:
