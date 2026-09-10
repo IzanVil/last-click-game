@@ -231,6 +231,51 @@ class TestColorActivo(unittest.TestCase):
                 self.assertFalse(efectos.color_activo())
 
 
+class TestAsegurarUtf8(unittest.TestCase):
+    """El juego se dibuja con caracteres de caja, que no existen en las
+    codificaciones de 8 bits. En Windows con la salida redirigida Python
+    usa cp1252 y el primer print de la cabecera tumbaba la partida con
+    UnicodeEncodeError; lo cazo el job de CI de Windows."""
+
+    @staticmethod
+    def _stream(encoding):
+        return io.TextIOWrapper(io.BytesIO(), encoding=encoding)
+
+    def test_una_salida_cp1252_pasa_a_utf8(self):
+        salida = self._stream("cp1252")
+        efectos.asegurar_utf8(salida)
+        self.assertEqual(salida.encoding.lower().replace("-", ""), "utf8")
+
+    def test_el_marco_ya_no_revienta_al_escribirlo(self):
+        salida = self._stream("cp1252")
+        with self.assertRaises(UnicodeEncodeError):
+            salida.write("╔══╗")
+            salida.flush()
+
+        limpia = self._stream("cp1252")
+        efectos.asegurar_utf8(limpia)
+        limpia.write("╔══╗")  # ahora no debe lanzar nada
+        limpia.flush()
+
+    def test_una_salida_ya_utf8_se_queda_igual(self):
+        salida = self._stream("utf-8")
+        efectos.asegurar_utf8(salida)
+        salida.write("╔══╗")
+        salida.flush()
+
+    def test_un_stream_sin_reconfigure_no_revienta(self):
+        # StringIO no tiene reconfigure(): es una red de seguridad, no
+        # algo por lo que merezca la pena no arrancar.
+        efectos.asegurar_utf8(io.StringIO())
+
+    def test_por_defecto_actua_sobre_stdout(self):
+        original = sys.stdout
+        self.addCleanup(setattr, sys, "stdout", original)
+        sys.stdout = self._stream("cp1252")
+        efectos.asegurar_utf8()
+        self.assertEqual(sys.stdout.encoding.lower().replace("-", ""), "utf8")
+
+
 class TestFiltroDeColor(unittest.TestCase):
     def setUp(self):
         self.original = sys.stdout

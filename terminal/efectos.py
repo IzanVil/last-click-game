@@ -108,6 +108,37 @@ class _SalidaSinColor(io.TextIOBase):
         return True
 
 
+def asegurar_utf8(salida: TextIO | None = None) -> None:
+    """Asegura que la salida admite los caracteres con los que se dibuja.
+
+    El tambor, el panel y los carteles se montan con caracteres de caja
+    (╔ ═ ║ ┌ ┬ └) que no existen en las codificaciones de 8 bits. Python
+    no siempre usa UTF-8 en la salida: en Windows toma la del sistema, y
+    con la salida redirigida eso suele ser cp1252, donde esos caracteres
+    no se pueden codificar. El primer print de la cabecera tumbaba
+    entonces la partida entera con UnicodeEncodeError.
+
+    Se pide UTF-8, que los tiene todos. Si el stream no se deja
+    reconfigurar se intenta al menos que reemplace lo que no quepa, y si
+    tampoco, se deja como estaba: esto es una red de seguridad, no algo
+    por lo que merezca la pena no arrancar.
+
+    Va antes que `filtrar_color`, que envuelve sys.stdout en un objeto
+    que ya no tiene `reconfigure`.
+    """
+    destino = sys.stdout if salida is None else salida
+    reconfigurar = getattr(destino, "reconfigure", None)
+    if reconfigurar is None:
+        return
+    try:
+        reconfigurar(encoding="utf-8")
+    except (ValueError, OSError, LookupError):  # pragma: no cover - stdout exotico
+        try:
+            reconfigurar(errors="replace")
+        except (ValueError, OSError, LookupError):
+            pass
+
+
 def color_activo(sin_color: bool = False) -> bool:
     """Decide si tiene sentido emitir codigos de color.
 
