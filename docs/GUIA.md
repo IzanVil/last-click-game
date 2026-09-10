@@ -3,7 +3,7 @@
 Este documento describe la mecánica y las reglas de los dos juegos del
 repositorio, además de cómo ampliarlos y modificarlos.
 
-## Mecánica de la ruleta rusa
+## Mecánica de El Tambor del Juicio
 
 Las dos versiones juegan la misma mecánica: "El Tambor del Juicio" (ver la
 hoja de ruta del `README.md`). Está descrita una sola vez aquí porque el
@@ -591,7 +591,7 @@ terminal en un ejecutable único.
 ## Estructura de carpetas
 
 ```
-russian-roulette-2d/
+last-click-game/
 ├── README.md
 ├── LICENSE
 ├── pyproject.toml

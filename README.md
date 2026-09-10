@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="2d/icon.svg" alt="Russian Roulette" width="120">
+  <img src="2d/icon.svg" alt="El Tambor del Juicio" width="120">
 </p>
 
-<h1 align="center">🔫 Russian Roulette</h1>
+<h1 align="center">🔫 El Tambor del Juicio</h1>
 
 <p align="center">
   <strong>¿Te sientes con suerte? El tambor gira y la bala te está esperando.</strong>
@@ -22,11 +22,11 @@
   <img src="docs/img/banner.png" alt="El tambor del juicio en la versión gráfica: la barra de estado con día, puntos, pistas y marcas, y el tambor de metal en escorzo con dos huecos candidatos encendidos" width="760">
 </p>
 
-Una colección de minijuegos de ruleta rusa en **dos sabores**: un clásico de
-**terminal** escrito en Python y una versión **gráfica 2D** hecha con Godot.
-Desde esta beta, las dos versiones juegan **la misma mecánica**:
-**El Tambor del Juicio**, un rediseño centrado en la gestión de riesgo y el
-farol (ver [Hoja de ruta](#hoja-de-ruta) para el detalle fase a fase).
+**El Tambor del Juicio** en **dos sabores**: un clásico de **terminal**
+escrito en Python y una versión **gráfica 2D** hecha con Godot. Las dos
+juegan **la misma mecánica**, centrada en la deducción, la gestión de
+riesgo y el farol (ver [Hoja de ruta](#hoja-de-ruta) para el detalle fase
+a fase).
 
 ## 🧠 La idea
 
@@ -106,7 +106,7 @@ Incluimos dos lanzadores para que el juego arranque directo sin teclear comandos
 ## 🗂️ Estructura del repositorio
 
 ```
-russian-roulette-2d/
+last-click-game/
 ├── README.md            ← esta documentación
 ├── LICENSE              ← licencia MIT
 ├── pyproject.toml       ← metadata, entry point y config de ruff/black/coverage
