@@ -29,6 +29,7 @@ func _init() -> void:
 	_test_dias_sobrevividos()
 	_test_pistas_candidatos()
 	_test_pistas_interseccion()
+	_test_pista_relativa_sobre_el_ultimo_disparo()
 	_test_apuesta()
 	_test_farol()
 	_test_eventos()
@@ -110,6 +111,46 @@ func _test_pistas_candidatos() -> void:
 		mentira.texto.find("no esta en los huecos pares") != -1,
 		"paridad mentirosa dice lo contrario"
 	)
+
+
+## La bala se mueve DESPUES de un disparo fallido, asi que puede acabar
+## justo en el hueco recien probado: con el patron "avanza" basta con
+## disparar un hueco por delante de ella. El codigo daba ese caso por
+## imposible. Espejo de TestRelativaCuandoLaBalaCaeEnElUltimoDisparo en
+## terminal/test_pistas.py.
+func _test_pista_relativa_sobre_el_ultimo_disparo() -> void:
+	var tambor := TamborJuicio.new(8, "avanza", 3)
+	_afirmar(not tambor.disparar(4), "disparar al 4 con la bala en el 3 no impacta")
+	_afirmar_igual(
+		tambor.posicion_bala, tambor.ultimo_disparo, "la bala cae en el hueco recien disparado"
+	)
+
+	var veraz := Pistas.generar_pista(4, 8, 4, "relativa")
+	_afirmar(
+		veraz.texto.find("justo donde acabas de disparar") != -1,
+		"sin mentir, la pista relativa dice la verdad"
+	)
+	_afirmar_igual(veraz.candidatos, [4], "la pista veraz senala el hueco exacto")
+
+	# Antes esta rama ignoraba `mentir`, asi que un evento
+	# "tambor_caliente" regalaba la posicion exacta en vez de enganiar.
+	var mentira := Pistas.generar_pista(4, 8, 4, "relativa", true)
+	_afirmar(mentira.texto.find("justo donde") == -1, "mintiendo no revela el hueco exacto")
+	_afirmar(not mentira.candidatos.has(4), "el hueco real no esta entre los candidatos")
+	_afirmar(not mentira.candidatos.is_empty(), "la mentira afirma algo, no el conjunto vacio")
+
+	# Disparando al hueco 1 no hay "izquierda" posible: mentir hacia ese
+	# lado daria una pista con cero candidatos, que se delata sola.
+	var en_el_borde := Pistas.generar_pista(1, 8, 1, "relativa", true)
+	_afirmar(
+		en_el_borde.texto.find("derecha") != -1, "en el borde se miente hacia el lado que existe"
+	)
+	_afirmar(not en_el_borde.candidatos.is_empty(), "y esa mentira tiene candidatos")
+
+	# El hueco disparado no esta "a la derecha" de si mismo: la rama
+	# derecha usaba h >= ultimo_disparo y lo colaba entre los candidatos.
+	var derecha := Pistas.generar_pista(7, 8, 5, "relativa")
+	_afirmar_igual(derecha.candidatos, [6, 7, 8], "los candidatos a la derecha excluyen el disparo")
 
 
 func _test_pistas_interseccion() -> void:
