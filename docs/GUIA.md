@@ -90,11 +90,16 @@ antes de revelar un disparo o un farol, y la pantalla vibra al morir; ver
 - Ejecución: `./run.sh`, o directamente `python3 terminal/ruleta.py`. Admite
   `--dificultad {facil,normal,dificil}`, `--huecos N`/`--marcas N` (pisan
   al preset), `--duelo` (modo duelo, ver `jugar_duelo()`), `--oscuridad`
-  (modo a oscuras), `--sin-animaciones` y `--sin-sonido` (ver `efectos.py`),
+  (modo a oscuras), `--sin-animaciones`, `--sin-color` y `--sin-sonido`
+  (ver `efectos.py`), `--seed N` (fija el azar de la partida entera),
   `--records` (muestra los récords guardados y no juega) y `--version`.
   `main()` es el entry point real (`ruleta = "terminal.ruleta:main"` en
   `pyproject.toml`), que envuelve `jugar()`/`jugar_duelo()` para capturar
-  Ctrl+C y configura los efectos según los flags.
+  Ctrl+C y EOF, configura los efectos según los flags y devuelve el código
+  de salida del proceso (130 si se aborta con Ctrl+C, 0 en lo demás).
+  `--seed` funciona sembrando el `random` global: todos los módulos de
+  lógica aceptan un `rng` propio pero caen en él cuando no se les pasa
+  ninguno, que es lo que hace la partida de verdad.
 - Interactúa por entrada/salida estándar con interfaz en colores y tambor
   ASCII, animado y con teclado en crudo cuando hay una terminal delante.
 
@@ -150,6 +155,11 @@ añades un módulo de lógica más, sigue el mismo patrón de import.
 - `efectos.AJUSTES` (un dataclass `Ajustes` con `animaciones` y `sonido`)
   es el interruptor global; `main()` lo fija una sola vez con
   `efectos.configurar()` a partir de `--sin-animaciones`/`--sin-sonido`.
+  El color va aparte, por `efectos.filtrar_color()`: en vez de decidir en
+  cada uno de los ~90 sitios que imprimen, envuelve `sys.stdout` y borra
+  al vuelo las secuencias de color (solo las SGR; las que mueven el cursor
+  siguen pasando, que son las que montan la animación). Se apaga con
+  `--sin-color`, con `NO_COLOR` o cuando la salida no es una terminal.
   **Todo lo que duerme, parpadea o suena pasa por ahí**: con las
   animaciones apagadas `pausa()`, `repintar()` y `limpiar()` no hacen nada
   y `escribir()` imprime la línea de una vez, así que la partida se
