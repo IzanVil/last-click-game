@@ -41,6 +41,43 @@ jobs:
           coverage run -m unittest discover -s terminal
           coverage report --fail-under=90
 
+  python-tests-windows:
+    name: python-tests-windows (Python 3.13)
+    runs-on: windows-latest
+    # Job aparte y deliberadamente corto. Solo los tests, y solo en una
+    # version de Python: ruff, black y mypy miran exactamente el mismo
+    # codigo que en Linux, asi que repetirlos aqui no dice nada nuevo, y
+    # un runner de Windows gasta el doble de minutos que uno de Linux.
+    #
+    # Lo que cubre es lo que en Linux no se ejecuta nunca: la rama msvcrt
+    # de entrada.py (lectura de teclas y flechas con codigos extendidos)
+    # y el os.system("") de ruleta.py que habilita los codigos de color
+    # en cmd.exe. Hay ademas run.bat e instalar.bat, y hasta ahora todo
+    # ese lado del proyecto iba a ciegas.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Instalar el paquete
+        run: python -m pip install --upgrade pip && python -m pip install -e .
+
+      - name: Tests
+        run: python -m unittest discover -s terminal
+
+      - name: El juego arranca y sale limpio sin entrada
+        # Sin stdin el juego termina por EOF, que main() captura: si
+        # saliera con un traceback (o con un codigo distinto de 0) este
+        # paso lo cazaria. Es el unico sitio donde se comprueba que el
+        # arranque real funciona en Windows.
+        run: |
+          "" | python terminal/ruleta.py --sin-animaciones --sin-sonido
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
   godot-smoke-test:
     name: godot-smoke-test
     runs-on: ubuntu-latest
