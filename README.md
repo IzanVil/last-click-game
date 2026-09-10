@@ -235,13 +235,31 @@ sabe hacer para montar la escena.
 Todo eso se apaga de una vez con `--sin-animaciones` (nada duerme, nada
 parpadea y la partida se convierte en un registro que va bajando: es lo
 que quieres al redirigir la salida a un fichero, en CI o con un lector de
-pantalla) y `--sin-sonido` calla el timbre. El sonido se desactiva solo si
-la salida no es una terminal de verdad.
+pantalla) y `--sin-sonido` calla el timbre. `--sin-color` quita los
+códigos de color, y el juego también los apaga solo si está la variable
+de entorno [`NO_COLOR`](https://no-color.org) o si la salida no es una
+terminal —igual que hace con el sonido—, así que redirigir la partida a
+un fichero da texto limpio sin tener que pedirlo.
 
 ```bash
 python3 ruleta.py --oscuridad              # el tambor solo muestra lo comprobado
 python3 ruleta.py --sin-animaciones        # sin giros, latidos ni pausas
 python3 ruleta.py --sin-sonido             # sin timbre
+python3 ruleta.py --sin-color              # sin codigos de color
+NO_COLOR=1 python3 ruleta.py               # lo mismo, por variable de entorno
+```
+
+### Partidas reproducibles
+
+`--seed` fija el azar de la partida entera: el tambor, su patrón de
+movimiento, las pistas y los eventos. La misma semilla da siempre la
+misma partida, lo que sirve para repetir una jugada que salió rara,
+comparar dos estrategias sobre el mismo tambor o dejar un caso concreto
+apuntado en un informe.
+
+```bash
+python3 ruleta.py --seed 42                # esta partida es siempre la misma
+python3 ruleta.py --seed 42 --dificultad dificil   # se combina con el resto
 ```
 
 ### Dificultad personalizada
