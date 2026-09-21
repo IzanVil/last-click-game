@@ -33,15 +33,29 @@ var historial: Array[int] = []
 
 ## `p_patron == ""` sortea uno de PATRONES; `p_posicion_inicial == -1`
 ## sortea la posicion de la bala. Ambos son los valores por defecto.
-func _init(p_huecos: int, p_patron: String = "", p_posicion_inicial: int = -1) -> void:
+##
+## `p_rng` es el generador de la partida (ver Azar.gd): con el, el patron
+## y la posicion inicial salen de la semilla en vez del azar global, que
+## es lo que hace repetible una partida entera. Sin el, se comporta como
+## siempre.
+func _init(
+	p_huecos: int,
+	p_patron: String = "",
+	p_posicion_inicial: int = -1,
+	p_rng: RandomNumberGenerator = null,
+) -> void:
 	assert(p_huecos >= 2, "El tambor necesita al menos 2 huecos.")
 	assert(p_patron == "" or PATRONES.has(p_patron), "Patron de movimiento desconocido: %s" % p_patron)
 	assert(p_posicion_inicial == -1 or (p_posicion_inicial >= 1 and p_posicion_inicial <= p_huecos),
 		"Posicion inicial fuera de rango: %d" % p_posicion_inicial)
 
 	huecos = p_huecos
-	patron = p_patron if p_patron != "" else PATRONES[randi() % PATRONES.size()]
-	posicion_bala = p_posicion_inicial if p_posicion_inicial != -1 else randi_range(1, huecos)
+	patron = (
+		p_patron if p_patron != "" else PATRONES[Azar.entero(p_rng, 0, PATRONES.size() - 1)]
+	)
+	posicion_bala = (
+		p_posicion_inicial if p_posicion_inicial != -1 else Azar.entero(p_rng, 1, huecos)
+	)
 
 
 ## Resuelve un disparo a `numero`. Devuelve true si impacta en la bala.

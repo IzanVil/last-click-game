@@ -13,6 +13,7 @@ paquete (`terminal.ruleta`, con imports relativos) como ejecutado suelto
 
 import argparse
 import os
+import random
 import textwrap
 from dataclasses import dataclass, field
 from functools import partial
@@ -30,6 +31,7 @@ try:
         historial,
         pistas,
         records,
+        semillas,
     )
 except ImportError:  # pragma: no cover - ejecucion como script suelto
     # mypy resuelve el paquete via el `from .` de arriba y no encuentra
@@ -47,6 +49,7 @@ except ImportError:  # pragma: no cover - ejecucion como script suelto
     import historial  # type: ignore[no-redef,import-not-found]
     import pistas  # type: ignore[no-redef,import-not-found]
     import records  # type: ignore[no-redef,import-not-found]
+    import semillas  # type: ignore[no-redef,import-not-found]
 
 APUESTA_BASE = 100
 BONO_MARCA_ACERTADA = 50
@@ -441,9 +444,13 @@ def elegir_hueco(tablero: Tablero, dibujar: "partial[None]", verbo: str) -> int 
         tablero.resaltado = None
 
 
-def amanecer(dia: int, bitacora: "historial.Historial") -> None:
+def amanecer(
+    dia: int,
+    bitacora: "historial.Historial",
+    azar: "random.Random | None" = None,
+) -> None:
     """Abre un dia nuevo con una frase de ambiente, tecleada despacio."""
-    texto = ambiente.mensaje_de_dia(dia)
+    texto = ambiente.mensaje_de_dia(dia, rng=azar)
     bitacora.registrar_accion("dia", f"Amanece el dia {dia}.")
     print()
     efectos.escribir(f"   {GRIS}{texto}{RESET}")
@@ -528,6 +535,19 @@ def retirada(
     efectos.pausa(2.5)
 
 
+def sello_semilla(valor: int) -> None:
+    """Deja escrita la semilla de la partida que acaba de terminar.
+
+    Se imprime DESPUES de impacto()/retirada() y no dentro: esas dos
+    pantallas son la parte narrativa del cierre, y el numero con el que
+    repetir la partida es una nota al pie que no pinta nada dentro del
+    epilogo.
+    """
+    print(f"{GRIS}   Semilla de esta partida: {valor}{RESET}")
+    print(f"{GRIS}   Repitela tal cual con:  --semilla {valor}{RESET}")
+    print()
+
+
 def _resolver_farol(
     posicion: int,
     tambor: "estado.TamborJuicio",
@@ -562,14 +582,16 @@ def _resolver_farol(
 
 
 def _resolver_evento(
-    tambor: "estado.TamborJuicio", bitacora: "historial.Historial"
+    tambor: "estado.TamborJuicio",
+    bitacora: "historial.Historial",
+    azar: "random.Random | None" = None,
 ) -> str | None:
     """Sortea un evento, lo aplica y lo anuncia con su cartel.
 
     Devuelve el evento (o None) para que quien llama sepa si la proxima
     pista sale mentirosa.
     """
-    evento = eventos.tirar_evento()
+    evento = eventos.tirar_evento(rng=azar)
     if evento is None:
         return None
     if evento == "clic_metalico":
@@ -584,12 +606,27 @@ def jugar(
     huecos: int = estado.HUECOS,
     marcas: int = farol.MARCAS_INICIALES,
     oscuridad: bool = False,
+    semilla: int | None = None,
 ) -> None:
-    """Ejecuta el bucle principal: disparar, marcar o retirarse."""
+    """Ejecuta el bucle principal: disparar, marcar o retirarse.
+
+    `semilla` fija la primera partida de la sesion; las siguientes
+    sortean la suya (ver semillas.py). Cada partida tiene su generador,
+    asi que dos sesiones que arranquen con la misma semilla juegan la
+    misma primera partida aunque se pulsen teclas distintas por el
+    camino: el azar no depende de cuantas veces se haya repintado la
+    pantalla.
+    """
     misrecords = records.cargar()
+    pendiente = semilla
 
     while True:
-        tambor = estado.TamborJuicio(huecos=huecos)
+        pedida = pendiente is not None
+        semilla_partida = pendiente if pendiente is not None else semillas.nueva()
+        pendiente = None
+        azar = semillas.generador(semilla_partida)
+
+        tambor = estado.TamborJuicio(huecos=huecos, rng=azar)
         apuesta = apuestas.Apuesta(APUESTA_BASE)
         marca = farol.Farol(marcas)
         bitacora = historial.Historial()
@@ -599,7 +636,13 @@ def jugar(
         pistas_reveladas: list[pistas.Pista] = []
 
         limpiar(duro=True)
-        amanecer(1, bitacora)
+        amanecer(1, bitacora, azar)
+        if pedida:
+            # Solo cuando el jugador la pidio: quien juega normal no
+            # necesita ver un numero de siete cifras antes de empezar,
+            # pero quien viene a repetir una partida (o a reproducir un
+            # fallo) si quiere confirmar que arranco la que pidio.
+            print(f"{GRIS}   Semilla: {semilla_partida}{RESET}")
 
         while True:
             candidatos = pistas.interseccion(pistas_reveladas)
@@ -636,6 +679,7 @@ def jugar(
                         puntos=ganados,
                     ),
                 )
+                sello_semilla(semilla_partida)
                 break
 
             if accion == "marcar":
@@ -678,6 +722,7 @@ def jugar(
                         puntos=perdidos,
                     ),
                 )
+                sello_semilla(semilla_partida)
                 break
 
             apuesta.doblar()
@@ -685,7 +730,7 @@ def jugar(
             bitacora.registrar_accion(
                 "disparo", f"Disparo al {posicion}: vacio ({apuesta.en_juego} pts)"
             )
-            evento = _resolver_evento(tambor, bitacora)
+            evento = _resolver_evento(tambor, bitacora, azar)
 
             pistas_reveladas.append(
                 pistas.generar_pista(
@@ -693,6 +738,7 @@ def jugar(
                     tambor.huecos,
                     tambor.ultimo_disparo,
                     mentir=(evento == "tambor_caliente"),
+                    rng=azar,
                 )
             )
             print(
@@ -703,7 +749,7 @@ def jugar(
             if disparos % estado.DISPAROS_POR_DIA == 0:
                 dia_nuevo = estado.dias_sobrevividos(disparos)
                 print(f"{AMARILLO}   Sobrevives al dia {dia_nuevo}.{RESET}")
-                amanecer(dia_nuevo + 1, bitacora)
+                amanecer(dia_nuevo + 1, bitacora, azar)
             efectos.pausa(1.5)
 
         otra = input(NEGRITA + "   Jugar otra partida? (s/n): " + RESET).strip().lower()
@@ -796,6 +842,7 @@ def jugar_duelo(
     huecos: int = estado.HUECOS,
     marcas: int = farol.MARCAS_INICIALES,
     oscuridad: bool = False,
+    semilla: int | None = None,
 ) -> None:
     """Modo duelo: dos jugadores turnandose en el mismo tambor.
 
@@ -806,15 +853,26 @@ def jugar_duelo(
     sigue jugando el otro en solitario despues. Se compara quien
     sobrevivio mas dias (y, en caso de empate, quien llego con mas
     puntos) para decidir quien gana.
+
+    La semilla vale para el duelo entero, no para cada jugador: el
+    tambor es uno solo y compartido, asi que dos duelos con la misma
+    semilla arrancan con la bala en el mismo sitio y con el mismo
+    patron, que es justo lo que hace comparables dos partidas.
     """
     misrecords = records.cargar()
+    pendiente = semilla
 
     limpiar(duro=True)
     print(NEGRITA + CELESTE + "\n   === EL TAMBOR DEL JUICIO: DUELO ===\n" + RESET)
     nombres = [_pedir_nombre(1), _pedir_nombre(2)]
 
     while True:
-        tambor = estado.TamborJuicio(huecos=huecos)
+        pedida = pendiente is not None
+        semilla_partida = pendiente if pendiente is not None else semillas.nueva()
+        pendiente = None
+        azar = semillas.generador(semilla_partida)
+
+        tambor = estado.TamborJuicio(huecos=huecos, rng=azar)
         pistas_reveladas: list[pistas.Pista] = []
         marcadas: set[int] = set()
         resultados_farol: dict[int, str] = {}
@@ -826,6 +884,9 @@ def jugar_duelo(
                 nombres[1], apuestas.Apuesta(APUESTA_BASE), farol.Farol(marcas)
             ),
         ]
+
+        if pedida:
+            print(f"{GRIS}   Semilla: {semilla_partida}{RESET}")
 
         turno = 0
         while True:
@@ -926,7 +987,7 @@ def jugar_duelo(
                 "disparo",
                 f"Disparo al {posicion}: vacio ({activo.apuesta.en_juego} pts)",
             )
-            evento = _resolver_evento(tambor, activo.bitacora)
+            evento = _resolver_evento(tambor, activo.bitacora, azar)
 
             pistas_reveladas.append(
                 pistas.generar_pista(
@@ -934,6 +995,7 @@ def jugar_duelo(
                     tambor.huecos,
                     tambor.ultimo_disparo,
                     mentir=(evento == "tambor_caliente"),
+                    rng=azar,
                 )
             )
             print(
@@ -950,6 +1012,7 @@ def jugar_duelo(
         # termino (no jugo ni impacto ni retirada, sigue "vivo" a medias).
         rival.puntos_finales = rival.apuesta.en_juego
         resultado_duelo(jugadores)
+        sello_semilla(semilla_partida)
 
         otra = input(NEGRITA + "   Jugar otro duelo? (s/n): " + RESET).strip().lower()
         if otra not in ("s", "si", "y", "yes"):
@@ -1006,6 +1069,14 @@ def _parsear_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Marcas de farol por partida (por defecto, segun --dificultad).",
     )
     parser.add_argument(
+        "--semilla",
+        default=None,
+        help=(
+            "Repite una partida concreta. Cada partida imprime la suya al "
+            f"terminar (0-{semillas.MAXIMO})."
+        ),
+    )
+    parser.add_argument(
         "--duelo",
         action="store_true",
         help="Modo duelo: dos jugadores turnandose en el mismo tambor.",
@@ -1046,6 +1117,16 @@ def _parsear_args(argv: list[str] | None = None) -> argparse.Namespace:
     if args.marcas < 0:
         parser.error(f"marcas no puede ser negativo (recibido: {args.marcas}).")
 
+    if args.semilla is not None:
+        # argparse con `type=semillas.parsear` se comeria el motivo del
+        # ValueError y diria solo "invalid parsear value"; validarlo aqui
+        # deja llegar el mensaje escrito en semillas.py (y mantiene ese
+        # modulo sin saber nada de argparse).
+        try:
+            args.semilla = semillas.parsear(args.semilla)
+        except ValueError as error:
+            parser.error(str(error))
+
     return args
 
 
@@ -1069,10 +1150,18 @@ def main(argv: list[str] | None = None) -> None:
     try:
         if args.duelo:
             jugar_duelo(
-                huecos=args.huecos, marcas=args.marcas, oscuridad=args.oscuridad
+                huecos=args.huecos,
+                marcas=args.marcas,
+                oscuridad=args.oscuridad,
+                semilla=args.semilla,
             )
         else:
-            jugar(huecos=args.huecos, marcas=args.marcas, oscuridad=args.oscuridad)
+            jugar(
+                huecos=args.huecos,
+                marcas=args.marcas,
+                oscuridad=args.oscuridad,
+                semilla=args.semilla,
+            )
     except (KeyboardInterrupt, EOFError):
         # EOFError ademas de KeyboardInterrupt: el juego se apoya en
         # input() en seis sitios (la accion del turno, la posicion, el

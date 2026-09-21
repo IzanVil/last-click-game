@@ -40,6 +40,9 @@ func _init() -> void:
 	_test_ruleta_estado_flujo_completo()
 	_test_duelo_flujo_completo()
 	_test_solitario_no_es_duelo()
+	_test_azar()
+	_test_partida_repetible()
+	_test_pista_mentirosa_no_regala_la_posicion()
 
 	if _fallos.is_empty():
 		print("OK: todos los tests de logica pasaron.")
@@ -99,6 +102,13 @@ func _test_pistas_candidatos() -> void:
 
 	var relativa := Pistas.generar_pista(2, 8, 5, "relativa")
 	_afirmar_igual(relativa.candidatos, [1, 2, 3, 4], "candidatos de relativa a la izquierda")
+
+	# El lado derecho empieza DESPUES del ultimo disparo, no en el: es el
+	# caso que faltaba aqui y por el que el 5 se colaba entre los
+	# candidatos (ver Pistas._por_relativa). Mismos numeros que
+	# TestPistaRelativa.test_derecha_del_ultimo_disparo en Python.
+	var derecha := Pistas.generar_pista(7, 8, 5, "relativa")
+	_afirmar_igual(derecha.candidatos, [6, 7, 8], "candidatos de relativa a la derecha")
 
 	var mentira := Pistas.generar_pista(4, 8, -1, "paridad", true)
 	_afirmar(mentira.texto.find("no esta en los huecos pares") != -1, "paridad mentirosa dice lo contrario")
@@ -200,6 +210,104 @@ func _test_ruleta_estado_flujo_completo() -> void:
 	if not retiradas.is_empty():
 		_afirmar_igual(retiradas[0]["ganados"], 800, "retirarse cobra lo que habia en juego")
 		_afirmar_igual(retiradas[0]["dias"], 1, "retirarse informa de los dias sobrevividos")
+
+
+func _test_azar() -> void:
+	_afirmar_igual(Azar.parsear("4242"), 4242, "parsear lee una semilla escrita")
+	_afirmar_igual(Azar.parsear("  4242  "), 4242, "parsear ignora los espacios")
+	_afirmar_igual(Azar.parsear(""), -1, "el campo vacio significa 'al azar'")
+	_afirmar_igual(Azar.parsear("abc"), -1, "lo que no es un numero significa 'al azar'")
+	_afirmar_igual(Azar.parsear("-1"), -1, "una semilla negativa no vale")
+	_afirmar_igual(Azar.parsear(str(Azar.MAXIMO + 1)), -1, "una semilla pasada de rango no vale")
+	_afirmar_igual(Azar.parsear(str(Azar.MAXIMO)), Azar.MAXIMO, "el tope del rango si vale")
+
+	var uno := Azar.generador(99)
+	var otro := Azar.generador(99)
+	var iguales := true
+	for i in range(20):
+		if uno.randi_range(1, 1000) != otro.randi_range(1, 1000):
+			iguales = false
+	_afirmar(iguales, "la misma semilla da la misma secuencia")
+
+	var semilla_nueva := Azar.nueva()
+	_afirmar(
+		semilla_nueva >= 0 and semilla_nueva <= Azar.MAXIMO, "nueva() cae dentro del rango"
+	)
+
+
+## Juega dos partidas con la misma semilla y el mismo guion de disparos,
+## y compara lo que salio: patron, posicion inicial, pistas y eventos.
+## Es el equivalente de TestSemillaRepetible en terminal/test_ruleta.py:
+## un sorteo nuevo que manana se anada sin pasarle el generador de la
+## partida rompe aqui.
+func _test_partida_repetible() -> void:
+	var primera := _cronica_de_partida(4242)
+	var segunda := _cronica_de_partida(4242)
+	_afirmar_igual(primera, segunda, "la misma semilla juega la misma partida")
+
+	# No se exige que todas las semillas den partidas distintas (dos
+	# pueden dar el mismo tambor), solo que la semilla cambie algo.
+	var distintas := false
+	for otra_semilla in [1, 2, 3, 4, 5, 6, 7, 8]:
+		if _cronica_de_partida(otra_semilla) != primera:
+			distintas = true
+	_afirmar(distintas, "semillas distintas juegan partidas distintas")
+
+	var sin_semilla := {}
+	for i in range(12):
+		var juego := RuletaEstado.new()
+		juego.iniciar_juego(8)
+		sin_semilla[juego.semilla] = true
+	_afirmar(sin_semilla.size() > 1, "sin semilla, cada partida sortea la suya")
+
+
+## Todo lo observable de una partida jugada con un guion fijo de disparos.
+## Los eventos NO se desactivan aqui (al reves que en el resto de tests):
+## son justo uno de los sorteos que la semilla tiene que fijar.
+func _cronica_de_partida(semilla: int) -> Array:
+	var juego := RuletaEstado.new()
+	var cronica: Array = []
+	juego.pista_nueva.connect(func(texto: String, _c: Array): cronica.append(texto))
+	juego.evento_ocurrido.connect(func(tipo: String, _t: String): cronica.append(tipo))
+	juego.impacto.connect(func(d: int, _p: int, _di: int, _r: String): cronica.append("BOOM %d" % d))
+
+	juego.iniciar_juego(8, 3, [], semilla)
+	cronica.append(juego.tambor.patron)
+	cronica.append(juego.tambor.posicion_bala)
+	for numero in [1, 2, 3, 4, 5, 6]:
+		# Una vez muerta la partida no se sigue disparando: el tambor ya
+		# no tiene nada que decir y `disparar` volveria a mover la bala.
+		if cronica.any(func(x): return typeof(x) == TYPE_STRING and x.begins_with("BOOM")):
+			break
+		juego.disparar(numero)
+	return cronica
+
+
+## La pista mentirosa tiene que mentir tambien cuando la bala cayo justo
+## en el ultimo disparo: es el caso que antes devolvia "esta justo donde
+## acabas de disparar" incluso con mentir = true, regalando la posicion
+## exacta en el unico momento en que el juego prometia enganar. Mismo
+## caso que cubre TestPistaRelativa en terminal/test_pistas.py.
+func _test_pista_mentirosa_no_regala_la_posicion() -> void:
+	for ultimo in [1, 4, 8]:
+		var pista := Pistas.generar_pista(ultimo, 8, ultimo, "relativa", true)
+		_afirmar(
+			not pista.texto.contains("justo donde"),
+			"mentir con la bala en el ultimo disparo no canta la posicion (hueco %d)" % ultimo
+		)
+		_afirmar(
+			not pista.candidatos.has(ultimo),
+			"la pista mentirosa no deja el hueco real entre sus candidatos (hueco %d)" % ultimo
+		)
+		_afirmar(
+			not pista.candidatos.is_empty(),
+			"la pista mentirosa deja algun candidato en pie (hueco %d)" % ultimo
+		)
+
+	var veraz := Pistas.generar_pista(4, 8, 4, "relativa", false)
+	_afirmar(
+		veraz.texto.contains("justo donde"), "sin mentir, la pista sigue diciendo la verdad"
+	)
 
 
 func _test_dias_sobrevividos() -> void:

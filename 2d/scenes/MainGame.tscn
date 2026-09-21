@@ -95,6 +95,22 @@ text = "Dificultad"
 [node name="DificultadOpt" type="OptionButton" parent="Centro/Marco/Columnas/Menu/DificultadFila"]
 layout_mode = 2
 
+[node name="SemillaFila" type="HBoxContainer" parent="Centro/Marco/Columnas/Menu"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 10
+
+[node name="SemillaLabel" type="Label" parent="Centro/Marco/Columnas/Menu/SemillaFila"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.847, 0.78, 0.675, 1)
+text = "Semilla"
+
+[node name="SemillaCampo" type="LineEdit" parent="Centro/Marco/Columnas/Menu/SemillaFila"]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+placeholder_text = "al azar"
+alignment = 1
+
 [node name="DueloCheck" type="CheckBox" parent="Centro/Marco/Columnas/Menu"]
 layout_mode = 2
 size_flags_horizontal = 4

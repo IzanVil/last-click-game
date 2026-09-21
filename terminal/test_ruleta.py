@@ -1,3 +1,5 @@
+import contextlib
+import io
 import unittest
 from functools import partial
 from unittest.mock import patch
@@ -11,6 +13,7 @@ import historial
 import pistas
 import records
 import ruleta
+import semillas
 
 # Parche vivo mientras corre este modulo de tests (ver setUpModule).
 _parche_teclado: object = None
@@ -176,7 +179,7 @@ class TestFlujoJuego(unittest.TestCase):
         mock_limpiar,
         mock_sleep,
     ):
-        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([False])
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor([False])
 
         entradas = iter(["d", "3", "r", "n"])
         with (
@@ -211,7 +214,9 @@ class TestFlujoJuego(unittest.TestCase):
         mock_limpiar,
         mock_sleep,
     ):
-        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([False, True])
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor(
+            [False, True]
+        )
 
         entradas = iter(["d", "3", "d", "4", "n"])
         with (
@@ -243,7 +248,7 @@ class TestFlujoJuego(unittest.TestCase):
         mock_sleep,
     ):
         # posicion_bala=5 por defecto: marcar el 3 acierta (no es la bala).
-        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([])
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor([])
 
         entradas = iter(["m", "3", "r", "n"])
         with (
@@ -283,7 +288,7 @@ class TestFlujoJuego(unittest.TestCase):
         mock_sleep,
     ):
         # posicion_bala=5 por defecto: marcar justo el 5 falla.
-        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([])
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor([])
 
         entradas = iter(["m", "5", "r", "n"])
         with (
@@ -321,7 +326,7 @@ class TestFlujoJuego(unittest.TestCase):
         mock_sleep,
     ):
         fake = FakeTambor([False])
-        mock_tambor_cls.side_effect = lambda huecos=None: fake
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: fake
 
         entradas = iter(["d", "3", "r", "n"])
         with (
@@ -350,7 +355,7 @@ class TestFlujoJuego(unittest.TestCase):
         mock_limpiar,
         mock_sleep,
     ):
-        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([False])
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor([False])
         mock_generar_pista.return_value = pistas.Pista(
             "pista falsa", frozenset({1, 2, 3})
         )
@@ -380,7 +385,7 @@ class TestFlujoJuego(unittest.TestCase):
         mock_limpiar,
         mock_sleep,
     ):
-        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor(
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor(
             [False, False, False]
         )
 
@@ -529,7 +534,9 @@ class TestJugarDuelo(unittest.TestCase):
         # posicion_bala=5 por defecto (nunca coincide con los disparos de
         # abajo): dos disparos sobreviven, uno por jugador, y el turno
         # vuelve al primer jugador, que se retira.
-        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([False, False])
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor(
+            [False, False]
+        )
 
         entradas = iter(
             [
@@ -583,7 +590,7 @@ class TestJugarDuelo(unittest.TestCase):
         mock_sleep,
     ):
         # posicion_bala=5 por defecto: marcar el 3 acierta (no es la bala).
-        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([])
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor([])
 
         entradas = iter(
             [
@@ -633,7 +640,9 @@ class TestJugarDuelo(unittest.TestCase):
         mock_limpiar,
         mock_sleep,
     ):
-        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([False, True])
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor(
+            [False, True]
+        )
 
         entradas = iter(
             [
@@ -703,6 +712,21 @@ class TestParsearArgs(unittest.TestCase):
         args = ruleta._parsear_args(["--marcas", "0"])
         self.assertEqual(args.marcas, 0)
 
+    def test_sin_semilla_no_hay_semilla(self):
+        self.assertIsNone(ruleta._parsear_args([]).semilla)
+
+    def test_acepta_una_semilla_y_la_deja_como_entero(self):
+        args = ruleta._parsear_args(["--semilla", "4242"])
+        self.assertEqual(args.semilla, 4242)
+
+    def test_rechaza_una_semilla_que_no_es_un_numero(self):
+        with self.assertRaises(SystemExit):
+            ruleta._parsear_args(["--semilla", "abc"])
+
+    def test_rechaza_una_semilla_fuera_de_rango(self):
+        with self.assertRaises(SystemExit):
+            ruleta._parsear_args(["--semilla", str(semillas.MAXIMO + 1)])
+
     def test_duelo(self):
         args = ruleta._parsear_args(["--duelo"])
         self.assertTrue(args.duelo)
@@ -744,7 +768,19 @@ class TestMain(unittest.TestCase):
     @patch("ruleta.jugar")
     def test_pasa_huecos_y_marcas_a_jugar(self, mock_jugar):
         ruleta.main(["--huecos", "6", "--marcas", "2"])
-        mock_jugar.assert_called_once_with(huecos=6, marcas=2, oscuridad=False)
+        mock_jugar.assert_called_once_with(
+            huecos=6, marcas=2, oscuridad=False, semilla=None
+        )
+
+    @patch("ruleta.jugar")
+    def test_pasa_la_semilla_a_jugar(self, mock_jugar):
+        ruleta.main(["--semilla", "4242"])
+        self.assertEqual(mock_jugar.call_args.kwargs["semilla"], 4242)
+
+    @patch("ruleta.jugar_duelo")
+    def test_pasa_la_semilla_al_duelo(self, mock_jugar_duelo):
+        ruleta.main(["--duelo", "--semilla", "4242"])
+        self.assertEqual(mock_jugar_duelo.call_args.kwargs["semilla"], 4242)
 
     @patch("ruleta.jugar")
     def test_pasa_el_modo_oscuridad(self, mock_jugar):
@@ -766,7 +802,7 @@ class TestMain(unittest.TestCase):
     def test_duelo_llama_a_jugar_duelo_en_vez_de_jugar(self, mock_jugar_duelo):
         ruleta.main(["--duelo", "--huecos", "6"])
         mock_jugar_duelo.assert_called_once_with(
-            huecos=6, marcas=farol.MARCAS_INICIALES, oscuridad=False
+            huecos=6, marcas=farol.MARCAS_INICIALES, oscuridad=False, semilla=None
         )
 
     @patch("ruleta.jugar")
@@ -1137,7 +1173,7 @@ class TestFlujoConSelectorCancelado(unittest.TestCase):
         mock_pausa,
     ):
         fake = FakeTambor([])
-        mock_tambor_cls.side_effect = lambda huecos=None: fake
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: fake
 
         entradas = iter(["m", "r", "n"])
         with (
@@ -1195,7 +1231,7 @@ class TestFlujoAvanzado(unittest.TestCase):
         mock_limpiar,
         mock_pausa,
     ):
-        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([])
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor([])
 
         entradas = iter(["r", "n"])
         with (
@@ -1223,7 +1259,9 @@ class TestFlujoAvanzado(unittest.TestCase):
     ):
         # Un tambor de 3 huecos ya nace "caliente": no hay margen que
         # gastar antes de que empiece el latido.
-        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([], huecos=3)
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor(
+            [], huecos=3
+        )
 
         entradas = iter(["r", "n"])
         with (
@@ -1250,7 +1288,7 @@ class TestFlujoAvanzado(unittest.TestCase):
         mock_pausa,
     ):
         fake = FakeTambor([])
-        mock_tambor_cls.side_effect = lambda huecos=None: fake
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: fake
 
         entradas = iter(["d", "r", "n"])
         with (
@@ -1280,7 +1318,7 @@ class TestFlujoAvanzado(unittest.TestCase):
         mock_pausa,
     ):
         fake = FakeTambor([], huecos=3)
-        mock_tambor_cls.side_effect = lambda huecos=None: fake
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: fake
 
         # Nombres, cancelar un farol, cancelar un disparo y retirarse.
         entradas = iter(["Ana", "Bea", "m", "d", "r", "n"])
@@ -1298,6 +1336,119 @@ class TestFlujoAvanzado(unittest.TestCase):
         self.assertEqual(mock_oscurecer.call_count, 3)
         self.assertEqual(mock_latido.call_count, 3)
         mock_retirada.assert_called_once()
+
+
+def _guion(max_disparos=12):
+    """Un jugador de mentira que siempre juega igual.
+
+    Dispara a los huecos 1, 2, 3... por orden hasta `max_disparos` y
+    entonces se retira; si la bala lo encuentra antes, contesta que no a
+    jugar otra. Lo importante es que su guion NO depende de la semilla:
+    asi, si dos partidas con la misma semilla salen iguales, es merito
+    del generador y no de que el jugador haya reaccionado distinto.
+    """
+    contador = {"disparos": 0}
+
+    def responder(prompt=""):
+        if "otra partida" in prompt or "otro duelo" in prompt:
+            return "n"
+        if "Pulsa Enter" in prompt:
+            return ""
+        if "Elige una posicion" in prompt:
+            contador["disparos"] += 1
+            return str((contador["disparos"] - 1) % 8 + 1)
+        if "Nombre del jugador" in prompt:
+            return ""
+        return "d" if contador["disparos"] < max_disparos else "r"
+
+    return responder
+
+
+def _grabar_partida(jugar, entrada_falsa=None, **kwargs):
+    """Juega una partida entera con el guion de arriba y devuelve lo impreso.
+
+    Se captura sys.stdout entero (y no builtins.print) porque el tecleo
+    letra a letra de efectos.py escribe por ahi directamente: una pista
+    o un epilogo no pasan por print().
+
+    Los records se cargan NUEVOS en cada llamada (side_effect y no
+    return_value, que es lo que hace _parchear_records): compartiendo un
+    unico Records entre dos partidas, la primera dejaba su marca de dias
+    y solo ella imprimia "¡Nuevo record!" -una diferencia del doble de
+    test, no del juego, que hacia fallar la comparacion.
+    """
+    salida = io.StringIO()
+    with (
+        patch("ruleta.records.cargar", side_effect=lambda: records.Records()),
+        patch("ruleta.records.guardar"),
+        patch("builtins.input", side_effect=entrada_falsa or _guion()),
+        contextlib.redirect_stdout(salida),
+    ):
+        jugar(**kwargs)
+    return salida.getvalue()
+
+
+class TestSemillaRepetible(unittest.TestCase):
+    """La semilla vale si reproduce la partida ENTERA, no solo el tambor.
+
+    Por eso estos tests comparan todo lo que sale por pantalla (pistas,
+    eventos, frases de ambiente, epilogo) en vez de mirar campos sueltos:
+    cualquier sorteo que se quedase fuera del generador de la partida
+    -uno nuevo que se anada manana sin pasarle `rng`- rompe aqui.
+    """
+
+    def test_la_misma_semilla_juega_la_misma_partida(self):
+        primera = _grabar_partida(ruleta.jugar, semilla=4242)
+        segunda = _grabar_partida(ruleta.jugar, semilla=4242)
+        self.assertEqual(primera, segunda)
+        self.assertIn("Semilla de esta partida: 4242", primera)
+
+    def test_semillas_distintas_juegan_partidas_distintas(self):
+        partidas = {_grabar_partida(ruleta.jugar, semilla=s) for s in range(8)}
+        # No se exige que las ocho sean distintas entre si (dos semillas
+        # pueden dar el mismo tambor y el mismo guion las juega igual),
+        # solo que la semilla cambie algo: con una sola partida distinta
+        # ya esta claro que no se esta ignorando el parametro.
+        self.assertGreater(len(partidas), 1)
+
+    def test_sin_semilla_cada_partida_sortea_la_suya(self):
+        partidas = {_grabar_partida(ruleta.jugar) for _ in range(12)}
+        self.assertGreater(len(partidas), 1)
+
+    def test_el_duelo_tambien_es_repetible(self):
+        primera = _grabar_partida(ruleta.jugar_duelo, semilla=77)
+        segunda = _grabar_partida(ruleta.jugar_duelo, semilla=77)
+        self.assertEqual(primera, segunda)
+        self.assertIn("Semilla de esta partida: 77", primera)
+
+    def test_la_semilla_solo_fija_la_primera_partida(self):
+        """Jugar dos seguidas con --semilla no repite la misma dos veces.
+
+        La segunda sortea la suya: si tambien heredase la del jugador,
+        la sesion entera seria un bucle de la misma partida.
+        """
+        vistas = set()
+        for _ in range(8):
+            entradas = _guion()
+            respuestas = {"n": 0}
+
+            def responder(prompt="", _entradas=entradas, _respuestas=respuestas):
+                if "otra partida" in prompt:
+                    _respuestas["n"] += 1
+                    # Solo se acepta jugar otra la primera vez.
+                    return "s" if _respuestas["n"] == 1 else "n"
+                return _entradas(prompt)
+
+            salida = _grabar_partida(
+                ruleta.jugar, entrada_falsa=responder, semilla=31337
+            )
+            sellos = [linea for linea in salida.splitlines() if "Semilla de" in linea]
+            self.assertEqual(len(sellos), 2)
+            vistas.add(tuple(sellos))
+        self.assertIn("31337", vistas.pop()[0])
+        # Entre ocho sesiones, la segunda partida no puede salir siempre
+        # la misma si de verdad se esta sorteando.
+        self.assertGreater(len({v[1] for v in vistas}), 1)
 
 
 if __name__ == "__main__":

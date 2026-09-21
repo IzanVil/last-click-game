@@ -127,6 +127,7 @@ russian-roulette-2d/
 │   ├── eventos.py       ← eventos aleatorios (clic metálico, tambor caliente)
 │   ├── historial.py     ← contadores de la partida y resumen narrativo
 │   ├── records.py       ← récords persistidos en ~/.tambor_del_juicio/
+│   ├── semillas.py      ← semilla de partida: repetir una partida exacta
 │   └── test_*.py        ← pruebas unitarias de los ocho módulos
 └── 2d/                  ← versión gráfica: El Tambor del Juicio
     ├── project.godot    ← proyecto Godot
@@ -140,6 +141,7 @@ russian-roulette-2d/
     ├── Jugador.gd       ← apuesta/marcas/disparos de un jugador y desempate
     ├── Dificultad.gd    ← presets fácil/normal/difícil
     ├── Records.gd       ← récords persistidos en user://records.json
+    ├── Azar.gd          ← semilla de partida (hermano de semillas.py)
     ├── Ajustes.gd       ← accesibilidad y mezcla, en user://ajustes.json
     ├── MainGame.gd      ← vista: las cuatro pantallas y su cableado
     ├── TamborView.gd    ← dibuja el tambor, lo gira y escucha al ratón
@@ -279,6 +281,34 @@ python3 ruleta.py --records
 
 Si superas tu récord de días, la pantalla final de esa partida lo anuncia.
 
+### Semilla: repetir una partida
+
+Cada partida se juega con una **semilla**, y la pantalla final la
+imprime. Volver a teclearla reproduce esa partida **exacta**: la misma
+posición inicial de la bala, el mismo patrón oculto, las mismas pistas
+(mentirosas incluidas), los mismos eventos y las mismas frases de
+ambiente.
+
+```bash
+python3 ruleta.py --semilla 4242       # juega la partida 4242
+python3 ruleta.py --semilla 4242 --duelo --dificultad dificil
+```
+
+Sirve para tres cosas: **compartir** una partida buena con alguien, que
+la juegue con tus mismas cartas; **comparar** dos formas de jugar el
+mismo tambor; y **reproducir** un fallo tal cual pasó, que es lo que
+convierte un "se me ha colgado" en algo arreglable.
+
+La semilla fija solo la **primera** partida de la sesión: si dices que sí
+a jugar otra, esa sortea la suya (y la enseña). Así el número que ves al
+terminar siempre sirve para repetir la partida que acabas de vivir, sea
+la primera o la quinta.
+
+> 💡 En la versión gráfica el campo **Semilla** está en el menú: déjalo
+> vacío para que se sortee. Ojo: la misma semilla da la misma partida
+> **dentro de cada versión**, no entre las dos — Python y Godot usan
+> generadores de números aleatorios distintos.
+
 ### Modo duelo
 
 `--duelo` enfrenta a dos jugadores por turnos **en el mismo tambor**: la
@@ -393,7 +423,8 @@ la pista siguiente y la deja marcada como `(dudosa)` en la lista, que es
 justo lo que el evento acaba de anunciar por escrito.
 
 Donde la terminal usa opciones de línea de comandos (`--dificultad`,
-`--duelo`, `--records`), aquí están en el menú y en la pantalla de récords;
+`--duelo`, `--records`, `--semilla`), aquí están en el menú y en la
+pantalla de récords;
 y donde la terminal vuelve al prompt al terminar una partida, aquí está la
 pantalla de final. Los récords se guardan en `user://records.json` (el
 equivalente idiomático en Godot de `~/.tambor_del_juicio/records.json`), y
@@ -597,6 +628,10 @@ versiones**.
   cuando quedan pocos huecos, panel fijo con día/puntos/marcas/pistas,
   bitácora de las últimas acciones (`historial.Accion`), modo a oscuras
   (`--oscuridad`) e interruptores `--sin-animaciones`/`--sin-sonido`
+- [x] **Partidas repetibles** en las dos versiones: cada partida lleva su
+  semilla, se enseña al terminar y se puede volver a jugar tal cual
+  (`--semilla` en la terminal, campo *Semilla* en el menú de Godot);
+  `semillas.py` y `Azar.gd` son los dos módulos espejo que la manejan
 
 ### 🕯️ Ambientación de la versión gráfica
 
@@ -651,6 +686,9 @@ de terceros más allá de las dos tipografías:
   completa y las opciones de accesibilidad
 
 ### 🎯 Otros próximos pasos
+- [ ] **Un generador común** para que una semilla dé la misma partida en
+  las dos versiones (hoy Python usa Mersenne Twister y Godot PCG32), y
+  con él un test de paridad que compare partida a partida en CI
 - [ ] Modo «borracho» 🍺 (menos suerte y más humor)
 - [ ] Empaquetado en un ejecutable único (`pyinstaller`)
 

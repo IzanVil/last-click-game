@@ -13,19 +13,22 @@ const TIPOS_PISTA: Array[String] = ["paridad", "mitad", "relativa"]
 ## `tipo == ""` sortea uno entre los disponibles; la pista "relativa"
 ## (respecto al ultimo disparo) solo puede salir si `ultimo_disparo` no
 ## es -1 (sin disparo previo, ver TamborJuicio.ultimo_disparo).
+## `rng` es el generador de la partida (ver Azar.gd); sin el se usa el
+## azar global, igual que antes de que existieran las semillas.
 static func generar_pista(
 	posicion_bala: int,
 	huecos: int,
 	ultimo_disparo: int = -1,
 	tipo: String = "",
 	mentir: bool = false,
+	rng: RandomNumberGenerator = null,
 ) -> Pista:
 	var elegido := tipo
 	if elegido == "":
 		var disponibles := TIPOS_PISTA.duplicate()
 		if ultimo_disparo == -1:
 			disponibles.erase("relativa")
-		elegido = disponibles[randi() % disponibles.size()]
+		elegido = disponibles[Azar.entero(rng, 0, disponibles.size() - 1)]
 
 	match elegido:
 		"paridad":
@@ -52,10 +55,39 @@ static func generar_pista(
 		"relativa":
 			assert(ultimo_disparo != -1, "No hay disparo previo para dar una pista relativa.")
 			if posicion_bala == ultimo_disparo:
-				# No deberia ocurrir en la practica: si coincidieran habria
-				# sido un impacto y la partida ya habria terminado antes
-				# de pedir pista. `mentir` no tiene un opuesto claro aqui.
-				return Pista.new("La bala esta justo donde acabas de disparar.", [ultimo_disparo])
+				# Ocurre de verdad, y ni siquiera es raro: la bala se mueve
+				# DESPUES de un disparo fallido (ver TamborJuicio.disparar),
+				# asi que puede acabar justo en el hueco que se acaba de
+				# probar. Con el patron "avanza" basta con disparar un hueco
+				# por delante de ella. Aqui `mentir` si tiene un opuesto
+				# claro: si la bala esta exactamente en el ultimo disparo,
+				# cualquiera de los dos lados es falso. Antes esta rama lo
+				# ignoraba, de modo que un evento "tambor_caliente" -que
+				# existe justo para mentir- acababa regalando la posicion
+				# exacta de la bala. Es el mismo arreglo que ya llevaba
+				# terminal/pistas.py.
+				if not mentir:
+					return Pista.new(
+						"La bala esta justo donde acabas de disparar.", [ultimo_disparo]
+					)
+				# Se miente hacia un lado que exista: disparar al hueco 1 (o
+				# al ultimo) deja un lado sin ningun hueco, y una pista con
+				# cero candidatos se delataria sola al cruzarla.
+				var lados: Array[bool] = []
+				if ultimo_disparo > 1:
+					lados.append(true)
+				if ultimo_disparo < huecos:
+					lados.append(false)
+				var hacia_izquierda: bool = lados[Azar.entero(rng, 0, lados.size() - 1)]
+				if hacia_izquierda:
+					return Pista.new(
+						"La bala esta a la izquierda de tu ultimo disparo.",
+						_por_relativa(huecos, ultimo_disparo, true)
+					)
+				return Pista.new(
+					"La bala esta a la derecha de tu ultimo disparo.",
+					_por_relativa(huecos, ultimo_disparo, false)
+				)
 			var izquierda := posicion_bala < ultimo_disparo
 			if mentir:
 				izquierda = not izquierda
@@ -108,9 +140,15 @@ static func _por_mitad(huecos: int, mitad: int, izquierda: bool) -> Array[int]:
 	return resultado
 
 
+## Ojo con el hueco del propio ultimo disparo: no esta ni a la izquierda
+## ni a la derecha de si mismo, asi que se queda fuera de los dos lados.
+## Escrito como `(h < ultimo) == izquierda` -como estaba antes- el lado
+## derecho salia como `h >= ultimo` y colaba ese hueco entre sus
+## candidatos, un hueco de mas encendido en el tambor que la version de
+## terminal nunca encendio (alli el lado derecho es `h > ultimo`).
 static func _por_relativa(huecos: int, ultimo_disparo: int, izquierda: bool) -> Array[int]:
 	var resultado: Array[int] = []
 	for h in range(1, huecos + 1):
-		if (h < ultimo_disparo) == izquierda:
+		if h < ultimo_disparo if izquierda else h > ultimo_disparo:
 			resultado.append(h)
 	return resultado

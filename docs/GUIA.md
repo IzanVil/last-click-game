@@ -62,9 +62,21 @@ GDScript se indica entre paréntesis.
    tuviera en juego); gana quien sobrevivió más días o, en caso de
    empate, quien tenga más puntos.
 
+9. **Semilla de partida**: todo lo que se sortea (la posición inicial de
+   la bala, su patrón, el tipo de cada pista, los eventos y las frases de
+   ambiente) sale de un único generador creado a partir de un número, que
+   se enseña al terminar. Repetir ese número repite la partida entera.
+   La semilla es de la partida y no de la sesión: si fuese de la sesión,
+   el número mostrado al final solo serviría para repetir desde la
+   primera, y lo que uno quiere repetir es la que acaba de jugar.
+   Vive en `terminal/semillas.py` y en `2d/Azar.gd`; el resto de módulos
+   solo recibe el generador ya hecho (`rng` en Python,
+   `RandomNumberGenerator` en GDScript) y, si no lo recibe, cae al azar
+   global como antes.
+
 Cada versión ofrece esos ajustes a su manera: la terminal por línea de
-comandos (`--dificultad`, `--duelo`, `--records`) y Godot en un menú
-previo a la partida. Los récords se guardan en
+comandos (`--dificultad`, `--duelo`, `--records`, `--semilla`) y Godot en
+un menú previo a la partida. Los récords se guardan en
 `~/.tambor_del_juicio/records.json` (terminal) y en `user://records.json`
 (Godot, el equivalente idiomático del motor). En la versión gráfica,
 además, el tambor se ve girar al empezar la partida, pulsa con tensión
@@ -77,7 +89,8 @@ antes de revelar un disparo o un farol, y la pantalla vibra al morir; ver
   - **Lógica pura** (sin `input()`/`print()`, igual de fácil de testear que
     `RuletaEstado.gd` en la versión Godot): `terminal/estado.py`,
     `terminal/pistas.py`, `terminal/apuestas.py`, `terminal/farol.py`,
-    `terminal/eventos.py`, `terminal/historial.py`, `terminal/records.py`
+    `terminal/eventos.py`, `terminal/historial.py`, `terminal/records.py`,
+    `terminal/semillas.py`
     y `terminal/ambiente.py` (texto narrativo: frases de ambiente,
     carteles y finales alternativos).
   - **Primitivas de terminal**, que no saben nada del juego:
@@ -194,7 +207,8 @@ añades un módulo de lógica más, sigue el mismo patrón de import.
 
 Hay una batería de pruebas por módulo (`test_estado.py`, `test_pistas.py`,
 `test_apuestas.py`, `test_farol.py`, `test_eventos.py`, `test_historial.py`,
-`test_records.py`, `test_ambiente.py`, `test_efectos.py`, `test_entrada.py`,
+`test_records.py`, `test_semillas.py`, `test_ambiente.py`, `test_efectos.py`,
+`test_entrada.py`,
 `test_ruleta.py`). Tres cosas que hay que respetar al escribir tests
 nuevos de la interfaz:
 
@@ -605,6 +619,7 @@ russian-roulette-2d/
 │   ├── eventos.py
 │   ├── historial.py
 │   ├── records.py
+│   ├── semillas.py
 │   ├── ambiente.py
 │   ├── efectos.py
 │   ├── entrada.py
@@ -616,6 +631,7 @@ russian-roulette-2d/
 │   ├── test_eventos.py
 │   ├── test_historial.py
 │   ├── test_records.py
+│   ├── test_semillas.py
 │   ├── test_ambiente.py
 │   ├── test_efectos.py
 │   └── test_entrada.py
@@ -632,6 +648,7 @@ russian-roulette-2d/
     ├── Jugador.gd
     ├── Dificultad.gd
     ├── Records.gd
+    ├── Azar.gd
     ├── Ajustes.gd
     ├── MainGame.gd
     ├── TamborView.gd
