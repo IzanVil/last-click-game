@@ -10,6 +10,8 @@ import efectos
 import eventos
 import farol
 import historial
+import jugador
+import motor
 import pistas
 import records
 import ruleta
@@ -456,20 +458,13 @@ class TestFlujoJuego(unittest.TestCase):
         self.assertNotIn("record", mensajes.lower())
 
 
-class TestJugadorDuelo(unittest.TestCase):
-    def test_dias_se_deriva_de_los_disparos(self):
-        jugador = ruleta.JugadorDuelo("Ana", apuestas.Apuesta(100), farol.Farol())
-        jugador.disparos = 7
-        self.assertEqual(jugador.dias, 2)
-
-
 class TestResultadoDuelo(unittest.TestCase):
     @patch("ruleta.efectos.pausa", return_value=None)
     @patch("ruleta.limpiar", return_value=None)
     def test_gana_quien_sobrevive_mas_dias(self, mock_limpiar, mock_sleep):
-        ana = ruleta.JugadorDuelo("Ana", apuestas.Apuesta(100), farol.Farol())
+        ana = jugador.Jugador("Ana", apuestas.Apuesta(100), farol.Farol())
         ana.disparos, ana.puntos_finales = 6, 300  # 2 dias
-        beto = ruleta.JugadorDuelo("Beto", apuestas.Apuesta(100), farol.Farol())
+        beto = jugador.Jugador("Beto", apuestas.Apuesta(100), farol.Farol())
         beto.disparos, beto.puntos_finales = 3, 900  # 1 dia, pero mas puntos
 
         with (
@@ -484,9 +479,9 @@ class TestResultadoDuelo(unittest.TestCase):
     @patch("ruleta.efectos.pausa", return_value=None)
     @patch("ruleta.limpiar", return_value=None)
     def test_empate_en_dias_lo_desempata_los_puntos(self, mock_limpiar, mock_sleep):
-        ana = ruleta.JugadorDuelo("Ana", apuestas.Apuesta(100), farol.Farol())
+        ana = jugador.Jugador("Ana", apuestas.Apuesta(100), farol.Farol())
         ana.disparos, ana.puntos_finales = 3, 400
-        beto = ruleta.JugadorDuelo("Beto", apuestas.Apuesta(100), farol.Farol())
+        beto = jugador.Jugador("Beto", apuestas.Apuesta(100), farol.Farol())
         beto.disparos, beto.puntos_finales = 3, 900
 
         with (
@@ -501,9 +496,9 @@ class TestResultadoDuelo(unittest.TestCase):
     @patch("ruleta.efectos.pausa", return_value=None)
     @patch("ruleta.limpiar", return_value=None)
     def test_empate_total(self, mock_limpiar, mock_sleep):
-        ana = ruleta.JugadorDuelo("Ana", apuestas.Apuesta(100), farol.Farol())
+        ana = jugador.Jugador("Ana", apuestas.Apuesta(100), farol.Farol())
         ana.disparos, ana.puntos_finales = 3, 400
-        beto = ruleta.JugadorDuelo("Beto", apuestas.Apuesta(100), farol.Farol())
+        beto = jugador.Jugador("Beto", apuestas.Apuesta(100), farol.Farol())
         beto.disparos, beto.puntos_finales = 3, 400
 
         with (
@@ -556,7 +551,7 @@ class TestJugarDuelo(unittest.TestCase):
             patch("ruleta.retirada") as mock_retirada,
             patch("builtins.print") as mock_print,
         ):
-            ruleta.jugar_duelo()
+            ruleta.jugar(duelo=True)
 
         # Jugador 1: 1 disparo sobrevivido (100 -> 200) y se retira con
         # esos 200 puntos; 0 dias (hacen falta 3 disparos).
@@ -608,7 +603,7 @@ class TestJugarDuelo(unittest.TestCase):
             patch("ruleta.retirada") as mock_retirada,
             patch("builtins.print") as mock_print,
         ):
-            ruleta.jugar_duelo()
+            ruleta.jugar(duelo=True)
 
         # Jugador 2 se retira sin haber hecho nada: cobra su apuesta base.
         _comprobar_final(
@@ -660,7 +655,7 @@ class TestJugarDuelo(unittest.TestCase):
             patch("builtins.input", side_effect=lambda _p="": next(entradas)),
             patch("builtins.print"),
         ):
-            ruleta.jugar_duelo()
+            ruleta.jugar(duelo=True)
 
         # Jugador 2 muere en su primer disparo: pierde su apuesta base
         # entera (nunca llego a doblarla).
@@ -769,7 +764,7 @@ class TestMain(unittest.TestCase):
     def test_pasa_huecos_y_marcas_a_jugar(self, mock_jugar):
         ruleta.main(["--huecos", "6", "--marcas", "2"])
         mock_jugar.assert_called_once_with(
-            huecos=6, marcas=2, oscuridad=False, semilla=None
+            huecos=6, marcas=2, oscuridad=False, semilla=None, duelo=False
         )
 
     @patch("ruleta.jugar")
@@ -777,10 +772,10 @@ class TestMain(unittest.TestCase):
         ruleta.main(["--semilla", "4242"])
         self.assertEqual(mock_jugar.call_args.kwargs["semilla"], 4242)
 
-    @patch("ruleta.jugar_duelo")
-    def test_pasa_la_semilla_al_duelo(self, mock_jugar_duelo):
+    @patch("ruleta.jugar")
+    def test_pasa_la_semilla_al_duelo(self, mock_jugar):
         ruleta.main(["--duelo", "--semilla", "4242"])
-        self.assertEqual(mock_jugar_duelo.call_args.kwargs["semilla"], 4242)
+        self.assertEqual(mock_jugar.call_args.kwargs["semilla"], 4242)
 
     @patch("ruleta.jugar")
     def test_pasa_el_modo_oscuridad(self, mock_jugar):
@@ -798,11 +793,18 @@ class TestMain(unittest.TestCase):
         ruleta.main([])
         self.assertTrue(efectos.AJUSTES.animaciones)
 
-    @patch("ruleta.jugar_duelo")
-    def test_duelo_llama_a_jugar_duelo_en_vez_de_jugar(self, mock_jugar_duelo):
+    @patch("ruleta.jugar")
+    def test_duelo_enciende_el_modo_duelo_en_el_mismo_bucle(self, mock_jugar):
+        # Ya no hay dos funciones: el duelo es el mismo jugar() con dos
+        # jugadores (ver motor.py), asi que lo que se comprueba es que
+        # la opcion llega, no a quien se llama.
         ruleta.main(["--duelo", "--huecos", "6"])
-        mock_jugar_duelo.assert_called_once_with(
-            huecos=6, marcas=farol.MARCAS_INICIALES, oscuridad=False, semilla=None
+        mock_jugar.assert_called_once_with(
+            huecos=6,
+            marcas=farol.MARCAS_INICIALES,
+            oscuridad=False,
+            semilla=None,
+            duelo=True,
         )
 
     @patch("ruleta.jugar")
@@ -847,11 +849,11 @@ class TestMain(unittest.TestCase):
         )
         self.assertIn("Hasta la proxima", mensajes)
 
-    @patch("ruleta.jugar_duelo", side_effect=EOFError)
+    @patch("ruleta.jugar", side_effect=EOFError)
     def test_eof_en_modo_duelo_tambien_sale_limpio(self, mock_duelo):
-        # --duelo entra por la otra rama del try, asi que se comprueba
-        # aparte: es justo el caso que se escapaba de una captura puesta
-        # solo alrededor de jugar().
+        # Desde que el duelo es el mismo jugar(), entra por la misma
+        # rama del try; se mantiene el caso porque era justo el que se
+        # escapaba de una captura puesta solo alrededor de jugar().
         with patch("builtins.print") as mock_print:
             ruleta.main(["--duelo"])
 
@@ -1330,7 +1332,7 @@ class TestFlujoAvanzado(unittest.TestCase):
             patch("builtins.input", side_effect=lambda _p="": next(entradas)),
             patch("builtins.print"),
         ):
-            ruleta.jugar_duelo(huecos=3, oscuridad=True)
+            ruleta.jugar(huecos=3, oscuridad=True, duelo=True)
 
         self.assertEqual(fake.historial, [])
         self.assertEqual(mock_oscurecer.call_count, 3)
@@ -1388,6 +1390,19 @@ def _grabar_partida(jugar, entrada_falsa=None, **kwargs):
     return salida.getvalue()
 
 
+class TestContarSuceso(unittest.TestCase):
+    def test_un_hueco_fuera_del_tambor_se_avisa_por_pantalla(self):
+        # El selector de la terminal ya valida el rango antes de llegar
+        # al motor, asi que este caso no se alcanza jugando; se prueba
+        # aparte porque la interfaz grafica si deja teclear cualquier
+        # cosa y el manejador tiene que existir igualmente.
+        partida = ruleta.Partida(motor.Motor(), records.Records())
+        with patch("builtins.print") as mock_print:
+            ruleta._contar_suceso(motor.EntradaInvalida(99), partida)
+        dicho = " ".join(str(c.args[0]) for c in mock_print.call_args_list if c.args)
+        self.assertIn("no esta en el tambor", dicho)
+
+
 class TestSemillaRepetible(unittest.TestCase):
     """La semilla vale si reproduce la partida ENTERA, no solo el tambor.
 
@@ -1416,8 +1431,8 @@ class TestSemillaRepetible(unittest.TestCase):
         self.assertGreater(len(partidas), 1)
 
     def test_el_duelo_tambien_es_repetible(self):
-        primera = _grabar_partida(ruleta.jugar_duelo, semilla=77)
-        segunda = _grabar_partida(ruleta.jugar_duelo, semilla=77)
+        primera = _grabar_partida(ruleta.jugar, semilla=77, duelo=True)
+        segunda = _grabar_partida(ruleta.jugar, semilla=77, duelo=True)
         self.assertEqual(primera, segunda)
         self.assertIn("Semilla de esta partida: 77", primera)
 

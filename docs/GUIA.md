@@ -90,24 +90,33 @@ antes de revelar un disparo o un farol, y la pantalla vibra al morir; ver
     `RuletaEstado.gd` en la versión Godot): `terminal/estado.py`,
     `terminal/pistas.py`, `terminal/apuestas.py`, `terminal/farol.py`,
     `terminal/eventos.py`, `terminal/historial.py`, `terminal/records.py`,
-    `terminal/semillas.py`
+    `terminal/semillas.py`, `terminal/jugador.py`
     y `terminal/ambiente.py` (texto narrativo: frases de ambiente,
     carteles y finales alternativos).
+  - **Reglas del turno**: `terminal/motor.py`, que junta las anteriores y
+    resuelve qué pasa al disparar, marcar o retirarse. Es el hermano de
+    `2d/RuletaEstado.gd`, con la misma diferencia de forma que hay entre
+    los dos lenguajes: allí las cosas que pasan se emiten como señales y
+    aquí se devuelven como una lista de sucesos.
   - **Primitivas de terminal**, que no saben nada del juego:
     `terminal/efectos.py` (pantalla, cursor, pausas, tecleo letra a letra,
     timbre, repintado de un bloque en el sitio) y `terminal/entrada.py`
     (teclado en crudo con `termios`/`msvcrt`).
-  - **Interfaz**: `terminal/ruleta.py`, que orquesta las otras dos y no
-    lleva ninguna regla del juego.
+  - **Interfaz**: `terminal/ruleta.py`, que pinta lo que el motor le
+    cuenta y no lleva ninguna regla del juego. Un caso de
+    `_contar_suceso()` por cada suceso que el motor devuelve.
 - Dependencias: **ninguna** (solo la librería estándar de Python 3.11+).
 - Ejecución: `./run.sh`, o directamente `python3 terminal/ruleta.py`. Admite
   `--dificultad {facil,normal,dificil}`, `--huecos N`/`--marcas N` (pisan
-  al preset), `--duelo` (modo duelo, ver `jugar_duelo()`), `--oscuridad`
-  (modo a oscuras), `--sin-animaciones` y `--sin-sonido` (ver `efectos.py`),
-  `--records` (muestra los récords guardados y no juega) y `--version`.
-  `main()` es el entry point real (`ruleta = "terminal.ruleta:main"` en
-  `pyproject.toml`), que envuelve `jugar()`/`jugar_duelo()` para capturar
-  Ctrl+C y configura los efectos según los flags.
+  al preset), `--duelo` (modo duelo), `--semilla N` (repite una partida),
+  `--oscuridad` (modo a oscuras), `--sin-animaciones` y `--sin-sonido`
+  (ver `efectos.py`), `--records` (muestra los récords guardados y no
+  juega) y `--version`. `main()` es el entry point real
+  (`ruleta = "terminal.ruleta:main"` en `pyproject.toml`), que envuelve
+  `jugar()` para capturar Ctrl+C y configura los efectos según los flags.
+  No hay una función aparte para el duelo: es el mismo `jugar()` con
+  `duelo=True`, porque una partida en solitario es —aquí y en Godot— un
+  duelo de un único jugador (ver `motor.py` y `jugador.py`).
 - Interactúa por entrada/salida estándar con interfaz en colores y tambor
   ASCII, animado y con teclado en crudo cuando hay una terminal delante.
 
@@ -619,6 +628,8 @@ russian-roulette-2d/
 │   ├── eventos.py
 │   ├── historial.py
 │   ├── records.py
+│   ├── jugador.py
+│   ├── motor.py
 │   ├── semillas.py
 │   ├── ambiente.py
 │   ├── efectos.py
@@ -631,6 +642,8 @@ russian-roulette-2d/
 │   ├── test_eventos.py
 │   ├── test_historial.py
 │   ├── test_records.py
+│   ├── test_jugador.py
+│   ├── test_motor.py
 │   ├── test_semillas.py
 │   ├── test_ambiente.py
 │   ├── test_efectos.py

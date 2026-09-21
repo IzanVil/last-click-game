@@ -120,6 +120,8 @@ russian-roulette-2d/
 │   └── img/             ← capturas (las genera 2d/tools/capturas.gd)
 ├── terminal/            ← versión de consola: El Tambor del Juicio
 │   ├── ruleta.py        ← interfaz de terminal (pantalla, teclado, colores)
+│   ├── motor.py         ← reglas del turno: disparar, marcar, retirarse
+│   ├── jugador.py       ← apuesta, marcas y disparos de un jugador
 │   ├── estado.py        ← tambor y bala: posición, patrón, días de vida
 │   ├── pistas.py        ← generación de pistas (veraces o mentirosas)
 │   ├── apuestas.py      ← apuesta doblar-o-retirarse
@@ -684,6 +686,12 @@ de terceros más allá de las dos tipografías:
 - [x] **Ayuda (H) y ajustes (Esc)** — panel de ayuda mecanografiado y menú
   de ajustes con volumen de música y efectos por separado, pantalla
   completa y las opciones de accesibilidad
+
+- [x] **Reglas en un solo sitio** en la versión de terminal: `motor.py`
+  resuelve el turno y devuelve sucesos, y `ruleta.py` solo los pinta
+  (hermano de `RuletaEstado.gd`). El modo duelo deja de ser un bucle
+  aparte: una partida en solitario es un duelo de un único jugador, como
+  ya lo era en Godot
 
 ### 🎯 Otros próximos pasos
 - [ ] **Un generador común** para que una semilla dé la misma partida en
