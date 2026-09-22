@@ -230,7 +230,106 @@
    "restantes": 0
   }
  ],
- "formato": 1,
+ "formato": 2,
+ "ganadores": [
+  {
+   "ganadores": [
+    1
+   ],
+   "mesa": [
+    {
+     "dias": 3,
+     "puntos": 100
+    },
+    {
+     "dias": 6,
+     "puntos": 100
+    }
+   ]
+  },
+  {
+   "ganadores": [
+    0
+   ],
+   "mesa": [
+    {
+     "dias": 6,
+     "puntos": 100
+    },
+    {
+     "dias": 3,
+     "puntos": 800
+    }
+   ]
+  },
+  {
+   "ganadores": [
+    1
+   ],
+   "mesa": [
+    {
+     "dias": 3,
+     "puntos": 100
+    },
+    {
+     "dias": 3,
+     "puntos": 800
+    }
+   ]
+  },
+  {
+   "ganadores": [
+    0,
+    1
+   ],
+   "mesa": [
+    {
+     "dias": 3,
+     "puntos": 800
+    },
+    {
+     "dias": 3,
+     "puntos": 800
+    }
+   ]
+  },
+  {
+   "ganadores": [
+    0,
+    1
+   ],
+   "mesa": [
+    {
+     "dias": 0,
+     "puntos": 0
+    },
+    {
+     "dias": 0,
+     "puntos": 0
+    }
+   ]
+  },
+  {
+   "ganadores": [
+    0,
+    2
+   ],
+   "mesa": [
+    {
+     "dias": 9,
+     "puntos": 50
+    },
+    {
+     "dias": 3,
+     "puntos": 900
+    },
+    {
+     "dias": 9,
+     "puntos": 50
+    }
+   ]
+  }
+ ],
  "interseccion": [
   {
    "candidatos": [],
