@@ -16,10 +16,6 @@ de decir lo mismo, falla el CI en vez de descubrirse jugando.
 Solo entran funciones puras que existen en las dos versiones. Quedan
 fuera a proposito:
 
-- El desempate de un duelo. Godot lo tiene en `Jugador.ganadores()`,
-  pero en la terminal esta escrito dentro de `ruleta.resultado_duelo`,
-  mezclado con el pintado, y no hay funcion pura que tabular. Entra en
-  cuanto se saque de ahi.
 
 - `ambiente.epilogo` y sus ocho finales, que son solo de la terminal.
 - El orden en que cada version cuenta lo que pasa en un turno: son
@@ -40,17 +36,27 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from . import apuestas, estado, eventos, farol, historial, pistas, ruleta
+    from . import (
+        apuestas,
+        estado,
+        eventos,
+        farol,
+        historial,
+        jugador,
+        pistas,
+        ruleta,
+    )
 except ImportError:  # pragma: no cover - ejecucion como script suelto
     import apuestas  # type: ignore[no-redef,import-not-found]
     import estado  # type: ignore[no-redef,import-not-found]
     import eventos  # type: ignore[no-redef,import-not-found]
     import farol  # type: ignore[no-redef,import-not-found]
     import historial  # type: ignore[no-redef,import-not-found]
+    import jugador  # type: ignore[no-redef,import-not-found]
     import pistas  # type: ignore[no-redef,import-not-found]
     import ruleta  # type: ignore[no-redef,import-not-found]
 
-FORMATO = 1
+FORMATO = 2
 
 # Tamaños de tambor que se recorren enteros. No hace falta probarlos
 # todos: 6/8/10 son los tres presets de dificultad, y entre un par y un
@@ -297,6 +303,39 @@ def _resumen() -> list[dict]:
     return casos
 
 
+def _ganadores() -> list[dict]:
+    """Quien gana un duelo, incluidos los empates.
+
+    Entra en la tabla desde que el desempate vive en `jugador.ganadores`:
+    mientras estuvo escrito dentro de `ruleta.resultado_duelo`, mezclado
+    con el pintado, no habia funcion pura que tabular.
+    """
+    mesas = [
+        [(3, 100), (6, 100)],
+        [(6, 100), (3, 800)],
+        [(3, 100), (3, 800)],
+        [(3, 800), (3, 800)],
+        [(0, 0), (0, 0)],
+        [(9, 50), (3, 900), (9, 50)],
+    ]
+    casos = []
+    for mesa in mesas:
+        jugadores = []
+        for indice, (dias, puntos) in enumerate(mesa):
+            uno = jugador.Jugador(f"J{indice}", apuestas.Apuesta(100), farol.Farol(3))
+            uno.disparos = dias * estado.DISPAROS_POR_DIA
+            uno.puntos_finales = puntos
+            jugadores.append(uno)
+        vencedores = jugador.ganadores(jugadores)
+        casos.append(
+            {
+                "mesa": [{"dias": d, "puntos": p} for d, p in mesa],
+                "ganadores": [jugadores.index(v) for v in vencedores],
+            }
+        )
+    return casos
+
+
 def tabla() -> dict:
     """La tabla entera, tal como se escribe a disco."""
     return {
@@ -309,6 +348,7 @@ def tabla() -> dict:
         "apuesta": _apuesta(),
         "farol": _farol(),
         "resumen": _resumen(),
+        "ganadores": _ganadores(),
     }
 
 

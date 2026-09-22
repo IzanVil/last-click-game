@@ -25,7 +25,7 @@ const RUTA_TABLA := "res://tests/paridad.json"
 
 ## Formato de tabla que este script sabe leer. Si Python sube el suyo sin
 ## que se actualice esto, el test falla en vez de comparar a medias.
-const FORMATO := 1
+const FORMATO := 2
 
 var _fallos: Array[String] = []
 var _comparaciones := 0
@@ -53,6 +53,7 @@ func _init() -> void:
 	_test_apuesta(tabla["apuesta"])
 	_test_farol(tabla["farol"])
 	_test_resumen(tabla["resumen"])
+	_test_ganadores(tabla["ganadores"])
 	_comprobar_que_se_recorrio_todo(tabla)
 
 	if _fallos.is_empty():
@@ -73,7 +74,7 @@ func _init() -> void:
 ## Ninguna seccion puede quedarse a medias sin que se note.
 func _comprobar_que_se_recorrio_todo(tabla: Dictionary) -> void:
 	for seccion: String in [
-		"mover", "dias", "pistas", "interseccion", "apuesta", "farol", "resumen"
+		"mover", "dias", "pistas", "interseccion", "apuesta", "farol", "resumen", "ganadores"
 	]:
 		var esperados: int = (tabla[seccion] as Array).size()
 		var recorridos: int = _vistos.get(seccion, 0)
@@ -307,3 +308,20 @@ func _test_resumen(casos: Array) -> void:
 				% [int(caso["dias"]), bitacora.faroles_usados, caso["eventos"]]
 			)
 		)
+
+
+## El desempate de un duelo: mandan los dias y, si empatan, los puntos.
+## Un empate total devuelve mas de un ganador.
+func _test_ganadores(casos: Array) -> void:
+	for caso: Dictionary in casos:
+		_vistos["ganadores"] = int(_vistos.get("ganadores", 0)) + 1
+		var jugadores: Array[Jugador] = []
+		for fila: Dictionary in caso["mesa"]:
+			var uno := Jugador.new("", Apuesta.new(100), Farol.new(3))
+			uno.disparos = int(fila["dias"]) * TamborJuicio.DISPAROS_POR_DIA
+			uno.puntos_finales = int(fila["puntos"])
+			jugadores.append(uno)
+		var indices: Array[int] = []
+		for vencedor in Jugador.ganadores(jugadores):
+			indices.append(jugadores.find(vencedor))
+		_afirmar_igual(indices, _enteros(caso["ganadores"]), "ganadores de %s" % [caso["mesa"]])

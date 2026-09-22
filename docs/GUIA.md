@@ -86,10 +86,10 @@ ningún test de una sola versión puede encontrar.
 **Cómo funciona.** `terminal/paridad.py` genera una tabla de casos
 —entradas y la respuesta que da Python— y la deja versionada en
 `2d/tests/paridad.json`. `2d/tests/test_paridad.gd` la carga, ejecuta los
-mismos casos contra los módulos de GDScript y compara: unas **1.464
+mismos casos contra los módulos de GDScript y compara: unas **1.470
 comparaciones** por build (1.296 pistas, 96 movimientos de bala, más
-días, intersección, apuesta, farol, resumen y todas las constantes
-compartidas). El CI lo corre en cada push.
+días, intersección, apuesta, farol, resumen, desempate del duelo y todas
+las constantes compartidas). El CI lo corre en cada push.
 
 Tres decisiones que conviene conocer antes de tocarlo:
 
@@ -113,30 +113,34 @@ sección: Godot sale con exit code 0 aunque un script reviente a media
 ejecución, así que sin él un error dentro del bucle de pistas dejaba el
 test diciendo «OK» con una fracción de los casos comparados.
 
-Queda fuera por ahora el desempate de un duelo: Godot lo tiene en
-`Jugador.ganadores()`, pero en la terminal está escrito dentro de
-`ruleta.resultado_duelo`, mezclado con el pintado, y no hay función pura
-que tabular. Entra en cuanto se saque de ahí.
-
 ## Versión de terminal (Python)
 
 - Archivos, en tres capas:
   - **Lógica pura** (sin `input()`/`print()`, igual de fácil de testear que
     `RuletaEstado.gd` en la versión Godot): `terminal/estado.py`,
     `terminal/pistas.py`, `terminal/apuestas.py`, `terminal/farol.py`,
-    `terminal/eventos.py`, `terminal/historial.py`, `terminal/records.py`
+    `terminal/eventos.py`, `terminal/historial.py`, `terminal/records.py`,
+    `terminal/jugador.py`
     y `terminal/ambiente.py` (texto narrativo: frases de ambiente,
     carteles y finales alternativos).
+  - **Reglas del turno**: `terminal/motor.py`, que junta las anteriores y
+    resuelve qué pasa al disparar, marcar o retirarse. Es el hermano de
+    `2d/RuletaEstado.gd`, con la misma diferencia de forma que hay entre
+    los dos lenguajes: allí las cosas que pasan se emiten como señales y
+    aquí se devuelven como una lista de sucesos.
   - **Primitivas de terminal**, que no saben nada del juego:
     `terminal/efectos.py` (pantalla, cursor, pausas, tecleo letra a letra,
     timbre, repintado de un bloque en el sitio) y `terminal/entrada.py`
     (teclado en crudo con `termios`/`msvcrt`).
-  - **Interfaz**: `terminal/ruleta.py`, que orquesta las otras dos y no
-    lleva ninguna regla del juego.
+  - **Interfaz**: `terminal/ruleta.py`, que pinta lo que el motor le
+    cuenta y no lleva ninguna regla del juego. Un caso de
+    `_contar_suceso()` por cada suceso que el motor devuelve.
 - Dependencias: **ninguna** (solo la librería estándar de Python 3.11+).
 - Ejecución: `./run.sh`, o directamente `python3 terminal/ruleta.py`. Admite
   `--dificultad {facil,normal,dificil}`, `--huecos N`/`--marcas N` (pisan
-  al preset), `--duelo` (modo duelo, ver `jugar_duelo()`), `--oscuridad`
+  al preset), `--duelo` (modo duelo: es el mismo `jugar()` con dos
+  jugadores, porque una partida en solitario es —aquí y en Godot— un
+  duelo de un único jugador), `--oscuridad`
   (modo a oscuras), `--sin-animaciones`, `--sin-color` y `--sin-sonido`
   (ver `efectos.py`), `--seed N` (fija el azar de la partida entera),
   `--records` (muestra los récords guardados y no juega) y `--version`.
@@ -665,6 +669,8 @@ last-click-game/
 │   ├── farol.py
 │   ├── eventos.py
 │   ├── historial.py
+│   ├── jugador.py
+│   ├── motor.py
 │   ├── records.py
 │   ├── ambiente.py
 │   ├── efectos.py
@@ -676,6 +682,8 @@ last-click-game/
 │   ├── test_farol.py
 │   ├── test_eventos.py
 │   ├── test_historial.py
+│   ├── test_jugador.py
+│   ├── test_motor.py
 │   ├── test_records.py
 │   ├── test_ambiente.py
 │   ├── test_efectos.py
