@@ -49,6 +49,14 @@ signal duelo_terminado(jugadores: Array, ganadores: Array)
 var tambor: TamborJuicio
 var pistas_reveladas: Array[Pista] = []
 
+## Semilla de la partida en curso y su generador (ver Azar.gd). La
+## semilla se expone para poder enseñarla al terminar: es el numero con
+## el que se vuelve a jugar exactamente esta partida. El generador es
+## privado porque nadie de fuera deberia sacarle numeros: cada uno que
+## se le pidiera por detras descolocaria la partida siguiente.
+var semilla := -1
+var _azar: RandomNumberGenerator = null
+
 ## Todos los jugadores de la partida (uno en solitario, dos en duelo) y a
 ## quien le toca. El tambor y las pistas de arriba son compartidos: en un
 ## duelo los dos juegan literalmente el mismo revolver.
@@ -96,12 +104,20 @@ func es_duelo() -> bool:
 
 ## Empieza una partida. Con `nombres` vacio arranca una partida en
 ## solitario; con dos o mas nombres, un duelo por turnos.
+##
+## `semilla_pedida == -1` sortea una; cualquier otro valor repite esa
+## partida exacta. En duelo la semilla vale para el duelo entero y no
+## para cada jugador: el tambor es uno solo y compartido, que es justo
+## lo que hace comparables dos duelos con la misma semilla.
 func iniciar_juego(
 	huecos: int = HUECOS,
 	marcas: int = Farol.MARCAS_INICIALES,
 	nombres: Array[String] = [],
+	semilla_pedida: int = -1,
 ) -> void:
-	tambor = TamborJuicio.new(huecos)
+	semilla = semilla_pedida if semilla_pedida >= 0 else Azar.nueva()
+	_azar = Azar.generador(semilla)
+	tambor = TamborJuicio.new(huecos, "", -1, _azar)
 	pistas_reveladas.clear()
 	turno = 0
 	jugadores.clear()
@@ -144,7 +160,7 @@ func disparar(numero: int) -> void:
 
 	activo.apuesta.doblar()
 
-	var evento := Eventos.tirar_evento(probabilidad_eventos)
+	var evento := Eventos.tirar_evento(probabilidad_eventos, _azar)
 	if evento == "clic_metalico":
 		tambor.mover_extra()
 	if evento != "":
@@ -152,7 +168,12 @@ func disparar(numero: int) -> void:
 		evento_ocurrido.emit(evento, Eventos.texto_de(evento))
 
 	var pista := Pistas.generar_pista(
-		tambor.posicion_bala, tambor.huecos, tambor.ultimo_disparo, "", evento == "tambor_caliente"
+		tambor.posicion_bala,
+		tambor.huecos,
+		tambor.ultimo_disparo,
+		"",
+		evento == "tambor_caliente",
+		_azar
 	)
 	pistas_reveladas.append(pista)
 	pista_nueva.emit(pista.texto, pista.candidatos)

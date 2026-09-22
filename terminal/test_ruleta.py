@@ -1,3 +1,5 @@
+import contextlib
+import io
 import re
 import unittest
 from functools import partial
@@ -6,7 +8,6 @@ from unittest.mock import patch
 import ambiente
 import apuestas
 import efectos
-import estado
 import eventos
 import farol
 import historial
@@ -15,6 +16,7 @@ import motor
 import pistas
 import records
 import ruleta
+import semillas
 
 # Parche vivo mientras corre este modulo de tests (ver setUpModule).
 _parche_teclado: object = None
@@ -756,7 +758,7 @@ class TestMain(CasoQueLlamaMain):
     def test_pasa_huecos_y_marcas_a_jugar(self, mock_jugar):
         ruleta.main(["--huecos", "6", "--marcas", "2"])
         mock_jugar.assert_called_once_with(
-            huecos=6, marcas=2, oscuridad=False, duelo=False
+            huecos=6, marcas=2, oscuridad=False, duelo=False, seed=None
         )
 
     @patch("ruleta.jugar")
@@ -782,7 +784,11 @@ class TestMain(CasoQueLlamaMain):
         # la opcion llega, no a quien se llama.
         ruleta.main(["--duelo", "--huecos", "6"])
         mock_jugar.assert_called_once_with(
-            huecos=6, marcas=farol.MARCAS_INICIALES, oscuridad=False, duelo=True
+            huecos=6,
+            marcas=farol.MARCAS_INICIALES,
+            oscuridad=False,
+            duelo=True,
+            seed=None,
         )
 
     @patch("ruleta.jugar")
@@ -1332,6 +1338,27 @@ class TestFlujoAvanzado(unittest.TestCase):
 
 
 class TestContarSuceso(unittest.TestCase):
+    def test_en_solitario_un_dia_completado_se_anuncia_y_amanece(self):
+        partida = ruleta.Partida(motor.Motor(), records.Records())
+        partida.actor = partida.juego.jugador_activo
+        with patch("builtins.print") as mock_print, patch("ruleta.amanecer") as mock_am:
+            ruleta._contar_suceso(motor.DiaCompletado(1), partida)
+        dicho = " ".join(str(c.args[0]) for c in mock_print.call_args_list if c.args)
+        self.assertIn("Sobrevives al dia 1", dicho)
+        mock_am.assert_called_once()
+
+    def test_en_duelo_un_dia_completado_no_dice_nada(self):
+        # Decision conservada de jugar_duelo(): cada jugador lleva sus
+        # propios dias y un amanecer compartido a mitad del turno del
+        # otro no cuadraria. Se fija aqui para que unificar los bucles
+        # no lo cambie por descuido.
+        partida = ruleta.Partida(motor.Motor(nombres=["Ana", "Bea"]), records.Records())
+        partida.actor = partida.juego.jugador_activo
+        with patch("builtins.print") as mock_print, patch("ruleta.amanecer") as mock_am:
+            ruleta._contar_suceso(motor.DiaCompletado(1), partida)
+        mock_print.assert_not_called()
+        mock_am.assert_not_called()
+
     def test_un_hueco_fuera_del_tambor_se_avisa_por_pantalla(self):
         # El selector de la terminal ya valida el rango antes de llegar
         # al motor, asi que este caso no se alcanza jugando; se prueba
@@ -1393,41 +1420,151 @@ class TestTamborQueCabe(unittest.TestCase):
         self.assertEqual(len(altos), 1)
 
 
+def _guion(max_disparos=12):
+    """Un jugador de mentira que siempre juega igual.
+
+    Dispara a los huecos 1, 2, 3... por orden hasta `max_disparos` y
+    entonces se retira; si la bala lo encuentra antes, contesta que no a
+    jugar otra. Lo importante es que su guion NO depende de la semilla:
+    asi, si dos partidas con la misma semilla salen iguales, es merito
+    del generador y no de que el jugador haya reaccionado distinto.
+    """
+    contador = {"disparos": 0}
+
+    def responder(prompt=""):
+        if "otra partida" in prompt or "otro duelo" in prompt:
+            return "n"
+        if "Pulsa Enter" in prompt:
+            return ""
+        if "Elige una posicion" in prompt:
+            contador["disparos"] += 1
+            return str((contador["disparos"] - 1) % 8 + 1)
+        if "Nombre del jugador" in prompt:
+            return ""
+        return "d" if contador["disparos"] < max_disparos else "r"
+
+    return responder
+
+
+def _grabar_partida(entrada_falsa=None, **kwargs):
+    """Juega una partida entera con el guion de arriba y devuelve lo impreso.
+
+    Se captura sys.stdout entero (y no builtins.print) porque el tecleo
+    letra a letra de efectos.py escribe por ahi directamente: una pista
+    o un epilogo no pasan por print().
+
+    Los records se cargan NUEVOS en cada llamada (side_effect y no
+    return_value): compartiendo un unico Records entre dos partidas, la
+    primera dejaria su marca de dias y solo ella imprimiria "¡Nuevo
+    record!", una diferencia del doble de test y no del juego.
+    """
+    salida = io.StringIO()
+    with (
+        patch("ruleta.records.cargar", side_effect=lambda: records.Records()),
+        patch("ruleta.records.guardar"),
+        patch("builtins.input", side_effect=entrada_falsa or _guion()),
+        contextlib.redirect_stdout(salida),
+    ):
+        ruleta.jugar(**kwargs)
+    return salida.getvalue()
+
+
 class TestSemilla(CasoQueLlamaMain):
-    def test_seed_hace_la_partida_reproducible(self):
-        # Los modulos de logica caen en el `random` global cuando no se
-        # les pasa un rng propio, que es lo que hace la partida de
-        # verdad: sembrarlo fija tambor, patron, pistas y eventos.
-        def tirada():
-            tambor = estado.TamborJuicio(huecos=8)
-            return (tambor.patron, tambor.posicion_bala, eventos.tirar_evento(1.0))
+    """--seed pasa a ser por PARTIDA y no por sesion.
 
-        with patch("ruleta.jugar"):
+    Antes main() hacia random.seed(args.seed): fijaba la sesion entera y
+    no dejaba forma de recuperar la semilla de una partida ya jugada,
+    que es justo lo que hace falta para compartirla o para reproducir un
+    fallo a posteriori. Ahora cada partida nace de su propio generador y
+    enseña su numero al terminar.
+    """
+
+    def test_seed_llega_hasta_el_bucle_de_juego(self):
+        with patch("ruleta.jugar") as mock_jugar:
             ruleta.main(["--seed", "1234"])
-        primera = tirada()
+        self.assertEqual(mock_jugar.call_args.kwargs["seed"], 1234)
 
-        with patch("ruleta.jugar"):
-            ruleta.main(["--seed", "1234"])
-        self.assertEqual(tirada(), primera)
+    def test_main_ya_no_siembra_el_generador_global(self):
+        # Sembrar el global ataba cualquier otro random.* del proceso a
+        # la partida. Se comprueba con y sin --seed: ninguno de los dos
+        # debe tocarlo.
+        for argv in ([], ["--seed", "1234"]):
+            with patch("ruleta.jugar"), patch("random.seed") as mock_seed:
+                ruleta.main(argv)
+            mock_seed.assert_not_called()
 
-    def test_semillas_distintas_dan_partidas_distintas(self):
-        def tirada_larga():
-            return [estado.TamborJuicio(huecos=8).posicion_bala for _ in range(20)]
 
-        with patch("ruleta.jugar"):
-            ruleta.main(["--seed", "1"])
-        con_1 = tirada_larga()
+class TestSemillaRepetible(unittest.TestCase):
+    """La semilla vale si reproduce la partida ENTERA, no solo el tambor.
 
-        with patch("ruleta.jugar"):
-            ruleta.main(["--seed", "2"])
-        self.assertNotEqual(tirada_larga(), con_1)
+    Por eso estos tests comparan todo lo que sale por pantalla (pistas,
+    eventos, frases de ambiente, epilogo) en vez de mirar campos
+    sueltos: cualquier sorteo que se quedase fuera del generador de la
+    partida -uno nuevo que se anada manana sin pasarle `rng`- rompe aqui.
+    """
 
-    def test_sin_seed_no_toca_el_generador(self):
-        # Sin --seed la partida debe seguir siendo aleatoria: si main()
-        # sembrara siempre, dos arranques seguidos darian lo mismo.
-        with patch("ruleta.jugar"), patch("ruleta.random.seed") as mock_seed:
-            ruleta.main([])
-        mock_seed.assert_not_called()
+    def test_la_misma_semilla_juega_la_misma_partida(self):
+        primera = _grabar_partida(seed=4242)
+        segunda = _grabar_partida(seed=4242)
+        self.assertEqual(primera, segunda)
+        self.assertIn("Semilla de esta partida: 4242", primera)
+
+    def test_semillas_distintas_juegan_partidas_distintas(self):
+        partidas = {_grabar_partida(seed=s) for s in range(8)}
+        # No se exige que las ocho sean distintas entre si (dos semillas
+        # pueden dar el mismo tambor y el mismo guion las juega igual),
+        # solo que la semilla cambie algo.
+        self.assertGreater(len(partidas), 1)
+
+    def test_sin_semilla_cada_partida_sortea_la_suya(self):
+        partidas = {_grabar_partida() for _ in range(12)}
+        self.assertGreater(len(partidas), 1)
+
+    def test_el_duelo_tambien_es_repetible(self):
+        primera = _grabar_partida(seed=77, duelo=True)
+        segunda = _grabar_partida(seed=77, duelo=True)
+        self.assertEqual(primera, segunda)
+        self.assertIn("Semilla de esta partida: 77", primera)
+
+    def test_la_semilla_solo_fija_la_primera_partida(self):
+        """Jugar dos seguidas con --seed no repite la misma dos veces.
+
+        La segunda sortea la suya: si tambien heredase la del jugador,
+        la sesion entera seria un bucle de la misma partida.
+        """
+        vistas = set()
+        for _ in range(8):
+            teclas = _guion()
+            veces = {"n": 0}
+
+            def responder(prompt="", _teclas=teclas, _veces=veces):
+                if "otra partida" in prompt:
+                    _veces["n"] += 1
+                    return "s" if _veces["n"] == 1 else "n"
+                return _teclas(prompt)
+
+            salida = _grabar_partida(entrada_falsa=responder, seed=31337)
+            sellos = re.findall(r"Semilla de esta partida: (\d+)", salida)
+            self.assertEqual(len(sellos), 2)
+            vistas.add(tuple(sellos))
+        self.assertEqual(next(iter(vistas))[0], "31337")
+        # Entre ocho sesiones, la segunda partida no puede salir siempre
+        # la misma si de verdad se esta sorteando.
+        self.assertGreater(len({v[1] for v in vistas}), 1)
+
+    def test_la_semilla_sorteada_cae_en_el_rango_declarado(self):
+        # Se miran varias: con una sola, un sorteo roto que devolviese
+        # siempre el mismo numero pasaria el test igual (es el fallo que
+        # tuvo la version de Godot de esto, ver Azar.nueva).
+        vistas = set()
+        for _ in range(20):
+            valor = int(
+                re.search(r"Semilla de esta partida: (\d+)", _grabar_partida()).group(1)
+            )
+            self.assertGreaterEqual(valor, 0)
+            self.assertLessEqual(valor, semillas.MAXIMO)
+            vistas.add(valor)
+        self.assertGreater(len(vistas), 15)
 
 
 class TestCodigoDeSalida(CasoQueLlamaMain):

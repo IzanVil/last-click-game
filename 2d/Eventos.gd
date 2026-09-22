@@ -18,10 +18,15 @@ const TEXTOS := {
 
 ## Sortea si ocurre un evento. Devuelve su tipo, o "" si no pasa nada
 ## (GDScript no tiene None para String; "" hace ese papel aqui).
-static func tirar_evento(probabilidad: float = PROBABILIDAD) -> String:
-	if randf() >= probabilidad:
+##
+## `rng` es el generador de la partida (ver Azar.gd); sin el se usa el
+## azar global, igual que antes de que existieran las semillas.
+static func tirar_evento(
+	probabilidad: float = PROBABILIDAD, rng: RandomNumberGenerator = null
+) -> String:
+	if Azar.flotante(rng) >= probabilidad:
 		return ""
-	return TIPOS_EVENTO[randi() % TIPOS_EVENTO.size()]
+	return TIPOS_EVENTO[Azar.entero(rng, 0, TIPOS_EVENTO.size() - 1)]
 
 
 ## Devuelve el texto narrativo asociado a un tipo de evento.

@@ -41,6 +41,8 @@ func _init() -> void:
 	_test_ruleta_estado_flujo_completo()
 	_test_duelo_flujo_completo()
 	_test_solitario_no_es_duelo()
+	_test_azar()
+	_test_partida_repetible()
 
 	if _fallos.is_empty():
 		print("OK: todos los tests de logica pasaron.")
@@ -255,6 +257,99 @@ func _test_ruleta_estado_flujo_completo() -> void:
 	if not retiradas.is_empty():
 		_afirmar_igual(retiradas[0]["ganados"], 800, "retirarse cobra lo que habia en juego")
 		_afirmar_igual(retiradas[0]["dias"], 1, "retirarse informa de los dias sobrevividos")
+
+
+## Azar.nueva() se prueba con muchas muestras y mirando cuantas SALEN
+## DISTINTAS, no con una sola: la forma evidente de escribirlo
+## -- randi_range(0, MAXIMO) -- desborda el int de 32 bits de Godot y
+## devuelve siempre 0 o -1. Con una muestra el test fallaria una de cada
+## dos veces (flaky), y un "salen al menos dos distintas" lo daria por
+## bueno, porque 0 y -1 ya son dos.
+func _test_azar() -> void:
+	_afirmar_igual(Azar.parsear("4242"), 4242, "parsear lee una semilla escrita")
+	_afirmar_igual(Azar.parsear("  4242  "), 4242, "parsear ignora los espacios")
+	_afirmar_igual(Azar.parsear(""), -1, "el campo vacio significa 'al azar'")
+	_afirmar_igual(Azar.parsear("abc"), -1, "lo que no es un numero significa 'al azar'")
+	_afirmar_igual(Azar.parsear("-1"), -1, "una semilla negativa no vale")
+	_afirmar_igual(Azar.parsear(str(Azar.MAXIMO + 1)), -1, "una semilla pasada de rango no vale")
+	_afirmar_igual(Azar.parsear(str(Azar.MAXIMO)), Azar.MAXIMO, "el tope del rango si vale")
+
+	var fuera_de_rango := 0
+	var distintas := {}
+	for i in range(500):
+		var semilla := Azar.nueva()
+		distintas[semilla] = true
+		if semilla < 0 or semilla > Azar.MAXIMO:
+			fuera_de_rango += 1
+	_afirmar_igual(fuera_de_rango, 0, "nueva() siempre cae dentro del rango")
+	_afirmar(
+		distintas.size() > 400,
+		"nueva() reparte por todo el rango (%d distintas de 500)" % distintas.size()
+	)
+
+	var uno := Azar.generador(99)
+	var otro := Azar.generador(99)
+	var iguales := true
+	for i in range(20):
+		if uno.randi_range(1, 1000) != otro.randi_range(1, 1000):
+			iguales = false
+	_afirmar(iguales, "la misma semilla da la misma secuencia")
+
+
+## Juega dos partidas con la misma semilla y el mismo guion de disparos
+## y compara lo que salio: patron, posicion inicial, pistas y eventos.
+## Es el equivalente de TestSemillaRepetible en terminal/test_ruleta.py:
+## un sorteo nuevo que manana se anada sin pasarle el generador de la
+## partida rompe aqui.
+func _test_partida_repetible() -> void:
+	var primera := _cronica_de_partida(4242)
+	_afirmar_igual(_cronica_de_partida(4242), primera, "la misma semilla juega la misma partida")
+
+	var distintas := false
+	for otra: int in [1, 2, 3, 4, 5, 6, 7, 8]:
+		if _cronica_de_partida(otra) != primera:
+			distintas = true
+	_afirmar(distintas, "semillas distintas juegan partidas distintas")
+
+	# Se exigen casi todas distintas y no "mas de una": con "mas de una"
+	# bastaba con que el sorteo alternase entre dos valores, que es
+	# justo lo que hacia randi_range(0, MAXIMO).
+	var sorteadas := {}
+	for i in range(50):
+		var juego := RuletaEstado.new()
+		juego.iniciar_juego(8)
+		sorteadas[juego.semilla] = true
+	_afirmar(
+		sorteadas.size() > 45,
+		"sin semilla, cada partida sortea la suya (%d distintas de 50)" % sorteadas.size()
+	)
+
+
+## Todo lo observable de una partida jugada con un guion fijo de disparos.
+## Los eventos NO se desactivan aqui (al reves que en el resto de tests):
+## son justo uno de los sorteos que la semilla tiene que fijar.
+func _cronica_de_partida(semilla: int) -> Array:
+	var juego := RuletaEstado.new()
+	var cronica: Array = []
+	var muerto := [false]
+	juego.pista_nueva.connect(func(texto: String, _c: Array): cronica.append(texto))
+	juego.evento_ocurrido.connect(func(tipo: String, _t: String): cronica.append(tipo))
+	juego.impacto.connect(
+		func(d: int, _p: int, _di: int, _r: String):
+			cronica.append("BOOM %d" % d)
+			muerto[0] = true
+	)
+
+	juego.iniciar_juego(8, 3, [], semilla)
+	cronica.append(juego.tambor.patron)
+	cronica.append(juego.tambor.posicion_bala)
+	for numero: int in [1, 2, 3, 4, 5, 6]:
+		# Una vez muerta la partida no se sigue disparando: el tambor ya
+		# no tiene nada que decir y `disparar` volveria a mover la bala.
+		if muerto[0]:
+			break
+		juego.disparar(numero)
+	return cronica
 
 
 func _test_dias_sobrevividos() -> void:

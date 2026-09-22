@@ -34,6 +34,7 @@ try:
         motor,
         pistas,
         records,
+        semillas,
     )
 except ImportError:  # pragma: no cover - ejecucion como script suelto
     # mypy resuelve el paquete via el `from .` de arriba y no encuentra
@@ -53,6 +54,7 @@ except ImportError:  # pragma: no cover - ejecucion como script suelto
     import motor  # type: ignore[no-redef,import-not-found]
     import pistas  # type: ignore[no-redef,import-not-found]
     import records  # type: ignore[no-redef,import-not-found]
+    import semillas  # type: ignore[no-redef,import-not-found]
 
 # Reglas del juego: viven en motor.py. Se reexportan aqui porque la
 # cabecera las enseña en pantalla, porque terminal/paridad.py las lee de
@@ -468,9 +470,13 @@ def elegir_hueco(tablero: Tablero, dibujar: "partial[None]", verbo: str) -> int 
         tablero.resaltado = None
 
 
-def amanecer(dia: int, bitacora: "historial.Historial") -> None:
+def amanecer(
+    dia: int,
+    bitacora: "historial.Historial",
+    azar: "random.Random | None" = None,
+) -> None:
     """Abre un dia nuevo con una frase de ambiente, tecleada despacio."""
-    texto = ambiente.mensaje_de_dia(dia)
+    texto = ambiente.mensaje_de_dia(dia, rng=azar)
     bitacora.registrar_accion("dia", f"Amanece el dia {dia}.")
     print()
     efectos.escribir(f"   {GRIS}{texto}{RESET}")
@@ -553,6 +559,19 @@ def retirada(
     )
     print()
     efectos.pausa(2.5)
+
+
+def sello_semilla(valor: int) -> None:
+    """Deja escrita la semilla de la partida que acaba de terminar.
+
+    Se imprime DESPUES de impacto()/retirada() y no dentro: esas dos
+    pantallas son la parte narrativa del cierre, y el numero con el que
+    repetir la partida es una nota al pie que no pinta nada dentro del
+    epilogo.
+    """
+    print(f"{GRIS}   Semilla de esta partida: {valor}{RESET}")
+    print(f"{GRIS}   Repitela tal cual con:  --seed {valor}{RESET}")
+    print()
 
 
 def _pedir_nombre(numero: int) -> str:
@@ -672,7 +691,7 @@ def _contar_suceso(suceso: "motor.Suceso", partida: Partida) -> None:
         if juego.es_duelo():
             return
         print(f"{AMARILLO}   Sobrevives al dia {suceso.dia}.{RESET}")
-        amanecer(suceso.dia + 1, bitacora)
+        amanecer(suceso.dia + 1, bitacora, juego.azar)
         return
 
     if isinstance(suceso, motor.FarolResuelto):
@@ -771,6 +790,7 @@ def jugar(
     marcas: int = farol.MARCAS_INICIALES,
     oscuridad: bool = False,
     duelo: bool = False,
+    seed: int | None = None,
 ) -> None:
     """Ejecuta el bucle principal: disparar, marcar o retirarse.
 
@@ -780,8 +800,16 @@ def jugar(
     tablero se pinta con el turno y el rival encima, y que al final se
     compara quien gano: las reglas son las mismas y solo estan escritas
     una vez.
+
+    `seed` fija la primera partida de la sesion; las siguientes sortean
+    la suya y la enseñan al terminar (ver semillas.py). Cada partida
+    tiene su generador, asi que dos sesiones que arranquen con la misma
+    semilla juegan la misma primera partida aunque se pulsen teclas
+    distintas por el camino: el azar no depende de cuantas veces se haya
+    repintado la pantalla.
     """
     misrecords = records.cargar()
+    pendiente = seed
 
     nombres: list[str] = []
     if duelo:
@@ -790,14 +818,29 @@ def jugar(
         nombres = [_pedir_nombre(1), _pedir_nombre(2)]
 
     while True:
+        pedida = pendiente is not None
+        semilla_partida = pendiente if pendiente is not None else semillas.nueva()
+        pendiente = None
         partida = Partida(
-            motor.Motor(huecos=huecos, marcas=marcas, nombres=nombres), misrecords
+            motor.Motor(
+                huecos=huecos,
+                marcas=marcas,
+                nombres=nombres,
+                rng=semillas.generador(semilla_partida),
+            ),
+            misrecords,
         )
         juego = partida.juego
 
         limpiar(duro=True)
         if not duelo:
-            amanecer(1, juego.bitacora)
+            amanecer(1, juego.bitacora, juego.azar)
+        if pedida:
+            # Solo cuando el jugador la pidio: quien juega normal no
+            # necesita ver un numero de diez cifras antes de empezar,
+            # pero quien viene a repetir una partida (o a reproducir un
+            # fallo) si quiere confirmar que arranco la que pidio.
+            print(f"{GRIS}   Semilla: {semilla_partida}{RESET}")
 
         while not juego.terminada:
             tablero, dibujar = _pintar_turno(partida, oscuridad)
@@ -827,6 +870,7 @@ def jugar(
             if accion == "disparar" and not juego.terminada:
                 efectos.pausa(1.5)
 
+        sello_semilla(semilla_partida)
         pregunta = (
             "Jugar otro duelo? (s/n): " if duelo else "Jugar otra partida? (s/n): "
         )
@@ -871,8 +915,8 @@ def _parsear_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=int,
         default=None,
         help=(
-            "Semilla para que la partida sea reproducible "
-            "(mismo tambor, mismas pistas y mismos eventos)."
+            "Repite una partida concreta: mismo tambor, mismas pistas y "
+            "mismos eventos. Cada partida imprime la suya al terminar."
         ),
     )
     parser.add_argument(
@@ -969,14 +1013,6 @@ def main(argv: list[str] | None = None) -> int:
         print(records.resumen(records.cargar()))
         return 0
 
-    if args.seed is not None:
-        # Basta con sembrar el generador global: todos los modulos de
-        # logica (estado, pistas, eventos, ambiente) aceptan un `rng`
-        # propio pero caen en `random` cuando no se les pasa ninguno,
-        # que es justo lo que hace la partida de verdad. Sembrarlo aqui
-        # fija de una vez el tambor, el patron, las pistas y los eventos.
-        random.seed(args.seed)
-
     efectos.configurar(animaciones=not args.sin_animaciones, sonido=not args.sin_sonido)
     # El filtro va sobre sys.stdout, asi que se instala antes de la
     # primera linea de juego y se quita en el finally: dejarlo puesto
@@ -990,6 +1026,7 @@ def main(argv: list[str] | None = None) -> int:
             marcas=args.marcas,
             oscuridad=args.oscuridad,
             duelo=args.duelo,
+            seed=args.seed,
         )
     except (KeyboardInterrupt, EOFError) as interrupcion:
         # EOFError ademas de KeyboardInterrupt: el juego se apoya en
