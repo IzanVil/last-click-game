@@ -10,6 +10,8 @@ import estado
 import eventos
 import farol
 import historial
+import jugador
+import motor
 import pistas
 import records
 import ruleta
@@ -178,7 +180,7 @@ class TestFlujoJuego(unittest.TestCase):
         mock_limpiar,
         mock_sleep,
     ):
-        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([False])
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor([False])
 
         entradas = iter(["d", "3", "r", "n"])
         with (
@@ -213,7 +215,9 @@ class TestFlujoJuego(unittest.TestCase):
         mock_limpiar,
         mock_sleep,
     ):
-        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([False, True])
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor(
+            [False, True]
+        )
 
         entradas = iter(["d", "3", "d", "4", "n"])
         with (
@@ -245,7 +249,7 @@ class TestFlujoJuego(unittest.TestCase):
         mock_sleep,
     ):
         # posicion_bala=5 por defecto: marcar el 3 acierta (no es la bala).
-        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([])
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor([])
 
         entradas = iter(["m", "3", "r", "n"])
         with (
@@ -285,7 +289,7 @@ class TestFlujoJuego(unittest.TestCase):
         mock_sleep,
     ):
         # posicion_bala=5 por defecto: marcar justo el 5 falla.
-        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([])
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor([])
 
         entradas = iter(["m", "5", "r", "n"])
         with (
@@ -323,7 +327,7 @@ class TestFlujoJuego(unittest.TestCase):
         mock_sleep,
     ):
         fake = FakeTambor([False])
-        mock_tambor_cls.side_effect = lambda huecos=None: fake
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: fake
 
         entradas = iter(["d", "3", "r", "n"])
         with (
@@ -352,7 +356,7 @@ class TestFlujoJuego(unittest.TestCase):
         mock_limpiar,
         mock_sleep,
     ):
-        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([False])
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor([False])
         mock_generar_pista.return_value = pistas.Pista(
             "pista falsa", frozenset({1, 2, 3})
         )
@@ -382,7 +386,7 @@ class TestFlujoJuego(unittest.TestCase):
         mock_limpiar,
         mock_sleep,
     ):
-        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor(
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor(
             [False, False, False]
         )
 
@@ -453,20 +457,13 @@ class TestFlujoJuego(unittest.TestCase):
         self.assertNotIn("record", mensajes.lower())
 
 
-class TestJugadorDuelo(unittest.TestCase):
-    def test_dias_se_deriva_de_los_disparos(self):
-        jugador = ruleta.JugadorDuelo("Ana", apuestas.Apuesta(100), farol.Farol())
-        jugador.disparos = 7
-        self.assertEqual(jugador.dias, 2)
-
-
 class TestResultadoDuelo(unittest.TestCase):
     @patch("ruleta.efectos.pausa", return_value=None)
     @patch("ruleta.limpiar", return_value=None)
     def test_gana_quien_sobrevive_mas_dias(self, mock_limpiar, mock_sleep):
-        ana = ruleta.JugadorDuelo("Ana", apuestas.Apuesta(100), farol.Farol())
+        ana = jugador.Jugador("Ana", apuestas.Apuesta(100), farol.Farol())
         ana.disparos, ana.puntos_finales = 6, 300  # 2 dias
-        beto = ruleta.JugadorDuelo("Beto", apuestas.Apuesta(100), farol.Farol())
+        beto = jugador.Jugador("Beto", apuestas.Apuesta(100), farol.Farol())
         beto.disparos, beto.puntos_finales = 3, 900  # 1 dia, pero mas puntos
 
         with (
@@ -481,9 +478,9 @@ class TestResultadoDuelo(unittest.TestCase):
     @patch("ruleta.efectos.pausa", return_value=None)
     @patch("ruleta.limpiar", return_value=None)
     def test_empate_en_dias_lo_desempata_los_puntos(self, mock_limpiar, mock_sleep):
-        ana = ruleta.JugadorDuelo("Ana", apuestas.Apuesta(100), farol.Farol())
+        ana = jugador.Jugador("Ana", apuestas.Apuesta(100), farol.Farol())
         ana.disparos, ana.puntos_finales = 3, 400
-        beto = ruleta.JugadorDuelo("Beto", apuestas.Apuesta(100), farol.Farol())
+        beto = jugador.Jugador("Beto", apuestas.Apuesta(100), farol.Farol())
         beto.disparos, beto.puntos_finales = 3, 900
 
         with (
@@ -498,9 +495,9 @@ class TestResultadoDuelo(unittest.TestCase):
     @patch("ruleta.efectos.pausa", return_value=None)
     @patch("ruleta.limpiar", return_value=None)
     def test_empate_total(self, mock_limpiar, mock_sleep):
-        ana = ruleta.JugadorDuelo("Ana", apuestas.Apuesta(100), farol.Farol())
+        ana = jugador.Jugador("Ana", apuestas.Apuesta(100), farol.Farol())
         ana.disparos, ana.puntos_finales = 3, 400
-        beto = ruleta.JugadorDuelo("Beto", apuestas.Apuesta(100), farol.Farol())
+        beto = jugador.Jugador("Beto", apuestas.Apuesta(100), farol.Farol())
         beto.disparos, beto.puntos_finales = 3, 400
 
         with (
@@ -531,7 +528,9 @@ class TestJugarDuelo(unittest.TestCase):
         # posicion_bala=5 por defecto (nunca coincide con los disparos de
         # abajo): dos disparos sobreviven, uno por jugador, y el turno
         # vuelve al primer jugador, que se retira.
-        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([False, False])
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor(
+            [False, False]
+        )
 
         entradas = iter(
             [
@@ -551,7 +550,7 @@ class TestJugarDuelo(unittest.TestCase):
             patch("ruleta.retirada") as mock_retirada,
             patch("builtins.print") as mock_print,
         ):
-            ruleta.jugar_duelo()
+            ruleta.jugar(duelo=True)
 
         # Jugador 1: 1 disparo sobrevivido (100 -> 200) y se retira con
         # esos 200 puntos; 0 dias (hacen falta 3 disparos).
@@ -585,7 +584,7 @@ class TestJugarDuelo(unittest.TestCase):
         mock_sleep,
     ):
         # posicion_bala=5 por defecto: marcar el 3 acierta (no es la bala).
-        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([])
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor([])
 
         entradas = iter(
             [
@@ -603,7 +602,7 @@ class TestJugarDuelo(unittest.TestCase):
             patch("ruleta.retirada") as mock_retirada,
             patch("builtins.print") as mock_print,
         ):
-            ruleta.jugar_duelo()
+            ruleta.jugar(duelo=True)
 
         # Jugador 2 se retira sin haber hecho nada: cobra su apuesta base.
         _comprobar_final(
@@ -635,7 +634,9 @@ class TestJugarDuelo(unittest.TestCase):
         mock_limpiar,
         mock_sleep,
     ):
-        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([False, True])
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor(
+            [False, True]
+        )
 
         entradas = iter(
             [
@@ -653,7 +654,7 @@ class TestJugarDuelo(unittest.TestCase):
             patch("builtins.input", side_effect=lambda _p="": next(entradas)),
             patch("builtins.print"),
         ):
-            ruleta.jugar_duelo()
+            ruleta.jugar(duelo=True)
 
         # Jugador 2 muere en su primer disparo: pierde su apuesta base
         # entera (nunca llego a doblarla).
@@ -754,7 +755,9 @@ class TestMain(CasoQueLlamaMain):
     @patch("ruleta.jugar")
     def test_pasa_huecos_y_marcas_a_jugar(self, mock_jugar):
         ruleta.main(["--huecos", "6", "--marcas", "2"])
-        mock_jugar.assert_called_once_with(huecos=6, marcas=2, oscuridad=False)
+        mock_jugar.assert_called_once_with(
+            huecos=6, marcas=2, oscuridad=False, duelo=False
+        )
 
     @patch("ruleta.jugar")
     def test_pasa_el_modo_oscuridad(self, mock_jugar):
@@ -772,11 +775,14 @@ class TestMain(CasoQueLlamaMain):
         ruleta.main([])
         self.assertTrue(efectos.AJUSTES.animaciones)
 
-    @patch("ruleta.jugar_duelo")
-    def test_duelo_llama_a_jugar_duelo_en_vez_de_jugar(self, mock_jugar_duelo):
+    @patch("ruleta.jugar")
+    def test_duelo_enciende_el_modo_duelo_en_el_mismo_bucle(self, mock_jugar):
+        # Ya no hay dos funciones: el duelo es el mismo jugar() con dos
+        # jugadores (ver motor.py), asi que lo que se comprueba es que
+        # la opcion llega, no a quien se llama.
         ruleta.main(["--duelo", "--huecos", "6"])
-        mock_jugar_duelo.assert_called_once_with(
-            huecos=6, marcas=farol.MARCAS_INICIALES, oscuridad=False
+        mock_jugar.assert_called_once_with(
+            huecos=6, marcas=farol.MARCAS_INICIALES, oscuridad=False, duelo=True
         )
 
     @patch("ruleta.jugar")
@@ -821,7 +827,7 @@ class TestMain(CasoQueLlamaMain):
         )
         self.assertIn("Hasta la proxima", mensajes)
 
-    @patch("ruleta.jugar_duelo", side_effect=EOFError)
+    @patch("ruleta.jugar", side_effect=EOFError)
     def test_eof_en_modo_duelo_tambien_sale_limpio(self, mock_duelo):
         # --duelo entra por la otra rama del try, asi que se comprueba
         # aparte: es justo el caso que se escapaba de una captura puesta
@@ -1160,7 +1166,7 @@ class TestFlujoConSelectorCancelado(unittest.TestCase):
         mock_pausa,
     ):
         fake = FakeTambor([])
-        mock_tambor_cls.side_effect = lambda huecos=None: fake
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: fake
 
         entradas = iter(["m", "r", "n"])
         with (
@@ -1218,7 +1224,7 @@ class TestFlujoAvanzado(unittest.TestCase):
         mock_limpiar,
         mock_pausa,
     ):
-        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([])
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor([])
 
         entradas = iter(["r", "n"])
         with (
@@ -1246,7 +1252,9 @@ class TestFlujoAvanzado(unittest.TestCase):
     ):
         # Un tambor de 3 huecos ya nace "caliente": no hay margen que
         # gastar antes de que empiece el latido.
-        mock_tambor_cls.side_effect = lambda huecos=None: FakeTambor([], huecos=3)
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor(
+            [], huecos=3
+        )
 
         entradas = iter(["r", "n"])
         with (
@@ -1273,7 +1281,7 @@ class TestFlujoAvanzado(unittest.TestCase):
         mock_pausa,
     ):
         fake = FakeTambor([])
-        mock_tambor_cls.side_effect = lambda huecos=None: fake
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: fake
 
         entradas = iter(["d", "r", "n"])
         with (
@@ -1303,7 +1311,7 @@ class TestFlujoAvanzado(unittest.TestCase):
         mock_pausa,
     ):
         fake = FakeTambor([], huecos=3)
-        mock_tambor_cls.side_effect = lambda huecos=None: fake
+        mock_tambor_cls.side_effect = lambda huecos=None, rng=None: fake
 
         # Nombres, cancelar un farol, cancelar un disparo y retirarse.
         entradas = iter(["Ana", "Bea", "m", "d", "r", "n"])
@@ -1315,12 +1323,25 @@ class TestFlujoAvanzado(unittest.TestCase):
             patch("builtins.input", side_effect=lambda _p="": next(entradas)),
             patch("builtins.print"),
         ):
-            ruleta.jugar_duelo(huecos=3, oscuridad=True)
+            ruleta.jugar(huecos=3, oscuridad=True, duelo=True)
 
         self.assertEqual(fake.historial, [])
         self.assertEqual(mock_oscurecer.call_count, 3)
         self.assertEqual(mock_latido.call_count, 3)
         mock_retirada.assert_called_once()
+
+
+class TestContarSuceso(unittest.TestCase):
+    def test_un_hueco_fuera_del_tambor_se_avisa_por_pantalla(self):
+        # El selector de la terminal ya valida el rango antes de llegar
+        # al motor, asi que este caso no se alcanza jugando; se prueba
+        # aparte porque la interfaz grafica si deja teclear cualquier
+        # cosa y el manejador tiene que existir igualmente.
+        partida = ruleta.Partida(motor.Motor(), records.Records())
+        with patch("builtins.print") as mock_print:
+            ruleta._contar_suceso(motor.EntradaInvalida(99), partida)
+        dicho = " ".join(str(c.args[0]) for c in mock_print.call_args_list if c.args)
+        self.assertIn("no esta en el tambor", dicho)
 
 
 class TestTamborQueCabe(unittest.TestCase):
