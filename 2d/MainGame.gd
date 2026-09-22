@@ -77,6 +77,7 @@ const MAX_BITACORA := 5
 
 @onready var menu: VBoxContainer = $Centro/Marco/Columnas/Menu
 @onready var dificultad_opt: OptionButton = $Centro/Marco/Columnas/Menu/DificultadFila/DificultadOpt
+@onready var semilla_campo: LineEdit = $Centro/Marco/Columnas/Menu/SemillaFila/SemillaCampo
 @onready var duelo_check: CheckBox = $Centro/Marco/Columnas/Menu/DueloCheck
 @onready var nombres_caja: VBoxContainer = $Centro/Marco/Columnas/Menu/Nombres
 @onready var nombre1: LineEdit = $Centro/Marco/Columnas/Menu/Nombres/Nombre1
@@ -772,18 +773,23 @@ func _on_empezar_btn_pressed() -> void:
 	var nombres: Array[String] = []
 	if duelo_check.button_pressed:
 		nombres = [_nombre_de(nombre1, 1), _nombre_de(nombre2, 2)]
-	_empezar_partida(Dificultad.ORDEN[dificultad_opt.selected], nombres)
+	_empezar_partida(
+		Dificultad.ORDEN[dificultad_opt.selected], nombres, Azar.parsear(semilla_campo.text)
+	)
 
 
 ## Arranca una partida y abre la pantalla de juego con la viñeta, que se
 ## abre desde el centro como el iris de una camara antigua.
-func _empezar_partida(dificultad: String, nombres: Array[String]) -> void:
+## `semilla == -1` sortea una. Reintentar no la hereda a proposito (ver
+## _on_reintentar_btn_pressed): quien pidio una semilla queria jugar ESA
+## partida, no quedarse atrapado en ella.
+func _empezar_partida(dificultad: String, nombres: Array[String], semilla: int = -1) -> void:
 	_ultima_dificultad = dificultad
 	_ultimos_nombres = nombres.duplicate()
 	_mostrar(Pantalla.JUEGO)
 	vineta.abrir(DURACION_CIERRE)
 	_estado.iniciar_juego(
-		Dificultad.huecos_de(dificultad), Dificultad.marcas_de(dificultad), nombres
+		Dificultad.huecos_de(dificultad), Dificultad.marcas_de(dificultad), nombres, semilla
 	)
 
 
@@ -1124,6 +1130,10 @@ func _cerrar_partida(titulo_final: String, resumen: String, nuevo_record: bool) 
 	fin_resumen.text = resumen
 	if nuevo_record:
 		fin_resumen.text += "\n\n¡Nuevo record de dias sobrevividos!"
+	# El numero con el que volver a jugar esta misma partida: se escribe
+	# al final y en linea aparte para que sea una nota al pie del
+	# epilogo, no parte de el (mismo criterio que ruleta.sello_semilla).
+	fin_resumen.text += "\n\nSemilla de esta partida: %d" % _estado.semilla
 	_esperar_y_mostrar_final.call_deferred()
 
 

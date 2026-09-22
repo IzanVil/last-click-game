@@ -13,19 +13,22 @@ const TIPOS_PISTA: Array[String] = ["paridad", "mitad", "relativa"]
 ## `tipo == ""` sortea uno entre los disponibles; la pista "relativa"
 ## (respecto al ultimo disparo) solo puede salir si `ultimo_disparo` no
 ## es -1 (sin disparo previo, ver TamborJuicio.ultimo_disparo).
+## `rng` es el generador de la partida (ver Azar.gd); sin el se usa el
+## azar global, igual que antes de que existieran las semillas.
 static func generar_pista(
 	posicion_bala: int,
 	huecos: int,
 	ultimo_disparo: int = -1,
 	tipo: String = "",
 	mentir: bool = false,
+	rng: RandomNumberGenerator = null,
 ) -> Pista:
 	var elegido := tipo
 	if elegido == "":
 		var disponibles := TIPOS_PISTA.duplicate()
 		if ultimo_disparo == -1:
 			disponibles.erase("relativa")
-		elegido = disponibles[randi() % disponibles.size()]
+		elegido = disponibles[Azar.entero(rng, 0, disponibles.size() - 1)]
 
 	match elegido:
 		"paridad":
@@ -75,7 +78,7 @@ static func generar_pista(
 					lados.append(true)
 				if ultimo_disparo < huecos:
 					lados.append(false)
-				var miente_a_la_izquierda: bool = lados[randi() % lados.size()]
+				var miente_a_la_izquierda: bool = lados[Azar.entero(rng, 0, lados.size() - 1)]
 				if miente_a_la_izquierda:
 					return Pista.new(
 						"La bala esta a la izquierda de tu ultimo disparo.",
