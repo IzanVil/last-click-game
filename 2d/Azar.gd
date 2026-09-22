@@ -21,8 +21,13 @@ const MAXIMO := 4294967295
 
 
 ## Sortea una semilla nueva dentro del rango valido.
+##
+## randi() y no randi_range(0, MAXIMO): el segundo recibe los limites
+## como `int` de 32 bits, asi que MAXIMO se le desborda a -1 y acaba
+## devolviendo siempre 0 o -1 (comprobado en 4.7.2). randi() devuelve ya
+## justo lo que se quiere aqui, un entero sin signo de 32 bits.
 static func nueva() -> int:
-	return randi_range(0, MAXIMO)
+	return randi()
 
 
 ## Devuelve el generador de una partida a partir de su semilla.
@@ -47,6 +52,11 @@ static func parsear(texto: String) -> int:
 
 
 ## Un entero entre `desde` y `hasta`, ambos incluidos.
+##
+## Vale para rangos pequeños (un hueco del tambor, un indice de una
+## lista de cuatro patrones), que es para lo unico que se usa. Para un
+## rango de 32 bits enteros esta nueva(): ver el aviso de ahi arriba
+## sobre randi_range.
 static func entero(rng: RandomNumberGenerator, desde: int, hasta: int) -> int:
 	if rng != null:
 		return rng.randi_range(desde, hasta)

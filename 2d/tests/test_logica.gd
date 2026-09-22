@@ -229,9 +229,23 @@ func _test_azar() -> void:
 			iguales = false
 	_afirmar(iguales, "la misma semilla da la misma secuencia")
 
-	var semilla_nueva := Azar.nueva()
+	# Se prueba con muchas muestras y mirando cuantas SALEN DISTINTAS, no
+	# con una sola: la primera version usaba randi_range(0, MAXIMO), que
+	# desborda el int de 32 bits de Godot y devuelve siempre 0 o -1. Con
+	# una muestra el test fallaba una de cada dos veces (flaky), y una
+	# comprobacion de "salen al menos dos semillas distintas" lo daba por
+	# bueno porque 0 y -1 ya son dos.
+	var fuera_de_rango := 0
+	var distintas := {}
+	for i in range(500):
+		var semilla_nueva := Azar.nueva()
+		distintas[semilla_nueva] = true
+		if semilla_nueva < 0 or semilla_nueva > Azar.MAXIMO:
+			fuera_de_rango += 1
+	_afirmar_igual(fuera_de_rango, 0, "nueva() siempre cae dentro del rango")
 	_afirmar(
-		semilla_nueva >= 0 and semilla_nueva <= Azar.MAXIMO, "nueva() cae dentro del rango"
+		distintas.size() > 400,
+		"nueva() reparte por todo el rango (%d distintas de 500)" % distintas.size()
 	)
 
 
@@ -253,12 +267,18 @@ func _test_partida_repetible() -> void:
 			distintas = true
 	_afirmar(distintas, "semillas distintas juegan partidas distintas")
 
+	# Se exigen casi todas distintas y no "mas de una": con "mas de una"
+	# bastaba con que el sorteo alternase entre dos valores, que es
+	# exactamente lo que hacia la primera version (ver _test_azar).
 	var sin_semilla := {}
-	for i in range(12):
+	for i in range(50):
 		var juego := RuletaEstado.new()
 		juego.iniciar_juego(8)
 		sin_semilla[juego.semilla] = true
-	_afirmar(sin_semilla.size() > 1, "sin semilla, cada partida sortea la suya")
+	_afirmar(
+		sin_semilla.size() > 45,
+		"sin semilla, cada partida sortea la suya (%d distintas de 50)" % sin_semilla.size()
+	)
 
 
 ## Todo lo observable de una partida jugada con un guion fijo de disparos.
