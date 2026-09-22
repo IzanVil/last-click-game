@@ -128,7 +128,8 @@ last-click-game/
 │   ├── eventos.py       ← eventos aleatorios (clic metálico, tambor caliente)
 │   ├── historial.py     ← contadores de la partida y resumen narrativo
 │   ├── records.py       ← récords persistidos en ~/.tambor_del_juicio/
-│   └── test_*.py        ← pruebas unitarias de los ocho módulos
+│   ├── paridad.py       ← genera la tabla que compara las dos versiones
+│   └── test_*.py        ← pruebas unitarias de los módulos
 └── 2d/                  ← versión gráfica: El Tambor del Juicio
     ├── project.godot    ← proyecto Godot
     ├── RuletaEstado.gd  ← orquestador: conecta la lógica y emite señales

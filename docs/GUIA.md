@@ -71,6 +71,53 @@ además, el tambor se ve girar al empezar la partida, pulsa con tensión
 antes de revelar un disparo o un farol, y la pantalla vibra al morir; ver
 "Versión gráfica (Godot)" más abajo.
 
+## Paridad entre las dos versiones
+
+Cada módulo de `terminal/` tiene un hermano en `2d/` con la misma
+mecánica escrita a mano en GDScript. Durante mucho tiempo lo único que
+garantizaba que dijeran lo mismo era un comentario: *«hermano de
+terminal/pistas.py»*. No basta, y hay pruebas: las dos divergencias que
+arregló `c5a0897` —una pista mentirosa que en un caso no mentía y
+regalaba la posición de la bala, y un candidato de más en el lado
+derecho de una pista relativa— vivieron en el repositorio sin que ningún
+test las viera. Son de la clase de fallo que no se nota jugando y que
+ningún test de una sola versión puede encontrar.
+
+**Cómo funciona.** `terminal/paridad.py` genera una tabla de casos
+—entradas y la respuesta que da Python— y la deja versionada en
+`2d/tests/paridad.json`. `2d/tests/test_paridad.gd` la carga, ejecuta los
+mismos casos contra los módulos de GDScript y compara: unas **1.464
+comparaciones** por build (1.296 pistas, 96 movimientos de bala, más
+días, intersección, apuesta, farol, resumen y todas las constantes
+compartidas). El CI lo corre en cada push.
+
+Tres decisiones que conviene conocer antes de tocarlo:
+
+- **No se sortea nada.** Python usa Mersenne Twister y Godot PCG32, así
+  que una misma semilla no da la misma secuencia. Todos los casos fijan
+  sus entradas, y el único sorteo que queda —qué lado elige una pista
+  relativa mentirosa cuando la bala cayó justo en el último disparo— se
+  anota como *lista de respuestas válidas*: Godot pasa si da cualquiera
+  de ellas.
+- **Se compara lo que pasa, no en qué orden se cuenta.** El orden en que
+  cada versión emite lo ocurrido en un turno es una decisión de
+  interfaz, no una regla.
+- **La tabla es una foto de Python, no un oráculo.** Si el test falla, lo
+  primero es decidir cuál de las dos versiones tiene razón. Tras un
+  cambio deliberado de reglas se regenera con `python3
+  terminal/paridad.py` y el diff se revisa como parte del cambio;
+  `terminal/test_paridad.py` falla si alguien se olvida de hacerlo.
+
+El propio `test_paridad.gd` lleva un contador de casos recorridos por
+sección: Godot sale con exit code 0 aunque un script reviente a media
+ejecución, así que sin él un error dentro del bucle de pistas dejaba el
+test diciendo «OK» con una fracción de los casos comparados.
+
+Queda fuera por ahora el desempate de un duelo: Godot lo tiene en
+`Jugador.ganadores()`, pero en la terminal está escrito dentro de
+`ruleta.resultado_duelo`, mezclado con el pintado, y no hay función pura
+que tabular. Entra en cuanto se saque de ahí.
+
 ## Versión de terminal (Python)
 
 - Archivos, en tres capas:
@@ -487,12 +534,15 @@ puede multiplicarse, así que no hay forma de aclararlo desde el tema.
 ### Tests
 
 Godot no trae un framework de tests instalado en el proyecto (ni
-[GUT](https://github.com/bitwes/Gut) ni similar); en su lugar hay dos
+[GUT](https://github.com/bitwes/Gut) ni similar); en su lugar hay tres
 scripts headless en `2d/tests/`:
 
 - `test_logica.gd` — prueba `RuletaEstado` y los módulos que orquesta
   (incluidos `Dificultad`, `Records` y el desempate de `Jugador`), sin
   nodos ni escena, igual que `terminal/test_estado.py` y compañía.
+- `test_paridad.gd` — comprueba que esta versión dice **exactamente lo
+  mismo** que la de Python. Ver «Paridad entre las dos versiones» más
+  abajo.
 - `test_escena.gd` — carga `MainGame.tscn` de verdad y simula partidas
   completas (menú, récords, ajustes, ayuda, dificultad, elección con el
   ratón, marcar acierto y fallo, disparo seguro, retirada, duelo entero,
@@ -505,6 +555,7 @@ scripts headless en `2d/tests/`:
 ```bash
 cd 2d
 godot --headless --script res://tests/test_logica.gd --path .
+godot --headless --script res://tests/test_paridad.gd --path .
 godot --headless --script res://tests/test_escena.gd --path .
 ```
 
@@ -652,6 +703,8 @@ last-click-game/
     ├── Icono.gd
     ├── tests/
     │   ├── test_logica.gd
+    │   ├── test_paridad.gd
+    │   ├── paridad.json
     │   └── test_escena.gd
     ├── tools/
     │   └── capturas.gd
