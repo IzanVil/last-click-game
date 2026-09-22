@@ -45,6 +45,7 @@ try:
         jugador,
         pistas,
         ruleta,
+        semillas,
     )
 except ImportError:  # pragma: no cover - ejecucion como script suelto
     import apuestas  # type: ignore[no-redef,import-not-found]
@@ -55,8 +56,9 @@ except ImportError:  # pragma: no cover - ejecucion como script suelto
     import jugador  # type: ignore[no-redef,import-not-found]
     import pistas  # type: ignore[no-redef,import-not-found]
     import ruleta  # type: ignore[no-redef,import-not-found]
+    import semillas  # type: ignore[no-redef,import-not-found]
 
-FORMATO = 2
+FORMATO = 3
 
 # Tamaños de tambor que se recorren enteros. No hace falta probarlos
 # todos: 6/8/10 son los tres presets de dificultad, y entre un par y un
@@ -95,6 +97,12 @@ def _constantes() -> dict:
         "apuesta_base": ruleta.APUESTA_BASE,
         "bono_marca_acertada": ruleta.BONO_MARCA_ACERTADA,
         "max_acciones": historial.MAX_ACCIONES,
+        # El rango de semillas tiene que ser el mismo en las dos
+        # versiones para que un numero apuntado en una se pueda teclear
+        # en la otra. El generador NO lo es (Mersenne Twister contra
+        # PCG32), asi que la misma semilla no da la misma partida entre
+        # versiones -- pero el rango si debe cuadrar.
+        "semilla_maxima": semillas.MAXIMO,
         "dificultades": ruleta.DIFICULTADES,
     }
 

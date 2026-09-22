@@ -110,6 +110,7 @@
    "espejo"
   ],
   "probabilidad_evento": 0.25,
+  "semilla_maxima": 4294967295,
   "textos_evento": {
    "clic_metalico": "Se oye un clic metalico. El tambor se ha movido solo.",
    "tambor_caliente": "El tambor se calienta. Desconfia de la proxima pista."
@@ -230,7 +231,7 @@
    "restantes": 0
   }
  ],
- "formato": 2,
+ "formato": 3,
  "ganadores": [
   {
    "ganadores": [
