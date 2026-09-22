@@ -130,6 +130,7 @@ last-click-game/
 │   ├── eventos.py       ← eventos aleatorios (clic metálico, tambor caliente)
 │   ├── historial.py     ← contadores de la partida y resumen narrativo
 │   ├── records.py       ← récords persistidos en ~/.tambor_del_juicio/
+│   ├── semillas.py      ← semilla de partida: repetir una partida exacta
 │   ├── paridad.py       ← genera la tabla que compara las dos versiones
 │   └── test_*.py        ← pruebas unitarias de los módulos
 └── 2d/                  ← versión gráfica: El Tambor del Juicio
@@ -144,6 +145,7 @@ last-click-game/
     ├── Jugador.gd       ← apuesta/marcas/disparos de un jugador y desempate
     ├── Dificultad.gd    ← presets fácil/normal/difícil
     ├── Records.gd       ← récords persistidos en user://records.json
+    ├── Azar.gd          ← semilla de partida (hermano de semillas.py)
     ├── Ajustes.gd       ← accesibilidad y mezcla, en user://ajustes.json
     ├── MainGame.gd      ← vista: las cuatro pantallas y su cableado
     ├── TamborView.gd    ← dibuja el tambor, lo gira y escucha al ratón
@@ -254,16 +256,32 @@ NO_COLOR=1 python3 ruleta.py               # lo mismo, por variable de entorno
 
 ### Partidas reproducibles
 
-`--seed` fija el azar de la partida entera: el tambor, su patrón de
-movimiento, las pistas y los eventos. La misma semilla da siempre la
-misma partida, lo que sirve para repetir una jugada que salió rara,
-comparar dos estrategias sobre el mismo tambor o dejar un caso concreto
-apuntado en un informe.
+Cada partida se juega con una **semilla**, y la pantalla final la
+imprime. Volver a teclearla reproduce esa partida **exacta**: la misma
+posición inicial de la bala, el mismo patrón oculto, las mismas pistas
+(mentirosas incluidas), los mismos eventos y las mismas frases de
+ambiente.
 
 ```bash
-python3 ruleta.py --seed 42                # esta partida es siempre la misma
-python3 ruleta.py --seed 42 --dificultad dificil   # se combina con el resto
+python3 ruleta.py                          # al terminar: "Semilla de esta partida: N"
+python3 ruleta.py --seed 42                # y esto vuelve a jugar esa partida
+python3 ruleta.py --seed 42 --duelo --dificultad dificil   # combinable
 ```
+
+Sirve para tres cosas: **compartir** una partida buena con alguien, que
+la juegue con tus mismas cartas; **comparar** dos formas de jugar el
+mismo tambor; y **reproducir** un fallo tal cual pasó, que es lo que
+convierte un "se me ha colgado" en algo arreglable.
+
+La semilla fija solo la **primera** partida de la sesión: si dices que sí
+a jugar otra, esa sortea la suya (y la enseña). Así el número que ves al
+terminar siempre sirve para repetir la partida que acabas de vivir, sea
+la primera o la quinta.
+
+> 💡 En la versión gráfica el campo **Semilla** está en el menú: déjalo
+> vacío para que se sortee. Ojo: la misma semilla da la misma partida
+> **dentro de cada versión**, no entre las dos — Python y Godot usan
+> generadores de números aleatorios distintos.
 
 ### Dificultad personalizada
 
@@ -708,6 +726,12 @@ de terceros más allá de las dos tipografías:
   (hermano de `RuletaEstado.gd`). El modo duelo deja de ser un bucle
   aparte: una partida en solitario es un duelo de un único jugador, como
   ya lo era en Godot
+- [x] **Partidas repetibles de verdad** en las dos versiones: cada
+  partida lleva su semilla, se enseña al terminar y se puede volver a
+  jugar tal cual (`--seed` en la terminal, campo *Semilla* en el menú de
+  Godot). Antes `--seed` solo permitía *fijar* una partida, no
+  *recuperar* la que acababas de jugar, y la versión gráfica no tenía
+  semilla ninguna
 
 ### 🎯 Otros próximos pasos
 - [ ] Modo «borracho» 🍺 (menos suerte y más humor)

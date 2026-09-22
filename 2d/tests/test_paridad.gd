@@ -25,7 +25,7 @@ const RUTA_TABLA := "res://tests/paridad.json"
 
 ## Formato de tabla que este script sabe leer. Si Python sube el suyo sin
 ## que se actualice esto, el test falla en vez de comparar a medias.
-const FORMATO := 2
+const FORMATO := 3
 
 var _fallos: Array[String] = []
 var _comparaciones := 0
@@ -137,6 +137,7 @@ func _test_constantes(c: Dictionary) -> void:
 	_afirmar_igual(Eventos.TIPOS_EVENTO, _textos(c["tipos_evento"]), "TIPOS_EVENTO")
 	_afirmar_igual(Eventos.PROBABILIDAD, float(c["probabilidad_evento"]), "PROBABILIDAD")
 	_afirmar_igual(Farol.MARCAS_INICIALES, int(c["marcas_iniciales"]), "MARCAS_INICIALES")
+	_afirmar_igual(Azar.MAXIMO, int(c["semilla_maxima"]), "rango de semillas")
 	_afirmar_igual(RuletaEstado.APUESTA_BASE, int(c["apuesta_base"]), "APUESTA_BASE")
 	_afirmar_igual(
 		RuletaEstado.BONO_MARCA_ACERTADA, int(c["bono_marca_acertada"]), "BONO_MARCA_ACERTADA"

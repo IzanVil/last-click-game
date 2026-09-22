@@ -71,6 +71,44 @@ además, el tambor se ve girar al empezar la partida, pulsa con tensión
 antes de revelar un disparo o un farol, y la pantalla vibra al morir; ver
 "Versión gráfica (Godot)" más abajo.
 
+## La semilla de partida
+
+Todo lo que se sortea en una partida —la posición inicial de la bala, su
+patrón, el tipo de cada pista, los eventos y las frases de ambiente—
+sale de un único generador creado a partir de un número, que se enseña
+al terminar. Repetir ese número repite la partida entera.
+
+La semilla es **de la partida, no de la sesión**. Antes `--seed` hacía
+`random.seed()` sobre el generador global: fijaba la sesión entera y no
+dejaba forma de recuperar la semilla de una partida ya jugada, que es
+justo lo que hace falta para compartirla o para reproducir un fallo a
+posteriori. Ahora cada partida nace de su propio `random.Random` y
+`--seed N` fija solo la primera; las siguientes sortean la suya.
+
+`--seed N` sigue dando exactamente la misma primera partida que daba
+antes: `random.seed(n)` y `random.Random(n)` arrancan el mismo Mersenne
+Twister con la misma secuencia, así que nadie pierde el número que
+tuviera apuntado. Hay un test que lo fija
+(`test_da_lo_mismo_que_sembrar_el_generador_global`).
+
+Vive en `terminal/semillas.py` y en `2d/Azar.gd`; el resto de módulos
+solo recibe el generador ya hecho (`rng` en Python,
+`RandomNumberGenerator` en GDScript) y, si no lo recibe, cae al azar
+global como antes.
+
+Dos avisos escritos en el código porque cuestan un rato de encontrar:
+
+- **La misma semilla no da la misma partida entre versiones.** Python usa
+  Mersenne Twister y Godot PCG32. Lo que sí comparten es el *rango* de
+  semillas, y eso lo comprueba la tabla de paridad.
+- **En GDScript, `randi_range(0, 2³²-1)` no vale**: recibe los límites
+  como `int` de 32 bits, así que el tope se desborda a -1 y la función
+  acaba devolviendo siempre 0 o -1. `Azar.nueva()` usa `randi()`, que ya
+  devuelve un entero sin signo de 32 bits. El test lo comprueba con 500
+  muestras y exigiendo más de 400 distintas: con una sola muestra
+  fallaría la mitad de las veces, y un «salen al menos dos distintas» lo
+  daría por bueno porque 0 y -1 ya son dos.
+
 ## Paridad entre las dos versiones
 
 Cada módulo de `terminal/` tiene un hermano en `2d/` con la misma
@@ -86,10 +124,10 @@ ningún test de una sola versión puede encontrar.
 **Cómo funciona.** `terminal/paridad.py` genera una tabla de casos
 —entradas y la respuesta que da Python— y la deja versionada en
 `2d/tests/paridad.json`. `2d/tests/test_paridad.gd` la carga, ejecuta los
-mismos casos contra los módulos de GDScript y compara: unas **1.470
+mismos casos contra los módulos de GDScript y compara: unas **1.471
 comparaciones** por build (1.296 pistas, 96 movimientos de bala, más
 días, intersección, apuesta, farol, resumen, desempate del duelo y todas
-las constantes compartidas). El CI lo corre en cada push.
+las constantes compartidas, incluido el rango de semillas). El CI lo corre en cada push.
 
 Tres decisiones que conviene conocer antes de tocarlo:
 
@@ -120,7 +158,7 @@ test diciendo «OK» con una fracción de los casos comparados.
     `RuletaEstado.gd` en la versión Godot): `terminal/estado.py`,
     `terminal/pistas.py`, `terminal/apuestas.py`, `terminal/farol.py`,
     `terminal/eventos.py`, `terminal/historial.py`, `terminal/records.py`,
-    `terminal/jugador.py`
+    `terminal/jugador.py`, `terminal/semillas.py`
     y `terminal/ambiente.py` (texto narrativo: frases de ambiente,
     carteles y finales alternativos).
   - **Reglas del turno**: `terminal/motor.py`, que junta las anteriores y
@@ -142,15 +180,12 @@ test diciendo «OK» con una fracción de los casos comparados.
   jugadores, porque una partida en solitario es —aquí y en Godot— un
   duelo de un único jugador), `--oscuridad`
   (modo a oscuras), `--sin-animaciones`, `--sin-color` y `--sin-sonido`
-  (ver `efectos.py`), `--seed N` (fija el azar de la partida entera),
+  (ver `efectos.py`), `--seed N` (repite una partida concreta),
   `--records` (muestra los récords guardados y no juega) y `--version`.
   `main()` es el entry point real (`ruleta = "terminal.ruleta:main"` en
-  `pyproject.toml`), que envuelve `jugar()`/`jugar_duelo()` para capturar
-  Ctrl+C y EOF, configura los efectos según los flags y devuelve el código
-  de salida del proceso (130 si se aborta con Ctrl+C, 0 en lo demás).
-  `--seed` funciona sembrando el `random` global: todos los módulos de
-  lógica aceptan un `rng` propio pero caen en él cuando no se les pasa
-  ninguno, que es lo que hace la partida de verdad.
+  `pyproject.toml`), que envuelve `jugar()` para capturar Ctrl+C y EOF,
+  configura los efectos según los flags y devuelve el código de salida
+  del proceso (130 si se aborta con Ctrl+C, 0 en lo demás).
 - Interactúa por entrada/salida estándar con interfaz en colores y tambor
   ASCII, animado y con teclado en crudo cuando hay una terminal delante.
 
@@ -672,6 +707,7 @@ last-click-game/
 │   ├── jugador.py
 │   ├── motor.py
 │   ├── records.py
+│   ├── semillas.py
 │   ├── ambiente.py
 │   ├── efectos.py
 │   ├── entrada.py
@@ -685,6 +721,7 @@ last-click-game/
 │   ├── test_jugador.py
 │   ├── test_motor.py
 │   ├── test_records.py
+│   ├── test_semillas.py
 │   ├── test_ambiente.py
 │   ├── test_efectos.py
 │   └── test_entrada.py
@@ -700,6 +737,7 @@ last-click-game/
     ├── Historial.gd
     ├── Jugador.gd
     ├── Dificultad.gd
+    ├── Azar.gd
     ├── Records.gd
     ├── Ajustes.gd
     ├── MainGame.gd
