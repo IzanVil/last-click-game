@@ -98,6 +98,14 @@ jobs:
         # -- ver su docstring -- y sale con exit code 1 si algo falla.
         run: ./godot --headless --script res://tests/test_logica.gd --path 2d
 
+      - name: Paridad con la version de terminal (2d/tests/test_paridad.gd)
+        # Compara esta version con la de Python caso a caso, usando la
+        # tabla que genera terminal/paridad.py y que vive versionada en
+        # 2d/tests/paridad.json. Es lo que impide que las dos versiones
+        # se separen en silencio: los comentarios de "hermano de X.py"
+        # no comprueban nada por si solos.
+        run: ./godot --headless --script res://tests/test_paridad.gd --path 2d
+
       - name: Test de integracion de la escena (2d/tests/test_escena.gd)
         # Carga MainGame.tscn de verdad y simula disparar/marcar/retirarse
         # esperando a las animaciones (Tween) entre cada accion: cubre el

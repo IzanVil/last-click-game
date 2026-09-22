@@ -122,6 +122,7 @@ russian-roulette-2d/
 │   ├── ruleta.py        ← interfaz de terminal (pantalla, teclado, colores)
 │   ├── motor.py         ← reglas del turno: disparar, marcar, retirarse
 │   ├── jugador.py       ← apuesta, marcas y disparos de un jugador
+│   ├── paridad.py       ← genera la tabla que compara las dos versiones
 │   ├── estado.py        ← tambor y bala: posición, patrón, días de vida
 │   ├── pistas.py        ← generación de pistas (veraces o mentirosas)
 │   ├── apuestas.py      ← apuesta doblar-o-retirarse
@@ -144,6 +145,7 @@ russian-roulette-2d/
     ├── Dificultad.gd    ← presets fácil/normal/difícil
     ├── Records.gd       ← récords persistidos en user://records.json
     ├── Azar.gd          ← semilla de partida (hermano de semillas.py)
+    ├── tests/paridad.json ← tabla de paridad (la genera terminal/paridad.py)
     ├── Ajustes.gd       ← accesibilidad y mezcla, en user://ajustes.json
     ├── MainGame.gd      ← vista: las cuatro pantallas y su cableado
     ├── TamborView.gd    ← dibuja el tambor, lo gira y escucha al ratón
@@ -693,10 +695,17 @@ de terceros más allá de las dos tipografías:
   aparte: una partida en solitario es un duelo de un único jugador, como
   ya lo era en Godot
 
+- [x] **Paridad entre versiones comprobada en CI** — `terminal/paridad.py`
+  genera una tabla de 1.296 pistas y ~180 casos más (movimiento de la
+  bala, días, apuesta, farol, resumen, desempate y todas las constantes)
+  con la respuesta que da Python, y `2d/tests/test_paridad.gd` la replica
+  y compara: **1.470 comparaciones** por build. Los comentarios de
+  «hermano de X.py» pasan a ser un contrato
+
 ### 🎯 Otros próximos pasos
 - [ ] **Un generador común** para que una semilla dé la misma partida en
-  las dos versiones (hoy Python usa Mersenne Twister y Godot PCG32), y
-  con él un test de paridad que compare partida a partida en CI
+  las dos versiones (hoy Python usa Mersenne Twister y Godot PCG32). La
+  paridad de reglas ya no depende de ello: la tabla fija sus entradas
 - [ ] Modo «borracho» 🍺 (menos suerte y más humor)
 - [ ] Empaquetado en un ejecutable único (`pyinstaller`)
 
