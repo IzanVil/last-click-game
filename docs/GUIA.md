@@ -71,6 +71,123 @@ además, el tambor se ve girar al empezar la partida, pulsa con tensión
 antes de revelar un disparo o un farol, y la pantalla vibra al morir; ver
 "Versión gráfica (Godot)" más abajo.
 
+## El banco de balance
+
+El balance del juego estaba fijado a ojo. `terminal/banco.py` lo mide:
+enfrenta tres políticas automáticas contra cada preset de dificultad y
+cuenta qué sale.
+
+```bash
+python3 terminal/banco.py                  # 5000 partidas por caso
+python3 terminal/banco.py --partidas 50000
+```
+
+Solo es posible desde que las reglas viven en `motor.py` y no dentro de
+la interfaz: una partida entera cuesta microsegundos porque no hay
+pantalla que pintar ni teclado que leer.
+
+### Cómo deduce `solver.py`
+
+El espacio de estados es diminuto —cuatro patrones por ocho huecos son
+**32 combinaciones**—, así que no hace falta ninguna heurística: se
+arranca con las 32 y se tachan las que contradicen lo observado. Lo que
+queda es exactamente lo que un jugador perfecto podría saber.
+
+La posterior es **uniforme** sobre lo que queda, y eso no es una
+simplificación. Cada observación del juego es un filtro determinista, y
+el tipo de pista se sortea sin mirar dónde está la bala, así que
+observar una pista concreta es igual de probable bajo cualquiera de los
+estados que la cumplen. Por eso basta con contar.
+
+Tres detalles que no son obvios:
+
+- **Una pista que se sabe falsa sigue siendo información.** El juego
+  avisa del tambor caliente *antes* de soltar la pista, así que un
+  jugador atento sabe exactamente cuál miente y puede quedarse con el
+  complemento.
+- **Fallar un farol es buenísimo para la deducción.** Cuesta la marca,
+  pero deja la posición clavada en un solo hueco.
+- **El movimiento es lo único que no es un filtro.** Cada hipótesis
+  avanza según *su* patrón, así que dos que hoy apuntan al mismo hueco
+  pueden separarse mañana. De ahí sale casi toda la información.
+
+### La comprobación cruzada
+
+`test_solver.py` juega 200 partidas contra el motor y comprueba, después
+de cada observación, que el estado **real** del tambor sigue entre los
+que la creencia da por posibles. Si alguna vez se cayera, sería que el
+solver y el motor entienden el juego de forma distinta — y como la
+deducción se escribió leyendo `motor.disparar`, eso vale también como
+comprobación cruzada de las reglas.
+
+El banco cuenta las «contradicciones» (creencias que se quedan sin
+estados) en su propia columna. Hay un test con una política rota a
+propósito que comprueba que ese contador salta cuando tiene que saltar:
+un contador que nunca se dispara no se distingue de uno averiado.
+
+### Por qué ninguna política se retira
+
+Se juega hasta que la bala aparece o hasta el tope de disparos. Así el
+número mide la **deducción** y no lo prudente que sea cada política, que
+es lo que se quiere comparar. El tope hace falta porque una política que
+deduzca bien **no muere nunca**: ver abajo.
+
+### Qué encontró
+
+Con 5000 partidas por caso (45.000 en total), tope de 300 disparos:
+
+| dificultad | política | días medios | sobrevive al tope | acorrala en |
+|---|---|---:|---:|---:|
+| fácil | azar | 3,0 | 0,0 % | — |
+| fácil | deduce | 89,9 | 89,9 % | 8,0 |
+| fácil | deduce+farol | 99,8 | 99,8 % | 5,4 |
+| normal | azar | 2,3 | 0,0 % | — |
+| normal | deduce | 87,6 | 87,6 % | 6,7 |
+| normal | deduce+farol | 99,6 | 99,6 % | 4,8 |
+| difícil | azar | 1,6 | 0,0 % | — |
+| difícil | deduce | 82,8 | 82,8 % | 5,3 |
+| difícil | deduce+farol | 99,5 | 99,5 % | 4,2 |
+
+**1. El juego es resoluble.** En cuanto la deducción deja un único hueco
+posible, el jugador no puede morir: sabe dónde está la bala cada turno
+(los eventos se anuncian, y hasta la pista mentirosa se sabe cuál es),
+así que dispara a cualquier otro sitio para siempre. Cuesta entre 4 y 8
+disparos —dos días de juego— y a partir de ahí no hay riesgo. Por eso
+hace falta un tope de disparos: sin él, esas partidas no terminan.
+
+**2. Los presets están invertidos para quien piensa.** Para la política
+del azar funcionan como se espera: fácil aguanta 3,0 días y difícil 1,6.
+Para la que deduce es al revés: en difícil **acorrala antes** (5,3
+disparos frente a 8,0 en fácil), porque menos huecos son menos hipótesis
+que descartar. «Difícil» solo es más difícil si no deduces.
+
+**3. `espejo` resiste la deducción, y el tamaño del tambor decide
+cuánto.** Es el hallazgo que no esperaba nadie:
+
+| patrón | acorralado en fácil | en normal | en difícil |
+|---|---:|---:|---:|
+| avanza | 89,2 % | 87,6 % | 80,9 % |
+| retrocede | 90,7 % | 87,4 % | 83,6 % |
+| salta_dos | 90,1 % | 88,7 % | 82,8 % |
+| **espejo** | **24,3 %** | **55,5 %** | **83,7 %** |
+
+`espejo` manda la bala a `huecos + 1 - posición`, que es una involución:
+aplicado dos veces devuelve al punto de partida. La bala rebota entre
+dos huecos y nunca recorre el tambor, así que las hipótesis no se
+separan solas como con los otros tres patrones — y cuantos más huecos,
+más parejas posibles hay que distinguir. De ahí que sea peor en fácil
+(10 huecos, 5 parejas) que en difícil (6 huecos, 3 parejas).
+
+**4. Las marcas de farol no cuestan nada en solitario.** Marcar no mueve
+la bala ni pasa turno: lo único que se gasta es la marca. Por eso
+`deduce+farol` pasa del 99,5 % en los tres presets. Un recurso sin coste
+real es un recurso que siempre conviene gastar cuanto antes, lo que deja
+poca decisión que tomar.
+
+Nada de esto se arregla aquí: el banco mide, no rebalancea. Pero
+cualquier cambio de mecánica que se plantee tiene ahora con qué
+compararse.
+
 ## La semilla de partida
 
 Todo lo que se sortea en una partida —la posición inicial de la bala, su
@@ -706,8 +823,10 @@ last-click-game/
 │   ├── historial.py
 │   ├── jugador.py
 │   ├── motor.py
+│   ├── banco.py
 │   ├── records.py
 │   ├── semillas.py
+│   ├── solver.py
 │   ├── ambiente.py
 │   ├── efectos.py
 │   ├── entrada.py
@@ -720,8 +839,10 @@ last-click-game/
 │   ├── test_historial.py
 │   ├── test_jugador.py
 │   ├── test_motor.py
+│   ├── test_banco.py
 │   ├── test_records.py
 │   ├── test_semillas.py
+│   ├── test_solver.py
 │   ├── test_ambiente.py
 │   ├── test_efectos.py
 │   └── test_entrada.py
