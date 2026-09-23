@@ -132,6 +132,8 @@ last-click-game/
 │   ├── records.py       ← récords persistidos en ~/.tambor_del_juicio/
 │   ├── semillas.py      ← semilla de partida: repetir una partida exacta
 │   ├── paridad.py       ← genera la tabla que compara las dos versiones
+│   ├── solver.py        ← deduce dónde está la bala y qué patrón sigue
+│   ├── banco.py         ← juega miles de partidas y mide el balance
 │   └── test_*.py        ← pruebas unitarias de los módulos
 └── 2d/                  ← versión gráfica: El Tambor del Juicio
     ├── project.godot    ← proyecto Godot
@@ -559,6 +561,16 @@ de quien los ejecuta**.
   coverage run -m unittest discover -s terminal && coverage report
   ```
 
+- **Banco de balance**: `terminal/banco.py` juega miles de partidas
+  automáticas y mide qué tal aguanta cada dificultad, enfrentando una
+  política que dispara al azar contra una que deduce de verdad
+  (`terminal/solver.py`). Lo que encontró está en la
+  [guía técnica](docs/GUIA.md).
+
+  ```bash
+  python3 terminal/banco.py --partidas 5000
+  ```
+
 - **Integración continua**: GitHub Actions (`.github/workflows/ci.yml`) corre
   en cada push/PR tres jobs en paralelo: `python-tests` (ruff, black, mypy y
   tests con cobertura sobre la matriz Python 3.11-3.13), `godot-smoke-test`
@@ -732,6 +744,10 @@ de terceros más allá de las dos tipografías:
   Godot). Antes `--seed` solo permitía *fijar* una partida, no
   *recuperar* la que acababas de jugar, y la versión gráfica no tenía
   semilla ninguna
+- [x] **Balance medido, no supuesto** — `solver.py` deduce de forma
+  exacta dónde está la bala (el espacio de estados son 32 combinaciones)
+  y `banco.py` juega miles de partidas con él para ver qué aguanta cada
+  preset. De ahí salieron tres cosas que nadie sabía: ver la guía
 
 ### 🎯 Otros próximos pasos
 - [ ] Modo «borracho» 🍺 (menos suerte y más humor)
