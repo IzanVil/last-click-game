@@ -59,10 +59,8 @@ class Resultado:
     # terminar (el jugador no lo sabe): sirve para ver si alguno se
     # delata antes que los demas.
     patron: str
-    # Disparo en el que la creencia se quedo con un unico hueco posible
-    # por primera vez, o None si nunca llego a acorralarla.
+    # "Acorralada" es que la creencia se quedo con un unico hueco posible.
     disparo_acorralada: int | None
-    # Disparo en el que quedo un unico patron posible, o None.
     disparo_patron_unico: int | None
     faroles: int
     # Si la deduccion se quedo sin estados posibles. Es un fallo, no un
@@ -90,7 +88,7 @@ class Politica:
     def elegir_farol(self) -> int:  # pragma: no cover - nunca farolea
         return 1
 
-    # Observaciones. La politica base no aprende nada de ellas.
+    # La politica base no aprende nada de lo que observa.
     def vio_disparo_fallido(self, hueco: int) -> None: ...
     def vio_clic_metalico(self) -> None: ...
     def vio_pista(self, candidatos: frozenset[int], mentira: bool) -> None: ...

@@ -201,10 +201,9 @@ class CreenciaSinPatron(Creencia):
     """
 
     def _mover_todos(self) -> None:
-        # El patron deja de importar: cada posicion se abre en todos sus
-        # destinos posibles. Se etiquetan todas igual ("?") para que dos
-        # caminos que acaban en el mismo hueco cuenten como uno solo,
-        # que es justo lo que significa no saber por donde vino.
+        # Se etiquetan todas igual ("?") para que dos caminos que acaban
+        # en el mismo hueco cuenten como uno solo: eso es justo lo que
+        # significa no saber por donde vino la bala.
         self.estados = {
             ("?", estado._mover(posicion, patron, self.huecos))
             for _, posicion in self.estados
