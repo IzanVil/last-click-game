@@ -133,6 +133,7 @@ last-click-game/
 │   ├── semillas.py      ← semilla de partida: repetir una partida exacta
 │   ├── paridad.py       ← genera la tabla que compara las dos versiones
 │   ├── solver.py        ← deduce dónde está la bala y qué patrón sigue
+│   ├── rival.py         ← la máquina como oponente en el modo duelo
 │   ├── banco.py         ← juega miles de partidas y mide el balance
 │   └── test_*.py        ← pruebas unitarias de los módulos
 └── 2d/                  ← versión gráfica: El Tambor del Juicio
@@ -335,6 +336,27 @@ más puntos):
 python3 ruleta.py --duelo
 python3 ruleta.py --duelo --dificultad facil   # combinable con dificultad
 ```
+
+### Duelo contra la máquina
+
+`--rival` sienta a la máquina en la silla de enfrente, en tres niveles:
+
+```bash
+python3 ruleta.py --rival novato       # no deduce: dispara donde no ha probado
+python3 ruleta.py --rival templado     # sigue las pistas, pero no el patrón
+python3 ruleta.py --rival implacable   # deduce con todo
+```
+
+No hace trampa: ve exactamente lo mismo que tú —las pistas son
+compartidas y los eventos se anuncian— y saca sus propias conclusiones.
+Los niveles tampoco se consiguen haciéndola fallar a propósito; un rival
+que de vez en cuando tira al aire se nota y se siente tramposo. Lo que
+cambia es **cuánto razona**: el `templado` apunta lo que dicen las
+pistas, pero no lleva la cuenta de por dónde vino la bala.
+
+> ⚠️ Avisado: el `implacable` acaba acorralando la bala, y a partir de
+> ahí no puede morir. Contra él no se gana sobreviviendo — se gana
+> puntuando más antes de que se plante.
 
 ### Ejemplo de partida
 
@@ -748,6 +770,11 @@ de terceros más allá de las dos tipografías:
   exacta dónde está la bala (el espacio de estados son 32 combinaciones)
   y `banco.py` juega miles de partidas con él para ver qué aguanta cada
   preset. De ahí salieron tres cosas que nadie sabía: ver la guía
+
+- [x] **Rival de máquina en el duelo** (`--rival novato|templado|implacable`),
+  construido sobre la deducción de `solver.py`: ve lo mismo que el
+  jugador y no hace trampa. Al medirlo salió que el duelo tiene un
+  problema de reglas anterior a él — ver la guía
 
 ### 🎯 Otros próximos pasos
 - [ ] Modo «borracho» 🍺 (menos suerte y más humor)
