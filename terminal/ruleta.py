@@ -34,6 +34,7 @@ try:
         motor,
         pistas,
         records,
+        rival,
         semillas,
     )
 except ImportError:  # pragma: no cover - ejecucion como script suelto
@@ -54,6 +55,7 @@ except ImportError:  # pragma: no cover - ejecucion como script suelto
     import motor  # type: ignore[no-redef,import-not-found]
     import pistas  # type: ignore[no-redef,import-not-found]
     import records  # type: ignore[no-redef,import-not-found]
+    import rival  # type: ignore[no-redef,import-not-found]
     import semillas  # type: ignore[no-redef,import-not-found]
 
 # Reglas del juego: viven en motor.py. Se reexportan aqui porque la
@@ -574,6 +576,23 @@ def sello_semilla(valor: int) -> None:
     print()
 
 
+def anunciar_rival(nombre: str, accion: str, hueco: int) -> None:
+    """Cuenta en voz alta lo que va a hacer la maquina.
+
+    Hace falta porque su turno no tiene a nadie tecleando: sin esto, el
+    tablero cambiaria solo y el jugador no sabria por que. La pausa de
+    despues no es decorativa, es el tiempo de leerlo.
+    """
+    verbos = {
+        "disparar": f"apunta al hueco {hueco} y aprieta",
+        "marcar": f"marca el hueco {hueco} sin disparar",
+        "retirarse": "se planta y recoge lo suyo",
+    }
+    print()
+    efectos.escribir(f"   {CELESTE}{nombre} {verbos[accion]}.{RESET}")
+    efectos.pausa(1.2)
+
+
 def _pedir_nombre(numero: int) -> str:
     """Pide el nombre de un jugador; en blanco usa 'Jugador N'."""
     prefijo = f"Nombre del jugador {numero} (Enter para 'Jugador {numero}'): "
@@ -780,8 +799,8 @@ def _pintar_turno(partida: Partida, oscuridad: bool) -> tuple[Tablero, "partial[
     tablero = Tablero(juego.huecos, estados, juego.pistas_reveladas, juego.bitacora)
 
     if juego.es_duelo():
-        rival = juego.jugadores[(juego.turno + 1) % len(juego.jugadores)]
-        return tablero, partial(escena_duelo, juego.jugador_activo, rival, tablero)
+        contrario = juego.jugadores[(juego.turno + 1) % len(juego.jugadores)]
+        return tablero, partial(escena_duelo, juego.jugador_activo, contrario, tablero)
     return tablero, partial(escena, juego.disparos, juego.apuesta, juego.marca, tablero)
 
 
@@ -791,6 +810,7 @@ def jugar(
     oscuridad: bool = False,
     duelo: bool = False,
     seed: int | None = None,
+    rival_nivel: str | None = None,
 ) -> None:
     """Ejecuta el bucle principal: disparar, marcar o retirarse.
 
@@ -800,6 +820,9 @@ def jugar(
     tablero se pinta con el turno y el rival encima, y que al final se
     compara quien gano: las reglas son las mismas y solo estan escritas
     una vez.
+
+    `rival_nivel` pone a la maquina en la silla de enfrente (ver
+    rival.py). Implica duelo: el bot es siempre el segundo jugador.
 
     `seed` fija la primera partida de la sesion; las siguientes sortean
     la suya y la enseñan al terminar (ver semillas.py). Cada partida
@@ -815,7 +838,11 @@ def jugar(
     if duelo:
         limpiar(duro=True)
         print(NEGRITA + CELESTE + "\n   === EL TAMBOR DEL JUICIO: DUELO ===\n" + RESET)
-        nombres = [_pedir_nombre(1), _pedir_nombre(2)]
+        if rival_nivel:
+            print(f"{GRIS}   Enfrente: la maquina, en modo {rival_nivel}.{RESET}\n")
+            nombres = [_pedir_nombre(1), f"La maquina ({rival_nivel})"]
+        else:
+            nombres = [_pedir_nombre(1), _pedir_nombre(2)]
 
     while True:
         pedida = pendiente is not None
@@ -831,6 +858,16 @@ def jugar(
             misrecords,
         )
         juego = partida.juego
+
+        # El rival nace con cada partida: su deduccion no puede
+        # arrastrar nada de la anterior, que es otro tambor.
+        maquina = (
+            rival.Rival(
+                rival_nivel, huecos, marcas, random.Random(semilla_partida ^ 0xB07)
+            )
+            if rival_nivel
+            else None
+        )
 
         limpiar(duro=True)
         if not duelo:
@@ -848,25 +885,42 @@ def jugar(
             if bala_cerca(juego.marcadas(), juego.huecos):
                 latido(tablero)
 
-            accion = elegir_accion(juego.marca.marcas_restantes)
+            le_toca_a_la_maquina = maquina is not None and juego.turno % 2 == 1
+            if maquina is not None and le_toca_a_la_maquina:
+                yo, tu = juego.jugadores[1], juego.jugadores[0]
+                accion, posicion = maquina.decidir(
+                    yo.dias, yo.apuesta.en_juego, tu.dias, tu.apuesta.en_juego
+                )
+                anunciar_rival(yo.nombre, accion, posicion)
+            else:
+                accion = elegir_accion(juego.marca.marcas_restantes)
+                posicion = 0
+                if accion != "retirarse":
+                    verbo = "Marcar" if accion == "marcar" else "Disparar a"
+                    elegido = elegir_hueco(tablero, dibujar, verbo)
+                    if elegido is None:
+                        continue
+                    posicion = elegido
+                    refrescar(dibujar)
+
             # Se apunta antes de actuar: despues, el turno ya ha pasado.
             partida.actor = juego.jugador_activo
             if accion == "retirarse":
                 sucesos = juego.retirarse()
+            elif accion == "marcar":
+                sucesos = juego.marcar(posicion)
             else:
-                verbo = "Marcar" if accion == "marcar" else "Disparar a"
-                posicion = elegir_hueco(tablero, dibujar, verbo)
-                if posicion is None:
-                    continue
-                refrescar(dibujar)
-                if accion == "marcar":
-                    sucesos = juego.marcar(posicion)
-                else:
+                if not le_toca_a_la_maquina:
                     animar_giro(tablero, posicion)
-                    sucesos = juego.disparar(posicion)
+                sucesos = juego.disparar(posicion)
 
             for suceso in sucesos:
                 _contar_suceso(suceso, partida)
+            # La maquina mira TODOS los turnos, no solo los suyos: el
+            # tambor y las pistas son compartidos, asi que lo que le
+            # pasa al de enfrente tambien le enseña donde esta la bala.
+            if maquina is not None:
+                maquina.observar(sucesos, posicion if accion == "disparar" else None)
             if accion == "disparar" and not juego.terminada:
                 efectos.pausa(1.5)
 
@@ -938,6 +992,15 @@ def _parsear_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Marcas de farol por partida (por defecto, segun --dificultad).",
     )
     parser.add_argument(
+        "--rival",
+        choices=rival.NIVELES,
+        default=None,
+        help=(
+            "Juega el duelo contra la maquina en vez de contra otra "
+            "persona. Implica --duelo."
+        ),
+    )
+    parser.add_argument(
         "--duelo",
         action="store_true",
         help="Modo duelo: dos jugadores turnandose en el mismo tambor.",
@@ -986,6 +1049,11 @@ def _parsear_args(argv: list[str] | None = None) -> argparse.Namespace:
     if args.marcas < 0:
         parser.error(f"marcas no puede ser negativo (recibido: {args.marcas}).")
 
+    if args.rival:
+        # Pedir --rival sin --duelo es lo que quiere decir cualquiera
+        # que escriba eso: no hay rival en una partida en solitario.
+        args.duelo = True
+
     return args
 
 
@@ -1027,6 +1095,7 @@ def main(argv: list[str] | None = None) -> int:
             oscuridad=args.oscuridad,
             duelo=args.duelo,
             seed=args.seed,
+            rival_nivel=args.rival,
         )
     except (KeyboardInterrupt, EOFError) as interrupcion:
         # EOFError ademas de KeyboardInterrupt: el juego se apoya en

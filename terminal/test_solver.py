@@ -79,6 +79,17 @@ class TestElecciones(unittest.TestCase):
         otro = solver.Creencia(8).hueco_mas_seguro()
         self.assertEqual(uno, otro)
 
+    def test_los_empatados_a_riesgo_minimo_salen_todos(self):
+        creencia = solver.Creencia(8)
+        creencia.tras_pista(frozenset({2, 4}))
+        # Todo lo que no sea 2 ni 4 esta a riesgo cero y empata.
+        self.assertEqual(creencia.huecos_mas_seguros(), [1, 3, 5, 6, 7, 8])
+
+    def test_una_creencia_vacia_no_devuelve_ningun_hueco_seguro(self):
+        creencia = solver.Creencia(8)
+        creencia.tras_pista(frozenset())
+        self.assertEqual(creencia.huecos_mas_seguros(), [])
+
     def test_una_creencia_vacia_no_revienta_al_elegir(self):
         creencia = solver.Creencia(8)
         creencia.tras_pista(frozenset())

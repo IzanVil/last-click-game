@@ -758,7 +758,12 @@ class TestMain(CasoQueLlamaMain):
     def test_pasa_huecos_y_marcas_a_jugar(self, mock_jugar):
         ruleta.main(["--huecos", "6", "--marcas", "2"])
         mock_jugar.assert_called_once_with(
-            huecos=6, marcas=2, oscuridad=False, duelo=False, seed=None
+            huecos=6,
+            marcas=2,
+            oscuridad=False,
+            duelo=False,
+            seed=None,
+            rival_nivel=None,
         )
 
     @patch("ruleta.jugar")
@@ -789,6 +794,7 @@ class TestMain(CasoQueLlamaMain):
             oscuridad=False,
             duelo=True,
             seed=None,
+            rival_nivel=None,
         )
 
     @patch("ruleta.jugar")
@@ -1335,6 +1341,78 @@ class TestFlujoAvanzado(unittest.TestCase):
         self.assertEqual(mock_oscurecer.call_count, 3)
         self.assertEqual(mock_latido.call_count, 3)
         mock_retirada.assert_called_once()
+
+
+class TestRivalDeLaMaquina(unittest.TestCase):
+    def test_pedir_rival_enciende_el_duelo_solo(self):
+        # Nadie que escriba --rival quiere una partida en solitario.
+        args = ruleta._parsear_args(["--rival", "templado"])
+        self.assertEqual(args.rival, "templado")
+        self.assertTrue(args.duelo)
+
+    def test_un_nivel_inventado_se_rechaza(self):
+        with self.assertRaises(SystemExit):
+            ruleta._parsear_args(["--rival", "imbatible"])
+
+    @patch("ruleta.jugar")
+    def test_el_nivel_llega_al_bucle(self, mock_jugar):
+        ruleta.main(["--rival", "implacable"])
+        self.assertEqual(mock_jugar.call_args.kwargs["rival_nivel"], "implacable")
+
+    def test_se_anuncia_lo_que_hace_la_maquina(self):
+        # Su turno no tiene a nadie tecleando: sin este aviso el tablero
+        # cambiaria solo y el jugador no sabria por que.
+        for accion, esperado in (
+            ("disparar", "apunta al hueco 4"),
+            ("marcar", "marca el hueco 4"),
+            ("retirarse", "se planta"),
+        ):
+            with patch("ruleta.efectos.escribir") as mock_escribir:
+                ruleta.anunciar_rival("Bot", accion, 4)
+            dicho = " ".join(str(c.args[0]) for c in mock_escribir.call_args_list)
+            self.assertIn(esperado, dicho)
+
+
+class TestDueloContraLaMaquina(unittest.TestCase):
+    """Un duelo entero jugado de verdad contra el bot.
+
+    Los tests de rival.py prueban la cabeza de la maquina; este prueba
+    que esta enchufada: que le toca su turno, que decide sola, que se
+    anuncia lo que hace y que el duelo llega a su veredicto.
+    """
+
+    def test_la_maquina_juega_sus_turnos_y_el_duelo_termina(self):
+        salida = _grabar_partida(seed=4242, duelo=True, rival_nivel="implacable")
+        self.assertIn("La maquina (implacable)", salida)
+        self.assertIn("Enfrente: la maquina", salida)
+        self.assertIn("RESULTADO DEL DUELO", salida)
+        self.assertTrue(
+            any(
+                verbo in salida
+                for verbo in ("apunta al hueco", "marca el hueco", "se planta")
+            ),
+            "la maquina no llego a mover ficha",
+        )
+
+    def test_tambien_con_un_rival_que_no_deduce(self):
+        salida = _grabar_partida(seed=77, duelo=True, rival_nivel="novato")
+        self.assertIn("La maquina (novato)", salida)
+        self.assertIn("RESULTADO DEL DUELO", salida)
+
+    def test_al_rival_no_se_le_pregunta_el_nombre(self):
+        # Solo se pide un nombre, el de la persona.
+        pedidos = []
+
+        def responder(prompt="", _guion=_guion()):
+            if "Nombre del jugador" in prompt:
+                pedidos.append(prompt)
+                return ""
+            return _guion(prompt)
+
+        _grabar_partida(
+            entrada_falsa=responder, seed=5, duelo=True, rival_nivel="templado"
+        )
+        self.assertEqual(len(pedidos), 1)
 
 
 class TestContarSuceso(unittest.TestCase):

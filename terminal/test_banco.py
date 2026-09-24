@@ -143,6 +143,39 @@ class TestInforme(unittest.TestCase):
         self.assertNotIn("CONTRADICCIONES", texto)
 
 
+class TestDuelos(unittest.TestCase):
+    def test_un_duelo_acaba_con_veredicto(self):
+        self.assertIn(
+            banco.jugar_duelo("implacable", "novato", 8, 3, 1), ("a", "b", "empate")
+        )
+
+    def test_la_misma_semilla_da_el_mismo_duelo(self):
+        uno = banco.jugar_duelo("implacable", "templado", 8, 3, 9)
+        otro = banco.jugar_duelo("implacable", "templado", 8, 3, 9)
+        self.assertEqual(uno, otro)
+
+    def test_deducir_gana_al_que_no_deduce(self):
+        # Lo unico que hace util la tabla: si el nivel no cambiara el
+        # resultado, no estaria midiendo nada.
+        victorias = sum(
+            banco.jugar_duelo("implacable", "novato", 8, 3, i) == "a" for i in range(60)
+        )
+        self.assertGreater(victorias, 30)
+
+    def test_en_un_tambor_diminuto_alguien_se_planta(self):
+        # Con tres huecos el riesgo minimo es 1/3 y los umbrales de
+        # retirada entran en juego; en uno de ocho casi nunca aprietan.
+        veredictos = {
+            banco.jugar_duelo("implacable", "templado", 3, 2, i) for i in range(40)
+        }
+        self.assertTrue(veredictos <= {"a", "b", "empate"})
+
+    def test_la_tabla_sale_entera(self):
+        texto = banco.tabla_de_duelos(3)
+        for nivel in banco.rival.NIVELES:
+            self.assertIn(nivel, texto)
+
+
 class TestArgumentos(unittest.TestCase):
     def test_valores_por_defecto(self):
         args = banco._parsear([])
@@ -153,6 +186,10 @@ class TestArgumentos(unittest.TestCase):
         args = banco._parsear(["--partidas", "10", "--tope", "20"])
         self.assertEqual(args.partidas, 10)
         self.assertEqual(args.tope, 20)
+
+    def test_la_tabla_de_duelos_se_pide_aparte(self):
+        self.assertEqual(banco._parsear([]).duelos, 0)
+        self.assertEqual(banco._parsear(["--duelos", "50"]).duelos, 50)
 
 
 if __name__ == "__main__":
