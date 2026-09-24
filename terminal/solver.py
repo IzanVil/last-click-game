@@ -144,6 +144,21 @@ class Creencia:
             return 1
         return min(riesgos, key=lambda hueco: (riesgos[hueco], hueco))
 
+    def huecos_mas_seguros(self) -> list[int]:
+        """Todos los huecos empatados en el riesgo minimo, ordenados.
+
+        `hueco_mas_seguro` se queda siempre con el primero para que el
+        banco pueda comparar politicas sobre el mismo tambor. El rival
+        de la maquina prefiere la lista entera y elegir al azar entre
+        ellos: son igual de seguros, y disparar siempre al hueco 1 le
+        da un aire de robot que no tiene por que tener.
+        """
+        riesgos = self.riesgo_por_hueco()
+        if not riesgos:
+            return []
+        minimo = min(riesgos.values())
+        return sorted(h for h, riesgo in riesgos.items() if riesgo == minimo)
+
     def hueco_mas_probable(self) -> int:
         """El hueco con mas papeletas: el que mejor rinde farolear.
 
@@ -168,3 +183,34 @@ class Creencia:
         precisamente para que no pase desapercibido.
         """
         return not self.estados
+
+
+class CreenciaSinPatron(Creencia):
+    """Sigue las pistas pero nunca deduce el patron.
+
+    Es la diferencia entre un jugador atento y uno bueno: este apunta lo
+    que dicen las pistas y descarta los huecos donde ya disparo, pero no
+    lleva la cuenta de POR DONDE vino la bala, asi que cada vez que se
+    mueve tiene que dar por posibles todos los destinos de cualquier
+    patron. Deduce de verdad, solo que peor.
+
+    Existe para poder graduar al rival de la maquina (ver rival.py) sin
+    recurrir al truco de hacerle fallar a proposito: un rival que a
+    veces tira al aire se nota y se siente tramposo, y uno que razona
+    con menos informacion se siente simplemente humano.
+    """
+
+    def _mover_todos(self) -> None:
+        # El patron deja de importar: cada posicion se abre en todos sus
+        # destinos posibles. Se etiquetan todas igual ("?") para que dos
+        # caminos que acaban en el mismo hueco cuenten como uno solo,
+        # que es justo lo que significa no saber por donde vino.
+        self.estados = {
+            ("?", estado._mover(posicion, patron, self.huecos))
+            for _, posicion in self.estados
+            for patron in estado.PATRONES
+        }
+
+    def patrones_posibles(self) -> set[str]:
+        """Nunca descarta un patron: no los sigue."""
+        return set(estado.PATRONES)

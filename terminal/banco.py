@@ -14,6 +14,7 @@ cuesta microsegundos y caben decenas de miles.
 
     python3 terminal/banco.py                  # 5000 partidas por caso
     python3 terminal/banco.py --partidas 50000
+    python3 terminal/banco.py --duelos 500     # quien gana a quien en duelo
 """
 
 import argparse
@@ -22,10 +23,12 @@ import statistics
 from dataclasses import dataclass, field
 
 try:
-    from . import estado, motor, semillas, solver
+    from . import estado, jugador, motor, rival, semillas, solver
 except ImportError:  # pragma: no cover - ejecucion como script suelto
     import estado  # type: ignore[no-redef,import-not-found]
+    import jugador  # type: ignore[no-redef,import-not-found]
     import motor  # type: ignore[no-redef,import-not-found]
+    import rival  # type: ignore[no-redef,import-not-found]
     import semillas  # type: ignore[no-redef,import-not-found]
     import solver  # type: ignore[no-redef,import-not-found]
 
@@ -391,6 +394,15 @@ def _parsear(argv: list[str] | None = None) -> argparse.Namespace:
         "--partidas", type=int, default=5000, help="Partidas por caso (5000)."
     )
     parser.add_argument(
+        "--duelos",
+        type=int,
+        default=0,
+        help=(
+            "En vez de la tabla de supervivencia, juega N duelos por "
+            "cruce de niveles y cuenta quien gana a quien."
+        ),
+    )
+    parser.add_argument(
         "--tope",
         type=int,
         default=TOPE_DISPAROS,
@@ -401,9 +413,92 @@ def _parsear(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:  # pragma: no cover - CLI
     args = _parsear(argv)
-    print(informe_completo(args.partidas, args.tope))
+    if args.duelos:
+        print(tabla_de_duelos(args.duelos))
+    else:
+        print(informe_completo(args.partidas, args.tope))
     return 0
 
 
 if __name__ == "__main__":  # pragma: no cover - CLI
     raise SystemExit(main())
+
+
+# --- Duelos: quien gana a quien -----------------------------------------------
+#
+# El rival de la maquina (rival.Rival) es un jugador de duelo completo:
+# observa, decide y sabe cuando plantarse. Asi que para medir si un
+# duelo contra la maquina es jugable basta con sentar a dos niveles
+# frente a frente y contar. No hace falta una politica aparte.
+
+
+def jugar_duelo(
+    nivel_a: str, nivel_b: str, huecos: int, marcas: int, semilla: int, tope: int = 60
+) -> str:
+    """Un duelo entre dos niveles. Devuelve "a", "b" o "empate".
+
+    Los dos ven lo mismo -- el tambor y las pistas son compartidos --,
+    asi que la unica diferencia es lo que cada uno sabe sacar de ello.
+    """
+    juego = motor.Motor(
+        huecos=huecos,
+        marcas=marcas,
+        nombres=["a", "b"],
+        rng=semillas.generador(semilla),
+    )
+    bots = [
+        rival.Rival(nivel_a, huecos, marcas, random.Random(semilla ^ 0xA)),
+        rival.Rival(nivel_b, huecos, marcas, random.Random(semilla ^ 0xB)),
+    ]
+
+    while not juego.terminada and juego.disparos < tope:
+        turno = juego.turno % 2
+        yo, tu = juego.jugadores[turno], juego.jugadores[1 - turno]
+        accion, hueco = bots[turno].decidir(
+            yo.dias, yo.apuesta.en_juego, tu.dias, tu.apuesta.en_juego
+        )
+        if accion == "retirarse":
+            sucesos = juego.retirarse()
+        elif accion == "marcar":
+            sucesos = juego.marcar(hueco)
+        else:
+            sucesos = juego.disparar(hueco)
+        for bot in bots:
+            bot.observar(sucesos, hueco if accion == "disparar" else None)
+
+    ganadores = jugador.ganadores(juego.jugadores)
+    if len(ganadores) != 1:
+        return "empate"
+    return "a" if ganadores[0] is juego.jugadores[0] else "b"
+
+
+def tabla_de_duelos(duelos: int, dificultad: str = "normal") -> str:
+    """Cada nivel contra cada nivel, para ver si alguno es imbatible.
+
+    La pregunta que motivo el rival: si `implacable` no pierde nunca, un
+    duelo contra el no es un duelo, es una demostracion.
+    """
+    preset = DIFICULTADES[dificultad]
+    lineas = [
+        f"{duelos} duelos por cruce, dificultad {dificultad}.",
+        "",
+        f"  {'retador':<12} {'contra':<12} {'gana':>7} {'pierde':>8} {'empata':>8}",
+        "  " + "-" * 50,
+    ]
+    for nivel_a in rival.NIVELES:
+        for nivel_b in rival.NIVELES:
+            cuenta = {"a": 0, "b": 0, "empate": 0}
+            for indice in range(duelos):
+                cuenta[
+                    jugar_duelo(
+                        nivel_a, nivel_b, preset["huecos"], preset["marcas"], indice
+                    )
+                ] += 1
+            lineas.append(
+                f"  {nivel_a:<12} {nivel_b:<12} "
+                f"{100.0 * cuenta['a'] / duelos:>6.1f}% "
+                f"{100.0 * cuenta['b'] / duelos:>7.1f}% "
+                f"{100.0 * cuenta['empate'] / duelos:>7.1f}%"
+            )
+        lineas.append("")
+    return "\n".join(lineas)

@@ -188,6 +188,84 @@ Nada de esto se arregla aquí: el banco mide, no rebalancea. Pero
 cualquier cambio de mecánica que se plantee tiene ahora con qué
 compararse.
 
+## El rival de la máquina
+
+`terminal/rival.py` pone a la máquina a jugar el modo duelo, apoyándose
+en la deducción de `solver.py`. No hace trampa: ve exactamente lo mismo
+que la persona —el tambor y las pistas son compartidos, los eventos se
+anuncian— y observa **todos** los turnos, también los del rival, porque
+lo que le pasa al de enfrente enseña igual dónde está la bala.
+
+Los tres niveles no se consiguen haciéndole fallar a propósito. Un bot
+que de vez en cuando tira al aire se nota y se siente tramposo; uno que
+razona con menos información se siente humano:
+
+| nivel | qué sabe |
+|---|---|
+| `novato` | nada: dispara donde todavía no ha disparado |
+| `templado` | sigue las pistas, pero no deduce el patrón (`solver.CreenciaSinPatron`) |
+| `implacable` | deduce con todo (`solver.Creencia`) |
+
+`CreenciaSinPatron` es la misma deducción con una pieza quitada: cuando
+la bala se mueve, en vez de adelantar cada hipótesis por *su* patrón,
+tiene que dar por posibles todos los destinos de cualquier patrón. Es
+exactamente la diferencia entre un jugador atento y uno bueno.
+
+El bot decide por prioridades: si hay un hueco que sabe vacío no hay
+nada que pensar; plantarse solo tiene sentido yendo por delante
+(retirarse perdiendo es regalar el duelo); y gastar una marca es el
+recurso de cuando el riesgo aprieta y aún va por detrás. En un duelo
+marcar **cuesta el turno**, a diferencia de la partida en solitario, así
+que no sale gratis.
+
+### Lo que el rival destapó: el duelo tiene un problema de reglas
+
+`banco.tabla_de_duelos()` sienta a cada nivel contra cada nivel. Con 500
+duelos por cruce en dificultad normal, el resultado no deja lugar a
+dudas:
+
+```
+  retador      contra          gana   pierde   empata
+  novato       novato         29.6%     0.0%    70.4%
+  templado     novato         88.2%     0.0%    11.8%
+  implacable   templado        3.4%     0.0%    96.6%
+  implacable   implacable      0.2%     0.0%    99.8%
+```
+
+**El que abre nunca pierde.** 0,0 % en los nueve cruces. No es cosa del
+bot: son dos reglas que se suman.
+
+1. **El disparo que te mata cuenta como día sobrevivido.** `disparos` se
+   incrementa antes de resolver el tiro, así que morir en el tercero te
+   deja con un día «sobrevivido».
+2. **Quien abre siempre ha disparado al menos tantas veces** como el
+   otro cuando el duelo se cierra.
+
+Juntas hacen que el primer jugador tenga siempre días ≥ los del
+segundo. Y como empatar a días lo desempata `puntos_finales`, que **al
+morir guarda lo que perdiste** (ver la nota en `motor.disparar`), morir
+con el bote gordo puede incluso ganar.
+
+Prototipando las dos correcciones —que el disparo fatal no cuente como
+día, y que morir deje 0 puntos— la tabla se convierte en un duelo de
+verdad:
+
+```
+  retador      contra          gana   pierde   empata
+  novato       implacable      0.0%    32.6%    67.4%
+  implacable   novato         88.6%    11.2%     0.2%
+  templado     implacable      0.0%    15.2%    84.8%
+```
+
+Nada de eso se toca aquí: cambia quién gana partidas y también los
+récords en solitario, así que es una decisión de diseño y no de
+refactorización. Queda medido para cuando se quiera tomar.
+
+Lo que sí queda claro es lo segundo: entre dos deductores buenos casi
+todo acaba **en tablas**, porque ninguno muere (ver el banco). Un duelo
+contra el `implacable` no se gana sobreviviendo; se gana puntuando más
+antes de que se plante.
+
 ## La semilla de partida
 
 Todo lo que se sortea en una partida —la posición inicial de la bala, su
@@ -825,6 +903,7 @@ last-click-game/
 │   ├── motor.py
 │   ├── banco.py
 │   ├── records.py
+│   ├── rival.py
 │   ├── semillas.py
 │   ├── solver.py
 │   ├── ambiente.py
@@ -841,6 +920,7 @@ last-click-game/
 │   ├── test_motor.py
 │   ├── test_banco.py
 │   ├── test_records.py
+│   ├── test_rival.py
 │   ├── test_semillas.py
 │   ├── test_solver.py
 │   ├── test_ambiente.py
