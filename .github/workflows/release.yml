@@ -1,0 +1,196 @@
+name: Release
+
+# Solo con una etiqueta vX.Y.Z. No corre en cada push: construir los
+# cuatro binarios se lleva varios minutos y ~1,3 GB de plantillas de
+# Godot, y eso no tiene sentido pagarlo en cada commit -- para eso esta
+# ci.yml, que corre siempre y es lo que de verdad protege master.
+"on":
+  push:
+    tags:
+      - "v*"
+  # Con workflow_dispatch se puede ensayar el proceso entero sin crear
+  # una etiqueta: construye y sube los artefactos del run, pero no
+  # publica ninguna release (ver el `if` del job publicar).
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  terminal:
+    name: terminal (${{ matrix.nombre }})
+    runs-on: ${{ matrix.so }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - so: ubuntu-latest
+            nombre: linux
+            binario: tambor-del-juicio
+            publicado: tambor-del-juicio-terminal-linux
+          - so: windows-latest
+            nombre: windows
+            binario: tambor-del-juicio.exe
+            publicado: tambor-del-juicio-terminal-windows.exe
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          # El mismo minimo que declara requires-python: el binario que
+          # se publica no deberia depender de una version mas nueva que
+          # la que el proyecto dice soportar.
+          python-version: "3.11"
+
+      - name: Instalar el proyecto y pyinstaller
+        run: python -m pip install --upgrade pip && python -m pip install . pyinstaller
+
+      - name: Construir el ejecutable
+        # --paths . para que `terminal` se importe como paquete: ver el
+        # docstring de empaquetado/lanzador.py, que explica por que no se
+        # puede partir de terminal/ruleta.py a secas.
+        run: >
+          pyinstaller --onefile --name tambor-del-juicio --paths .
+          --distpath dist empaquetado/lanzador.py
+
+      - name: Comprobar que el binario arranca
+        # Un ejecutable que no se ha ejecutado nunca no es un
+        # ejecutable. --version prueba el arranque y el empaquetado de
+        # los modulos; la partida prueba que el juego llega al final.
+        shell: bash
+        run: |
+          ./dist/${{ matrix.binario }} --version
+          printf 'd\n1\nr\nn\n' | ./dist/${{ matrix.binario }} \
+            --seed 4242 --sin-animaciones --sin-sonido --sin-color > partida.txt
+          grep -q "Semilla de esta partida: 4242" partida.txt
+
+      - name: Renombrar con la plataforma
+        shell: bash
+        run: mv "dist/${{ matrix.binario }}" "dist/${{ matrix.publicado }}"
+
+      - name: Subir el artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: terminal-${{ matrix.nombre }}
+          path: dist/${{ matrix.publicado }}
+          if-no-files-found: error
+
+  grafica:
+    name: grafica (Godot)
+    runs-on: ubuntu-latest
+    env:
+      # La misma version que ci.yml. Si una sube, la otra tambien.
+      GODOT_VERSION: "4.7.2-stable"
+      GODOT_ZIP: "Godot_v4.7.2-stable_linux.x86_64.zip"
+      GODOT_SHA512: "9aa00f7a605200940bce3027a567b782f49bd8e940dd06ae9e987bd65aee1b1467edd56ed84fcdcbdd44354bf613bdbb4e5d2913e925850368e150c59ed54c65"
+      TPZ: "Godot_v4.7.2-stable_export_templates.tpz"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Descargar Godot ${{ env.GODOT_VERSION }}
+        run: |
+          curl -sL -o godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/${GODOT_ZIP}"
+          echo "${GODOT_SHA512}  godot.zip" | sha512sum -c -
+          unzip -q godot.zip
+          mv "Godot_v${GODOT_VERSION}_linux.x86_64" godot
+          chmod +x godot
+
+      - name: Instalar las plantillas de exportacion
+        # ~1,3 GB. Sin ellas `--export-release` falla: el ejecutable que
+        # se publica no es el editor, es una plantilla aparte por
+        # plataforma a la que se le pega el .pck del juego.
+        run: |
+          curl -sL -o plantillas.tpz \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/${TPZ}"
+          unzip -q plantillas.tpz
+          destino="$HOME/.local/share/godot/export_templates/${GODOT_VERSION/-/.}"
+          mkdir -p "$(dirname "$destino")"
+          mv templates "$destino"
+
+      - name: Importar el proyecto
+        # Igual que en ci.yml: .godot/ no esta versionado y sin el no se
+        # resuelven los uid:// (entre ellos el de la escena principal).
+        run: ./godot --headless --import --path 2d
+
+      - name: Exportar Linux y Windows
+        run: |
+          mkdir -p dist
+          ./godot --headless --path 2d --export-release "Linux"
+          ./godot --headless --path 2d --export-release "Windows"
+          ls -la dist
+
+      - name: Comprobar que salieron binarios de verdad
+        # Que el export "termine" no basta: un preset mal puesto deja un
+        # fichero de cero bytes o del formato equivocado sin que el
+        # comando falle.
+        run: |
+          file dist/* 
+          file dist/tambor-del-juicio-linux.x86_64 | grep -q "ELF 64-bit"
+          file dist/tambor-del-juicio-windows.exe | grep -q "PE32+"
+          for f in dist/*; do
+            [ "$(stat -c%s "$f")" -gt 10000000 ] || { echo "$f es sospechosamente pequeño"; exit 1; }
+          done
+
+      - name: Subir los artefactos
+        uses: actions/upload-artifact@v4
+        with:
+          name: grafica
+          path: dist/*
+          if-no-files-found: error
+
+  publicar:
+    name: publicar la release
+    # Solo con etiqueta. Un workflow_dispatch construye y deja los
+    # artefactos en el run, pero no publica nada.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [terminal, grafica]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Bajar todos los artefactos
+        uses: actions/download-artifact@v4
+        with:
+          path: artefactos
+
+      - name: Juntarlos en una carpeta
+        run: |
+          mkdir -p publicar
+          find artefactos -type f -exec mv {} publicar/ \;
+          ls -la publicar
+
+      - name: Crear la release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: publicar/*
+          generate_release_notes: true
+          body: |
+            ## Cómo jugar
+
+            **Terminal** — descarga el binario de tu sistema y ejecútalo.
+            No necesita Python instalado.
+
+            | sistema | fichero |
+            |---|---|
+            | Linux | `tambor-del-juicio-terminal-linux` |
+            | Windows | `tambor-del-juicio-terminal-windows.exe` |
+
+            En Linux hay que darle permiso de ejecución la primera vez:
+            `chmod +x tambor-del-juicio-terminal-linux`.
+
+            **Gráfica (Godot)** — un único fichero por sistema, con el
+            juego dentro:
+
+            | sistema | fichero |
+            |---|---|
+            | Linux | `tambor-del-juicio-linux.x86_64` |
+            | Windows | `tambor-del-juicio-windows.exe` |
+
+            Los binarios no están firmados, así que Windows puede avisar
+            de que el editor es desconocido: *Más información → Ejecutar
+            de todas formas*.

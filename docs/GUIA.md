@@ -865,6 +865,49 @@ A día de hoy llevan comentario **2 de cada 3 funciones** de la versión
 gráfica; el tercio restante son las triviales de las que habla el punto
 anterior.
 
+## Publicar ejecutables
+
+`.github/workflows/release.yml` corre al empujar una etiqueta `vX.Y.Z` y
+publica cuatro binarios: terminal y gráfica, Linux y Windows. No corre en
+cada push a propósito —se lleva varios minutos y 1,3 GB de descarga— para
+eso está `ci.yml`, que es lo que protege `master`.
+
+Con `workflow_dispatch` se puede ensayar el proceso entero sin crear
+etiqueta: construye y deja los artefactos en el run, pero el job
+`publicar` se salta por su `if` y no publica nada.
+
+Tres cosas que costaron encontrar y conviene no re-descubrir:
+
+**1. pyinstaller no puede partir de `terminal/ruleta.py`.** Lo analiza
+como script suelto: el `from . import ...` de arriba del módulo falla por
+no haber paquete, el fallback `import ambiente` tampoco se resuelve en
+tiempo de análisis, y el binario sale **sin los módulos hermanos dentro**
+— compila bien y revienta al arrancar con `ModuleNotFoundError`. Por eso
+existe `empaquetado/lanzador.py`, que importa el paquete
+(`from terminal.ruleta import main`) y arrastra todo lo demás.
+
+**2. Godot necesita las plantillas de exportación.** El ejecutable que se
+publica no es el editor: es una plantilla por plataforma (~1,3 GB el
+paquete entero) a la que se le pega el `.pck` del juego. Sin ellas
+`--export-release` falla. El workflow las descuelga del mismo release de
+Godot y las coloca en
+`~/.local/share/godot/export_templates/4.7.2.stable/`.
+
+**3. `2d/export_presets.cfg` está versionado.** Salió de `.gitignore`
+para esto: sin él el job no tiene de dónde sacar cómo empaquetar, y lo
+publicado dependería de lo que cada uno tenga configurado en su editor.
+Los dos presets usan `binary_format/embed_pck=true`, así que cada
+plataforma es **un solo fichero** y no ejecutable + `.pck` suelto que
+alguien pueda separar por accidente. Godot reescribe este archivo si se
+tocan los ajustes de exportación desde el editor, así que conviene mirar
+el diff antes de commitear.
+
+Los dos jobs comprueban que lo que construyen **arranca**, no solo que
+compila: el de terminal ejecuta `--version` y una partida entera con
+semilla fija, y el de Godot mira que los ficheros sean un ELF y un PE32+
+de verdad y que no midan cuatro bytes. Un export mal configurado puede
+«terminar» y dejar un fichero inservible sin que el comando falle.
+
 ## Lanzadores
 
 | Archivo | Plataforma | Acción |

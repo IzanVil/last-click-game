@@ -56,7 +56,7 @@ python_version = "3.11"
 # los propios ficheros de tests: igual que [tool.coverage.run] mas
 # arriba, exigirle anotaciones estrictas a cada metodo de test (y a cada
 # mock que reciben) seria ruido, no senal.
-files = ["terminal"]
+files = ["terminal", "empaquetado"]
 exclude = ["terminal/test_.*\\.py$"]
 # El codigo ya venia con type hints en (casi) todas las firmas: esto
 # solo hace explicito lo que se daba por hecho, no cambia el estilo.

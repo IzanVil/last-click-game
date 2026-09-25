@@ -16,7 +16,6 @@ htmlcov/
 .godot/
 *.translation
 .import/
-export_presets.cfg
 
 # --- Sistema ---
 .DS_Store
