@@ -61,7 +61,26 @@ objetivo no es una única partida: es acumular **días de vida**.
 | Terminal | 🐍 Python | Python 3.11 o superior |
 | Gráfica  | 🎮 Godot | Godot 4.7 o superior |
 
-## ⬇️ Instalación (versión terminal)
+## ⬇️ Descargar el juego ya compilado
+
+La forma más rápida: en [**Releases**](https://github.com/IzanVil/last-click-game/releases)
+hay un ejecutable por sistema, sin nada que instalar.
+
+| | Linux | Windows |
+|---|---|---|
+| 🐍 Terminal | `tambor-del-juicio-terminal-linux` | `tambor-del-juicio-terminal-windows.exe` |
+| 🎮 Gráfica | `tambor-del-juicio-linux.x86_64` | `tambor-del-juicio-windows.exe` |
+
+La versión de terminal **no necesita Python** y la gráfica **no necesita
+Godot**: cada fichero lleva dentro todo lo que hace falta. En Linux hay
+que darle permiso de ejecución la primera vez (`chmod +x <fichero>`), y
+como no van firmados, Windows puede avisar de editor desconocido
+(*Más información → Ejecutar de todas formas*).
+
+Los construye el CI solo, al publicar una etiqueta `vX.Y.Z`
+(`.github/workflows/release.yml`), y no se suben a mano.
+
+## ⬇️ Instalación desde el código (versión terminal)
 
 La forma más cómoda de jugar es descargar el juego e instalar un **acceso
 directo** en tu escritorio: con un doble clic el juego se abre solo.
@@ -115,7 +134,8 @@ last-click-game/
 ├── instalar.bat         ← instalador (Windows)
 ├── run.sh               ← lanzador Linux / macOS
 ├── run.bat              ← lanzador Windows
-├── .github/workflows/   ← CI (tests Python + smoke test Godot)
+├── .github/workflows/   ← CI (tests + lint) y release (ejecutables por tag)
+├── empaquetado/         ← lanzador del ejecutable de un solo fichero
 ├── docs/
 │   ├── GUIA.md          ← guía técnica del proyecto
 │   └── img/             ← capturas (las genera 2d/tools/capturas.gd)
@@ -783,9 +803,12 @@ de terceros más allá de las dos tipografías:
   sobrevivido, y morir dejaba como puntos el bote que habías perdido. Las
   dos corregidas, y la regla entró en la tabla de paridad
 
+- [x] **Ejecutables publicados solos** — al empujar una etiqueta `vX.Y.Z`,
+  el CI construye el binario de terminal (`pyinstaller`) y el export de
+  Godot para Linux y Windows, comprueba que arrancan y publica la release
+
 ### 🎯 Otros próximos pasos
 - [ ] Modo «borracho» 🍺 (menos suerte y más humor)
-- [ ] Empaquetado en un ejecutable único (`pyinstaller`)
 
 ## 🤝 Cómo contribuir
 
