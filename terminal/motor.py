@@ -177,8 +177,7 @@ class Motor:
         self.turno = 0
         self.terminada = False
 
-        # Sin nombres, un unico jugador sin nombre: la partida en
-        # solitario es un duelo de uno (ver jugador.py).
+        # Una partida en solitario es un duelo de uno (ver jugador.py).
         self.jugadores = [
             jugador.Jugador(nombre, apuestas.Apuesta(APUESTA_BASE), farol.Farol(marcas))
             for nombre in (nombres or [""])
