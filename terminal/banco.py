@@ -219,7 +219,11 @@ def jugar_una(
 
     return Resultado(
         disparos=juego.disparos,
-        dias=estado.dias_sobrevividos(juego.disparos),
+        # Del jugador y no de estado.dias_sobrevividos(juego.disparos):
+        # el tiro que te mata no cuenta como dia sobrevivido, y eso lo
+        # sabe Jugador.dias. Calcularlo aqui del recuento crudo daba
+        # numeros que el propio juego no reconocia.
+        dias=juego.jugadores[0].dias,
         murio=juego.terminada,
         patron=juego.tambor.patron,
         disparo_acorralada=acorralada,

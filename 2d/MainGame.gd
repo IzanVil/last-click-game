@@ -1025,7 +1025,10 @@ func _on_turno_cambiado(nombre: String, rival_nombre: String, rival_dias: int) -
 ## estaba y se cierra con todo lo que la vista tiene para un momento asi
 ## (chispas, dos sonidos a la vez, rojo, sacudida).
 func _on_impacto(disparos: int, perdidos: int, dias: int, resumen: String) -> void:
-	var nuevo_record := _registrar_en_records(dias, perdidos)
+	# Morir no deja puntos que apuntar: `puntos_maximos` son los que se
+	# llegaron a COBRAR, y el bote que se pierde con la bala no lo cobro
+	# nadie. `perdidos` si se sigue usando para la pantalla final.
+	var nuevo_record := _registrar_en_records(dias, 0)
 	_mostrar_resultado(
 		(
 			"BOOM. %sCaiste tras %d disparo(s) (%d dia(s) sobrevivido(s)), perdiendo %d puntos."

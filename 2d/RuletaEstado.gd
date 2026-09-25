@@ -145,12 +145,18 @@ func disparar(numero: int) -> void:
 	var impacto_ocurrido := tambor.disparar(numero)
 
 	if impacto_ocurrido:
-		activo.puntos_finales = activo.apuesta.perder()
+		activo.murio = true
+		# Lo perdido va en la señal, para el "perdiendo N puntos" de la
+		# pantalla final; pero con lo que el jugador TERMINA es con nada,
+		# que es lo que se compara en un duelo y lo que se apunta en los
+		# records.
+		var perdidos := activo.apuesta.perder()
+		activo.puntos_finales = 0
 		(
 			impacto
 			. emit(
 				activo.disparos,
-				activo.puntos_finales,
+				perdidos,
 				activo.dias,
 				activo.historial.resumen(activo.dias),
 			)

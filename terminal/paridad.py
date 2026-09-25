@@ -58,7 +58,7 @@ except ImportError:  # pragma: no cover - ejecucion como script suelto
     import ruleta  # type: ignore[no-redef,import-not-found]
     import semillas  # type: ignore[no-redef,import-not-found]
 
-FORMATO = 3
+FORMATO = 4
 
 # Tamaños de tambor que se recorren enteros. No hace falta probarlos
 # todos: 6/8/10 son los tres presets de dificultad, y entre un par y un
@@ -318,26 +318,44 @@ def _ganadores() -> list[dict]:
     mientras estuvo escrito dentro de `ruleta.resultado_duelo`, mezclado
     con el pintado, no habia funcion pura que tabular.
     """
-    mesas = [
-        [(3, 100), (6, 100)],
-        [(6, 100), (3, 800)],
-        [(3, 100), (3, 800)],
-        [(3, 800), (3, 800)],
-        [(0, 0), (0, 0)],
-        [(9, 50), (3, 900), (9, 50)],
+    # (disparos, puntos finales, si murio). Se parte de los DISPAROS y no
+    # de los dias a proposito: los dias son justo lo que se comprueba, y
+    # darlos como entrada haria que las dos versiones coincidieran por
+    # construccion. El caso que separa una version buena de una que
+    # vuelva a contar el tiro fatal es el de un muerto con un multiplo
+    # de tres disparos: caer en el tercero son 0 dias, no 1.
+    mesas: list[list[tuple[int, int, bool]]] = [
+        [(9, 100, False), (18, 100, False)],
+        [(18, 100, False), (9, 800, False)],
+        [(9, 100, False), (9, 800, False)],
+        [(9, 800, False), (9, 800, False)],
+        [(0, 0, False), (0, 0, False)],
+        [(27, 50, False), (9, 900, False), (27, 50, False)],
+        # Caer en el tercer disparo no sobrevive ningun dia, asi que no
+        # le gana al que se retiro con dos disparos y puntos.
+        [(3, 0, True), (2, 400, False)],
+        # Muriendo en el cuarto si aguanto un dia entero, y ese si gana.
+        [(4, 0, True), (2, 400, False)],
+        # Y morir ya no paga: mismos dias, gana quien conserva puntos.
+        [(4, 0, True), (3, 400, False)],
     ]
     casos = []
     for mesa in mesas:
         jugadores = []
-        for indice, (dias, puntos) in enumerate(mesa):
+        for indice, (disparos, puntos, murio) in enumerate(mesa):
             uno = jugador.Jugador(f"J{indice}", apuestas.Apuesta(100), farol.Farol(3))
-            uno.disparos = dias * estado.DISPAROS_POR_DIA
+            uno.disparos = disparos
+            uno.murio = murio
             uno.puntos_finales = puntos
             jugadores.append(uno)
         vencedores = jugador.ganadores(jugadores)
         casos.append(
             {
-                "mesa": [{"dias": d, "puntos": p} for d, p in mesa],
+                "mesa": [{"disparos": d, "puntos": p, "murio": m} for d, p, m in mesa],
+                # Los dias de cada uno, aparte del veredicto: asi la tabla
+                # falla aunque un cambio en como se cuentan no llegue a
+                # alterar quien gana.
+                "dias": [uno.dias for uno in jugadores],
                 "ganadores": [jugadores.index(v) for v in vencedores],
             }
         )

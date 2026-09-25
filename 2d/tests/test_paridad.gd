@@ -25,7 +25,7 @@ const RUTA_TABLA := "res://tests/paridad.json"
 
 ## Formato de tabla que este script sabe leer. Si Python sube el suyo sin
 ## que se actualice esto, el test falla en vez de comparar a medias.
-const FORMATO := 3
+const FORMATO := 4
 
 var _fallos: Array[String] = []
 var _comparaciones := 0
@@ -319,9 +319,16 @@ func _test_ganadores(casos: Array) -> void:
 		var jugadores: Array[Jugador] = []
 		for fila: Dictionary in caso["mesa"]:
 			var uno := Jugador.new("", Apuesta.new(100), Farol.new(3))
-			uno.disparos = int(fila["dias"]) * TamborJuicio.DISPAROS_POR_DIA
+			uno.disparos = int(fila["disparos"])
+			uno.murio = fila["murio"]
 			uno.puntos_finales = int(fila["puntos"])
 			jugadores.append(uno)
+		# Los dias de cada uno, aparte del veredicto: asi falla aunque un
+		# cambio en como se cuentan no llegue a alterar quien gana.
+		var dias: Array[int] = []
+		for cada in jugadores:
+			dias.append(cada.dias)
+		_afirmar_igual(dias, _enteros(caso["dias"]), "dias de %s" % [caso["mesa"]])
 		var indices: Array[int] = []
 		for vencedor in Jugador.ganadores(jugadores):
 			indices.append(jugadores.find(vencedor))

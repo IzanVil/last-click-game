@@ -242,22 +242,18 @@ class Motor:
         activo.disparos += 1
 
         if self.tambor.disparar(numero):
-            # Apuesta.perder() devuelve la cantidad PERDIDA, asi que al
-            # morir `puntos_finales` guarda lo que se dejo en la mesa y
-            # no un 0. Se conserva porque es lo que hacian ya las dos
-            # versiones (y de ahi sale el "perdiendo N puntos" de la
-            # pantalla final), pero tiene dos efectos discutibles: en un
-            # duelo empatado a dias, morir con un bote gordo gana a
-            # retirarse con poco (ver jugador.ganadores), y los records
-            # apuntan como "puntos maximos" unos puntos que nadie cobro.
-            # Cambiarlo cambia quien gana partidas, asi que no se toca
-            # aqui: este modulo mueve las reglas de sitio, no las
-            # reescribe.
-            activo.puntos_finales = activo.apuesta.perder()
+            activo.murio = True
+            # Lo perdido va en el suceso, para el "perdiendo N puntos" de
+            # la pantalla final; pero con lo que el jugador TERMINA es
+            # con nada, que es lo que se compara en un duelo y lo que se
+            # apunta en los records. Apuesta.perder() devuelve la
+            # cantidad perdida, asi que no vale como puntos finales.
+            perdidos = activo.apuesta.perder()
+            activo.puntos_finales = 0
             return self._terminar(
                 Impacto(
                     activo.disparos,
-                    activo.puntos_finales,
+                    perdidos,
                     activo.dias,
                     historial.resumen(activo.bitacora, activo.dias),
                 )
