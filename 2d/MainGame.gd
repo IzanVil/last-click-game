@@ -83,6 +83,8 @@ const MAX_BITACORA := 5
 @onready var nombre1: LineEdit = $Centro/Marco/Columnas/Menu/Nombres/Nombre1
 @onready var nombre2: LineEdit = $Centro/Marco/Columnas/Menu/Nombres/Nombre2
 @onready var empezar_btn: Button = $Centro/Marco/Columnas/Menu/MenuBotones/EmpezarBtn
+@onready var diario_btn: Button = $Centro/Marco/Columnas/Menu/MenuBotones/DiarioBtn
+@onready var diario_estado: Label = $Centro/Marco/Columnas/Menu/DiarioEstado
 @onready var records_btn: Button = $Centro/Marco/Columnas/Menu/MenuBotones/RecordsBtn
 
 @onready var pantalla_records: VBoxContainer = $Centro/Marco/Columnas/Records
@@ -136,7 +138,13 @@ const MAX_BITACORA := 5
 
 var _estado := RuletaEstado.new()
 var _records := Records.new()
+var _diario := Diario.new()
 var _ajustes := Ajustes.new()
+
+## Si la partida en curso es el reto del dia. Solo se anota en el diario
+## cuando lo es: una partida normal con la semilla de hoy tecleada a mano
+## no cuenta como haber jugado el reto.
+var _es_reto_diario := false
 
 ## Archivos donde se leen y guardan records y ajustes. Son variables, y no
 ## las constantes RUTA_POR_DEFECTO usadas directamente, para que los tests
@@ -145,6 +153,7 @@ var _ajustes := Ajustes.new()
 ## RuletaEstado.probabilidad_eventos.
 var ruta_records := Records.RUTA_POR_DEFECTO
 var ruta_ajustes := Ajustes.RUTA_POR_DEFECTO
+var ruta_diario := Diario.RUTA_POR_DEFECTO
 
 ## Huecos ya disparados (gris) y resultados de farol por hueco (verde o
 ## rojo, ver TamborView.EstadoHueco). Igual que en terminal/ruleta.py,
@@ -234,6 +243,7 @@ func _ready() -> void:
 	_aplicar_ajustes()
 
 	_records = Records.cargar(ruta_records)
+	_diario = Diario.cargar(ruta_diario)
 	ayuda.visible = false
 	pausa.visible = false
 	_mostrar(Pantalla.MENU)
@@ -286,6 +296,7 @@ func _mostrar(pantalla: Pantalla) -> void:
 		Pantalla.MENU:
 			nombres_caja.visible = duelo_check.button_pressed
 			fondo.color = COLOR_NORMAL
+			diario_estado.text = _diario.resumen()
 			empezar_btn.grab_focus()
 		Pantalla.RECORDS:
 			_pintar_records()
@@ -296,6 +307,17 @@ func _mostrar(pantalla: Pantalla) -> void:
 			reintentar_btn.grab_focus()
 
 	_ajustar_musica()
+
+
+## El reto del dia: mismo tambor para todos hasta medianoche.
+##
+## Se juega en solitario y en normal aunque el menu diga otra cosa (ver
+## Diario.DIFICULTAD): con 6 huecos o con 10 no seria el mismo reto. La
+## semilla es la fecha, asi que tambien se puede repetir el reto de
+## cualquier dia pasado tecleandola en el campo Semilla.
+func _on_diario_btn_pressed() -> void:
+	_es_reto_diario = true
+	_empezar_partida(Diario.DIFICULTAD, [], Diario.semilla_de_hoy())
 
 
 func _on_records_btn_pressed() -> void:
@@ -311,7 +333,11 @@ func _on_menu_btn_pressed() -> void:
 	_mostrar(Pantalla.MENU)
 
 
+## Reintentar repite dificultad y nombres, pero NO el reto del dia: su
+## semilla es la fecha, asi que "otra vez" seria exactamente la misma
+## partida. Se juega como una normal.
 func _on_reintentar_btn_pressed() -> void:
+	_es_reto_diario = false
 	fondo.color = COLOR_NORMAL
 	_empezar_partida(_ultima_dificultad, _ultimos_nombres)
 
@@ -770,6 +796,7 @@ func _nombre_de(campo: LineEdit, numero: int) -> String:
 
 
 func _on_empezar_btn_pressed() -> void:
+	_es_reto_diario = false
 	var nombres: Array[String] = []
 	if duelo_check.button_pressed:
 		nombres = [_nombre_de(nombre1, 1), _nombre_de(nombre2, 2)]
@@ -1111,6 +1138,10 @@ func _registrar_en_records(dias: int, puntos: int) -> bool:
 		dias, puntos, bitacora_partida.faroles_usados, bitacora_partida.faroles_acertados
 	)
 	_records.guardar(ruta_records)
+	if _es_reto_diario:
+		# Se anota el mejor intento del dia, no el primero: ver Diario.
+		_diario.registrar(dias, puntos)
+		_diario.guardar(ruta_diario)
 	return nuevo_record
 
 
