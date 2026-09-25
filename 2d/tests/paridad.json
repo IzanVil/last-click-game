@@ -231,102 +231,203 @@
    "restantes": 0
   }
  ],
- "formato": 3,
+ "formato": 4,
  "ganadores": [
   {
+   "dias": [
+    3,
+    6
+   ],
    "ganadores": [
     1
    ],
    "mesa": [
     {
-     "dias": 3,
+     "disparos": 9,
+     "murio": false,
      "puntos": 100
     },
     {
-     "dias": 6,
+     "disparos": 18,
+     "murio": false,
      "puntos": 100
     }
    ]
   },
   {
+   "dias": [
+    6,
+    3
+   ],
    "ganadores": [
     0
    ],
    "mesa": [
     {
-     "dias": 6,
+     "disparos": 18,
+     "murio": false,
      "puntos": 100
     },
     {
-     "dias": 3,
+     "disparos": 9,
+     "murio": false,
      "puntos": 800
     }
    ]
   },
   {
+   "dias": [
+    3,
+    3
+   ],
    "ganadores": [
     1
    ],
    "mesa": [
     {
-     "dias": 3,
+     "disparos": 9,
+     "murio": false,
      "puntos": 100
     },
     {
-     "dias": 3,
+     "disparos": 9,
+     "murio": false,
      "puntos": 800
     }
    ]
   },
   {
+   "dias": [
+    3,
+    3
+   ],
    "ganadores": [
     0,
     1
    ],
    "mesa": [
     {
-     "dias": 3,
+     "disparos": 9,
+     "murio": false,
      "puntos": 800
     },
     {
-     "dias": 3,
+     "disparos": 9,
+     "murio": false,
      "puntos": 800
     }
    ]
   },
   {
+   "dias": [
+    0,
+    0
+   ],
    "ganadores": [
     0,
     1
    ],
    "mesa": [
     {
-     "dias": 0,
+     "disparos": 0,
+     "murio": false,
      "puntos": 0
     },
     {
-     "dias": 0,
+     "disparos": 0,
+     "murio": false,
      "puntos": 0
     }
    ]
   },
   {
+   "dias": [
+    9,
+    3,
+    9
+   ],
    "ganadores": [
     0,
     2
    ],
    "mesa": [
     {
-     "dias": 9,
+     "disparos": 27,
+     "murio": false,
      "puntos": 50
     },
     {
-     "dias": 3,
+     "disparos": 9,
+     "murio": false,
      "puntos": 900
     },
     {
-     "dias": 9,
+     "disparos": 27,
+     "murio": false,
      "puntos": 50
+    }
+   ]
+  },
+  {
+   "dias": [
+    0,
+    0
+   ],
+   "ganadores": [
+    1
+   ],
+   "mesa": [
+    {
+     "disparos": 3,
+     "murio": true,
+     "puntos": 0
+    },
+    {
+     "disparos": 2,
+     "murio": false,
+     "puntos": 400
+    }
+   ]
+  },
+  {
+   "dias": [
+    1,
+    0
+   ],
+   "ganadores": [
+    0
+   ],
+   "mesa": [
+    {
+     "disparos": 4,
+     "murio": true,
+     "puntos": 0
+    },
+    {
+     "disparos": 2,
+     "murio": false,
+     "puntos": 400
+    }
+   ]
+  },
+  {
+   "dias": [
+    1,
+    1
+   ],
+   "ganadores": [
+    1
+   ],
+   "mesa": [
+    {
+     "disparos": 4,
+     "murio": true,
+     "puntos": 0
+    },
+    {
+     "disparos": 3,
+     "murio": false,
+     "puntos": 400
     }
    ]
   }

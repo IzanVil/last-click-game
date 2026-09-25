@@ -30,6 +30,12 @@ class Jugador:
     bitacora: "historial.Historial" = field(default_factory=historial.Historial)
     disparos: int = 0
 
+    # Si la bala lo encontro. `disparos` sigue contando el tiro fatal
+    # -- se apreto el gatillo, y de ahi sale el "caiste tras N
+    # disparo(s)" de la pantalla final -- pero ese tiro no se
+    # sobrevivio, asi que no cuenta para los dias.
+    murio: bool = False
+
     # Puntos con los que este jugador termina la partida. Lo fija el
     # motor al morir (0), al retirarse (lo cobrado) o, para el rival que
     # no llego a jugar su ultimo turno, lo que tuviera en juego.
@@ -38,7 +44,7 @@ class Jugador:
     @property
     def dias(self) -> int:
         """Dias completos que lleva sobrevividos este jugador."""
-        return estado.dias_sobrevividos(self.disparos)
+        return estado.dias_sobrevividos(self.disparos - (1 if self.murio else 0))
 
 
 def ganadores(jugadores: list[Jugador]) -> list[Jugador]:

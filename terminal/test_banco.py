@@ -10,9 +10,22 @@ class TestJugarUna(unittest.TestCase):
             banco.Deductiva, huecos=8, marcas=3, semilla=1, tope=20
         )
         self.assertLessEqual(resultado.disparos, 20)
-        self.assertEqual(resultado.dias, estado.dias_sobrevividos(resultado.disparos))
+        sobrevividos = resultado.disparos - (1 if resultado.murio else 0)
+        self.assertEqual(resultado.dias, estado.dias_sobrevividos(sobrevividos))
         self.assertIn(resultado.patron, estado.PATRONES)
         self.assertFalse(resultado.contradiccion)
+
+    def test_el_tiro_fatal_no_cuenta_como_dia_en_el_banco(self):
+        # El banco calculaba los dias del recuento crudo de disparos, un
+        # numero que el propio juego no reconoce: morir en el tercer tiro
+        # no es un dia sobrevivido.
+        partidas = [
+            banco.jugar_una(banco.Politica, 8, 3, semilla=s, tope=40) for s in range(60)
+        ]
+        caidos = [r for r in partidas if r.murio and r.disparos % 3 == 0]
+        self.assertTrue(caidos, "ninguna partida murio en un multiplo de tres tiros")
+        for resultado in caidos:
+            self.assertEqual(resultado.dias, resultado.disparos // 3 - 1)
 
     def test_la_misma_semilla_da_la_misma_partida(self):
         una = banco.jugar_una(banco.Deductiva, 8, 3, semilla=7, tope=20)

@@ -330,7 +330,11 @@ el mismo revólver), pero cada jugador tiene su propia apuesta y sus
 propias marcas de farol. La partida termina en cuanto el turno de uno de
 los dos acaba en **BOOM** o en retirada — el otro no sigue jugando después
 — y gana quien haya sobrevivido más días (en caso de empate, quien tenga
-más puntos):
+más puntos).
+
+Ojo a lo que cuenta como día: **el disparo que te mata no se sobrevivió**,
+así que caer en el tercero son cero días, no uno. Y morir no deja puntos
+con los que desempatar, aunque el bote fuera grande:
 
 ```bash
 python3 ruleta.py --duelo
@@ -773,8 +777,11 @@ de terceros más allá de las dos tipografías:
 
 - [x] **Rival de máquina en el duelo** (`--rival novato|templado|implacable`),
   construido sobre la deducción de `solver.py`: ve lo mismo que el
-  jugador y no hace trampa. Al medirlo salió que el duelo tiene un
-  problema de reglas anterior a él — ver la guía
+  jugador y no hace trampa
+- [x] **El duelo se decide bien** — medirlo con el rival destapó que *el
+  que abría no podía perder*: el disparo que te mataba contaba como día
+  sobrevivido, y morir dejaba como puntos el bote que habías perdido. Las
+  dos corregidas, y la regla entró en la tabla de paridad
 
 ### 🎯 Otros próximos pasos
 - [ ] Modo «borracho» 🍺 (menos suerte y más humor)

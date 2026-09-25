@@ -20,6 +20,25 @@ class TestDias(unittest.TestCase):
         self.assertEqual(_jugador(disparos=7).dias, 2)
 
 
+class TestMurio(unittest.TestCase):
+    def test_el_tiro_fatal_no_suma_dia(self):
+        caido = _jugador(disparos=3)
+        self.assertEqual(caido.dias, 1)
+        caido.murio = True
+        self.assertEqual(caido.dias, 0)
+
+    def test_quien_abre_ya_no_gana_solo_por_haber_disparado_mas(self):
+        # Es el caso que rompia el duelo: en un duelo por turnos, el que
+        # abre siempre ha disparado al menos tantas veces como el otro
+        # cuando la partida se cierra. Si su tiro fatal contase como dia
+        # sobrevivido, no podria perder nunca.
+        caido = _jugador("Ana", disparos=3, puntos=0)
+        caido.murio = True
+        vivo = _jugador("Bea", disparos=2, puntos=400)
+        self.assertEqual(caido.dias, vivo.dias)
+        self.assertEqual(jugador.ganadores([caido, vivo]), [vivo])
+
+
 class TestGanadores(unittest.TestCase):
     def test_manda_quien_sobrevivio_mas_dias(self):
         pocos = _jugador("Ana", disparos=3, puntos=9000)

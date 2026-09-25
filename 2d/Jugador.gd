@@ -22,9 +22,15 @@ var disparos := 0
 ## que no llego a jugar su ultimo turno, lo que tuviera en juego.
 var puntos_finales := 0
 
+## Si la bala lo encontro. `disparos` sigue contando el tiro fatal -- se
+## apreto el gatillo, y de ahi sale el "caiste tras N disparo(s)" de la
+## pantalla final -- pero ese tiro no se sobrevivio, asi que no cuenta
+## para los dias.
+var murio := false
+
 var dias: int:
 	get:
-		return TamborJuicio.dias_sobrevividos(disparos)
+		return TamborJuicio.dias_sobrevividos(disparos - (1 if murio else 0))
 
 
 func _init(p_nombre: String, p_apuesta: Apuesta, p_farol: Farol) -> void:

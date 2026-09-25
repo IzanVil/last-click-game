@@ -58,6 +58,23 @@ class TestDisparo(unittest.TestCase):
         self.assertEqual(juego.apuesta.en_juego, 0)
         self.assertTrue(juego.terminada)
 
+    def test_el_disparo_que_te_mata_no_cuenta_como_dia_sobrevivido(self):
+        # Tres disparos son un dia, pero solo si se sobrevive a los tres.
+        # `disparos` sigue contando el tiro fatal -- se apreto el gatillo
+        # y la pantalla final dice "caiste tras 3 disparo(s)" -- pero ese
+        # no se sobrevivio.
+        # "espejo" manda la bala a 9-posicion, asi que rebota entre el 3
+        # y el 6: falla los dos primeros tiros y vuelve al 3 para el
+        # tercero.
+        juego = _motor_fijo(patron="espejo", posicion=3)
+        juego.disparar(1)
+        juego.disparar(2)
+        impacto = juego.disparar(3)[0]
+        self.assertIsInstance(impacto, motor.Impacto)
+        self.assertEqual(impacto.disparos, 3)
+        self.assertEqual(impacto.dias, 0)
+        self.assertEqual(juego.jugadores[0].dias, 0)
+
     def test_tres_disparos_sobrevividos_completan_un_dia(self):
         juego = _motor_fijo()
         self.assertNotIn("DiaCompletado", _tipos(juego.disparar(1)))
@@ -178,14 +195,19 @@ class TestDuelo(unittest.TestCase):
         sucesos = juego.disparar(1)  # Bea dispara donde ahora esta la bala
         self.assertEqual(_tipos(sucesos), ["Impacto", "DueloTerminado"])
         terminado = sucesos[1]
-        # Ojo con el que cae: `puntos_finales` se queda con lo que
-        # PERDIO (Apuesta.perder devuelve la cantidad perdida), no con
-        # 0. Es lo que hacian ya las dos versiones y el motor lo
-        # conserva tal cual; ver la nota en Motor.disparar.
-        self.assertEqual(juego.jugadores[1].puntos_finales, 100)
+        self.assertEqual(juego.jugadores[1].puntos_finales, 0)
         self.assertEqual(juego.jugadores[1].apuesta.en_juego, 0)
         self.assertEqual(juego.jugadores[0].puntos_finales, 200)
         self.assertEqual([g.nombre for g in terminado.ganadores], ["Ana"])
+
+    def test_el_suceso_de_impacto_sigue_diciendo_cuanto_se_perdio(self):
+        # Con lo que se TERMINA es con nada, pero la pantalla final tiene
+        # que poder decir "perdiendo 200 puntos": eso va en el suceso.
+        juego = _motor_fijo(posicion=8)
+        juego.disparar(1)  # sobrevive y dobla a 200
+        impacto = juego.disparar(1)[0]
+        self.assertEqual(impacto.perdidos, 200)
+        self.assertEqual(juego.jugadores[0].puntos_finales, 0)
 
 
 if __name__ == "__main__":

@@ -761,8 +761,15 @@ def _cerrar_partida(final: "motor.Impacto | motor.Retirada", partida: Partida) -
     puntos = final.perdidos if isinstance(final, motor.Impacto) else final.ganados
 
     nuevo_record = final.dias > partida.misrecords.dias_maximos
+    # Morir no deja puntos que apuntar: `puntos_maximos` son los puntos
+    # que se llegaron a COBRAR, y el bote que se pierde con la bala no
+    # lo cobro nadie. Lo perdido si se sigue usando para la pantalla y
+    # para el epilogo, que hablan de lo que se dejo en la mesa.
     partida.misrecords.registrar_partida(
-        final.dias, puntos, bitacora.faroles_usados, bitacora.faroles_acertados
+        final.dias,
+        0 if muerto else puntos,
+        bitacora.faroles_usados,
+        bitacora.faroles_acertados,
     )
     records.guardar(partida.misrecords)
 

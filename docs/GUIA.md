@@ -138,15 +138,19 @@ Con 5000 partidas por caso (45.000 en total), tope de 300 disparos:
 
 | dificultad | política | días medios | sobrevive al tope | acorrala en |
 |---|---|---:|---:|---:|
-| fácil | azar | 3,0 | 0,0 % | — |
+| fácil | azar | 2,7 | 0,0 % | — |
 | fácil | deduce | 89,9 | 89,9 % | 8,0 |
 | fácil | deduce+farol | 99,8 | 99,8 % | 5,4 |
-| normal | azar | 2,3 | 0,0 % | — |
+| normal | azar | 2,0 | 0,0 % | — |
 | normal | deduce | 87,6 | 87,6 % | 6,7 |
 | normal | deduce+farol | 99,6 | 99,6 % | 4,8 |
-| difícil | azar | 1,6 | 0,0 % | — |
+| difícil | azar | 1,4 | 0,0 % | — |
 | difícil | deduce | 82,8 | 82,8 % | 5,3 |
 | difícil | deduce+farol | 99,5 | 99,5 % | 4,2 |
+
+Los días de la política del azar salen algo más bajos de lo que darían
+contando los disparos a pelo: el tiro que te mata no cuenta como día
+sobrevivido, y esa política muere en todas las partidas.
 
 **1. El juego es resoluble.** En cuanto la deducción deja un único hueco
 posible, el jugador no puede morir: sabe dónde está la bala cada turno
@@ -218,53 +222,56 @@ recurso de cuando el riesgo aprieta y aún va por detrás. En un duelo
 marcar **cuesta el turno**, a diferencia de la partida en solitario, así
 que no sale gratis.
 
-### Lo que el rival destapó: el duelo tiene un problema de reglas
+### Lo que el rival destapó, y cómo se arregló
 
-`banco.tabla_de_duelos()` sienta a cada nivel contra cada nivel. Con 500
-duelos por cruce en dificultad normal, el resultado no deja lugar a
-dudas:
+`banco.tabla_de_duelos()` sienta a cada nivel contra cada nivel. La
+primera vez que se corrió, el resultado no dejaba lugar a dudas: **el que
+abría nunca perdía**, 0,0 % en los nueve cruces. No era cosa del bot,
+eran dos reglas que se sumaban:
 
-```
-  retador      contra          gana   pierde   empata
-  novato       novato         29.6%     0.0%    70.4%
-  templado     novato         88.2%     0.0%    11.8%
-  implacable   templado        3.4%     0.0%    96.6%
-  implacable   implacable      0.2%     0.0%    99.8%
-```
+1. **El disparo que te mataba contaba como día sobrevivido.** `disparos`
+   se incrementa antes de resolver el tiro, así que morir en el tercero
+   te dejaba con un día «sobrevivido».
+2. **Quien abre siempre ha disparado al menos tantas veces** como el otro
+   cuando el duelo se cierra.
 
-**El que abre nunca pierde.** 0,0 % en los nueve cruces. No es cosa del
-bot: son dos reglas que se suman.
+Juntas daban al primer jugador días ≥ los del segundo, siempre. Y como
+empatar a días lo desempata `puntos_finales`, que al morir guardaba **lo
+que habías perdido**, morir con el bote gordo podía incluso ganar.
 
-1. **El disparo que te mata cuenta como día sobrevivido.** `disparos` se
-   incrementa antes de resolver el tiro, así que morir en el tercero te
-   deja con un día «sobrevivido».
-2. **Quien abre siempre ha disparado al menos tantas veces** como el
-   otro cuando el duelo se cierra.
+Las dos están corregidas:
 
-Juntas hacen que el primer jugador tenga siempre días ≥ los del
-segundo. Y como empatar a días lo desempata `puntos_finales`, que **al
-morir guarda lo que perdiste** (ver la nota en `motor.disparar`), morir
-con el bote gordo puede incluso ganar.
+- `Jugador.murio` marca al que encontró la bala, y `dias` descuenta ese
+  tiro. `disparos` sigue contándolo —se apretó el gatillo, y de ahí sale
+  el «caíste tras N disparo(s)» de la pantalla final—, pero ese tiro no
+  se sobrevivió.
+- Morir deja `puntos_finales` en **0**. Lo perdido viaja en el suceso
+  `Impacto` para que la pantalla pueda decir «perdiendo N puntos», y los
+  récords ya no apuntan como `puntos_maximos` un bote que nadie cobró.
 
-Prototipando las dos correcciones —que el disparo fatal no cuente como
-día, y que morir deje 0 puntos— la tabla se convierte en un duelo de
-verdad:
+Con eso, el duelo es un duelo:
 
 ```
   retador      contra          gana   pierde   empata
+  novato       novato         25.2%    23.0%    51.8%
   novato       implacable      0.0%    32.6%    67.4%
-  implacable   novato         88.6%    11.2%     0.2%
+  templado     novato         88.2%    11.6%     0.2%
   templado     implacable      0.0%    15.2%    84.8%
+  implacable   novato         88.6%    11.2%     0.2%
+  implacable   implacable      0.2%    11.6%    88.2%
 ```
 
-Nada de eso se toca aquí: cambia quién gana partidas y también los
-récords en solitario, así que es una decisión de diseño y no de
-refactorización. Queda medido para cuando se quiera tomar.
+La regla entró en la tabla de paridad (sección `ganadores`, formato 4),
+y sus casos parten de los **disparos** y no de los días a propósito: los
+días son lo que se está comprobando, y darlos como entrada haría que las
+dos versiones coincidieran por construcción. El caso que discrimina es un
+muerto con un múltiplo de tres disparos. Comprobado inyectando la
+regresión en `Jugador.gd`: la tabla canta el día y el ganador cambiado.
 
-Lo que sí queda claro es lo segundo: entre dos deductores buenos casi
-todo acaba **en tablas**, porque ninguno muere (ver el banco). Un duelo
-contra el `implacable` no se gana sobreviviendo; se gana puntuando más
-antes de que se plante.
+Lo que **no** se arregla con esto: entre dos deductores buenos casi todo
+sigue acabando **en tablas**, porque ninguno muere (ver el banco). Un
+duelo contra el `implacable` no se gana sobreviviendo; se gana puntuando
+más antes de que se plante.
 
 ## La semilla de partida
 
