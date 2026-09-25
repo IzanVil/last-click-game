@@ -169,6 +169,7 @@ last-click-game/
     ├── Dificultad.gd    ← presets fácil/normal/difícil
     ├── Records.gd       ← récords persistidos en user://records.json
     ├── Azar.gd          ← semilla de partida (hermano de semillas.py)
+    ├── Diario.gd        ← reto del día: un tambor igual para todos
     ├── Ajustes.gd       ← accesibilidad y mezcla, en user://ajustes.json
     ├── MainGame.gd      ← vista: las cuatro pantallas y su cableado
     ├── TamborView.gd    ← dibuja el tambor, lo gira y escucha al ratón
@@ -806,6 +807,11 @@ de terceros más allá de las dos tipografías:
 - [x] **Ejecutables publicados solos** — al empujar una etiqueta `vX.Y.Z`,
   el CI construye el binario de terminal (`pyinstaller`) y el export de
   Godot para Linux y Windows, comprueba que arrancan y publica la release
+
+- [x] **Reto diario** en la versión gráfica: un tambor igual para todos
+  que cambia a medianoche, con el mejor intento del día y racha de días
+  seguidos (`Diario.gd`). La semilla **es** la fecha, así que se puede
+  repetir el reto de cualquier día pasado tecleándola
 
 ### 🎯 Otros próximos pasos
 - [ ] Modo «borracho» 🍺 (menos suerte y más humor)

@@ -15,6 +15,7 @@ extends SceneTree
 ## records de quien ejecute los tests, y se borra al terminar.
 const RUTA_RECORDS_TEST := "user://test_records_tmp.json"
 const RUTA_AJUSTES_TEST := "user://test_ajustes_tmp.json"
+const RUTA_DIARIO_TEST := "user://test_diario_tmp.json"
 
 var _fallos: Array[String] = []
 
@@ -42,6 +43,7 @@ func _init() -> void:
 	_test_duelo_flujo_completo()
 	_test_solitario_no_es_duelo()
 	_test_azar()
+	_test_diario()
 	_test_partida_repetible()
 
 	if _fallos.is_empty():
@@ -350,6 +352,67 @@ func _cronica_de_partida(semilla: int) -> Array:
 			break
 		juego.disparar(numero)
 	return cronica
+
+
+## El reto del dia: semilla, mejor intento y racha.
+func _test_diario() -> void:
+	var ayer := {"year": 2026, "month": 9, "day": 24}
+	var hoy := {"year": 2026, "month": 9, "day": 25}
+
+	_afirmar_igual(Diario.semilla_de(hoy), 20260925, "la semilla ES la fecha")
+	_afirmar_igual(Diario.clave_de(hoy), "2026-09-25", "la clave del dia")
+	_afirmar(Diario.semilla_de(hoy) <= Azar.MAXIMO, "la semilla del dia cabe en el rango")
+	_afirmar(Diario.semilla_de(ayer) != Diario.semilla_de(hoy), "cada dia es otro reto")
+
+	# Se queda con el MEJOR intento del dia, no con el primero ni el
+	# ultimo: mandan los dias y, a igualdad, los puntos.
+	var diario := Diario.new()
+	diario.registrar(2, 400, "2026-09-25")
+	diario.registrar(1, 9999, "2026-09-25")
+	_afirmar_igual(diario.resultados["2026-09-25"]["dias"], 2, "menos dias no pisa el mejor")
+	diario.registrar(2, 800, "2026-09-25")
+	_afirmar_igual(diario.resultados["2026-09-25"]["puntos"], 800, "mismos dias y mas puntos si")
+	diario.registrar(3, 100, "2026-09-25")
+	_afirmar_igual(diario.resultados["2026-09-25"]["dias"], 3, "mas dias siempre pisa")
+
+	# Racha: dias seguidos hacia atras desde hoy.
+	var racha := Diario.new()
+	_afirmar_igual(racha.racha(hoy), 0, "sin jugar nada, racha 0")
+	racha.registrar(1, 100, "2026-09-25")
+	racha.registrar(1, 100, "2026-09-24")
+	racha.registrar(1, 100, "2026-09-23")
+	_afirmar_igual(racha.racha(hoy), 3, "tres dias seguidos")
+
+	# Un hueco la corta: el 21 no cuenta porque falta el 22.
+	racha.registrar(1, 100, "2026-09-21")
+	_afirmar_igual(racha.racha(hoy), 3, "un dia saltado corta la racha")
+
+	# Si hoy aun no se ha jugado, la racha se mide desde ayer: estar a
+	# media mañana sin entrar no deberia borrar lo anterior.
+	var pendiente := Diario.new()
+	pendiente.registrar(1, 100, "2026-09-24")
+	pendiente.registrar(1, 100, "2026-09-23")
+	_afirmar_igual(pendiente.racha(hoy), 2, "hoy sin jugar no rompe la racha")
+	_afirmar(not pendiente.resultados.has(Diario.clave_de(hoy)), "y sigue sin jugarse")
+
+	# Ida y vuelta a disco.
+	diario.guardar(RUTA_DIARIO_TEST)
+	var leido := Diario.cargar(RUTA_DIARIO_TEST)
+	_afirmar_igual(leido.resultados, diario.resultados, "el diario sobrevive al viaje a disco")
+
+	# Un archivo corrupto no debe impedir jugar.
+	var roto := FileAccess.open(RUTA_DIARIO_TEST, FileAccess.WRITE)
+	roto.store_string("{ esto no es json")
+	roto.close()
+	_afirmar(
+		Diario.cargar(RUTA_DIARIO_TEST).resultados.is_empty(),
+		"un diario corrupto se ignora en vez de reventar"
+	)
+	_afirmar(
+		Diario.cargar("user://no_existe_este_diario.json").resultados.is_empty(),
+		"un diario que no existe tampoco"
+	)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(RUTA_DIARIO_TEST))
 
 
 func _test_dias_sobrevividos() -> void:

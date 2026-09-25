@@ -21,6 +21,7 @@ const ESCENA := preload("res://scenes/MainGame.tscn")
 ## jugador que ejecute los tests.
 const RUTA_RECORDS_TEST := "user://test_escena_records_tmp.json"
 const RUTA_AJUSTES_TEST := "user://test_escena_ajustes_tmp.json"
+const RUTA_DIARIO_TEST := "user://test_escena_diario_tmp.json"
 
 var _main
 var _fallos: Array[String] = []
@@ -46,6 +47,7 @@ func _init() -> void:
 	# Antes de add_child(), o sea antes de que corra _ready() y cargue.
 	_main.ruta_records = RUTA_RECORDS_TEST
 	_main.ruta_ajustes = RUTA_AJUSTES_TEST
+	_main.ruta_diario = RUTA_DIARIO_TEST
 	root.add_child(_main)
 	await process_frame  # deja que corra _ready() y sus @onready
 
@@ -74,6 +76,7 @@ func _init() -> void:
 	await _simular_duelo_completo()
 	await _simular_pista_dudosa()
 	await _simular_impacto_y_reintento()
+	await _simular_reto_diario()
 
 	_borrar_archivos_test()
 	# Desmontaje: la escena se libera a mano porque este script no es la
@@ -100,7 +103,7 @@ func _afirmar(condicion: bool, descripcion: String) -> void:
 
 
 func _borrar_archivos_test() -> void:
-	for ruta in [RUTA_RECORDS_TEST, RUTA_AJUSTES_TEST]:
+	for ruta in [RUTA_RECORDS_TEST, RUTA_AJUSTES_TEST, RUTA_DIARIO_TEST]:
 		if FileAccess.file_exists(ruta):
 			DirAccess.remove_absolute(ruta)
 
@@ -532,3 +535,47 @@ func _simular_impacto_y_reintento() -> void:
 	await create_timer(_espera_final).timeout
 	_main._on_menu_btn_pressed()
 	await process_frame
+
+
+## El reto del dia jugado por la interfaz, de principio a fin.
+##
+## Los tests de Diario.gd prueban sus cuentas; este prueba que esta
+## enchufado: que el boton arranca una partida con la semilla de hoy, que
+## al terminar queda anotada en el diario, y que el menu lo cuenta.
+func _simular_reto_diario() -> void:
+	_main._on_diario_btn_pressed()
+	await process_frame
+	_afirmar(_main._es_reto_diario, "el boton del reto marca la partida como diaria")
+	_afirmar(
+		_main._estado.semilla == Diario.semilla_de_hoy(),
+		"el reto usa la semilla del dia (%d)" % _main._estado.semilla
+	)
+	_afirmar(
+		_main._estado.tambor.huecos == Dificultad.huecos_de(Diario.DIFICULTAD),
+		"el reto se juega en normal aunque el menu diga otra cosa"
+	)
+
+	# Se retira en el primer turno: da igual el resultado, lo que se
+	# comprueba es que queda anotado.
+	_main._on_retirarse_btn_pressed()
+	await create_timer(_espera_final).timeout
+	_afirmar(_main._diario.jugado_hoy(), "el reto jugado queda anotado en el diario")
+	_afirmar(FileAccess.file_exists(RUTA_DIARIO_TEST), "y el diario se escribe a disco")
+	_afirmar(_main._diario.racha() == 1, "un dia jugado es una racha de uno")
+
+	# Volver al menu: la linea de estado tiene que contarlo.
+	_main._on_menu_btn_pressed()
+	await process_frame
+	_afirmar(
+		_main.diario_estado.text.find(Diario.clave_de_hoy()) != -1,
+		"el menu dice de que dia es el reto"
+	)
+	_afirmar(_main.diario_estado.text.find("sin jugar") == -1, "y ya no dice que esta sin jugar")
+
+	# Reintentar despues de un reto NO cuenta como reto: su semilla es la
+	# fecha, asi que seria exactamente la misma partida.
+	_main._on_diario_btn_pressed()
+	await process_frame
+	_main._on_reintentar_btn_pressed()
+	await process_frame
+	_afirmar(not _main._es_reto_diario, "reintentar no se juega como reto del dia")

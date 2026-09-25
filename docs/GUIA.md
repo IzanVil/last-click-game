@@ -311,6 +311,40 @@ Dos avisos escritos en el código porque cuestan un rato de encontrar:
   fallaría la mitad de las veces, y un «salen al menos dos distintas» lo
   daría por bueno porque 0 y -1 ya son dos.
 
+## El reto del día (solo en Godot)
+
+`2d/Diario.gd` da un tambor igual para todos que cambia a medianoche.
+Botón **RETO DE HOY** en el menú, y una línea debajo que dice de qué día
+es, qué sacaste y cuántos días seguidos llevas.
+
+Cuatro decisiones:
+
+- **La semilla *es* la fecha**, `AAAAMMDD` leído como número, no un hash
+  de ella. Cabe de sobra en `Azar.MAXIMO`, se entiende de un vistazo, y
+  de paso se puede repetir el reto de cualquier día pasado tecleándolo en
+  el campo *Semilla* del menú.
+- **Fecha local, no UTC.** Sin tabla de clasificación online, «el reto de
+  hoy» significa el de *tu* hoy. Pasar a UTC es lo que haría falta el día
+  que dos personas quieran comparar resultados de verdad.
+- **Siempre en `normal`**, aunque el menú diga otra cosa: con 6 huecos o
+  con 10 no sería el mismo reto aunque la bala arrancara en el mismo
+  sitio.
+- **Se guarda el mejor intento del día, no el primero.** Sin tabla online
+  el número es una marca personal, y castigar el primer intento solo
+  invita a cerrar el juego a lo bruto para que no cuente. La racha mide
+  días *jugados* seguidos: si hoy aún no has entrado se cuenta desde
+  ayer, porque estar a media mañana sin jugar no debería borrar diez días.
+
+Solo existe en la versión gráfica. Llevarlo a la terminal pide que una
+misma semilla dé la misma partida en las dos, y eso hoy no pasa —Python
+usa Mersenne Twister y Godot PCG32—, así que el reto del día 20260925
+sería un tambor distinto en cada una.
+
+Dos cosas que **no** cuentan como haber jugado el reto: una partida
+normal con la semilla de hoy tecleada a mano, y el botón de reintentar
+después de un reto (su semilla es la fecha, así que «otra vez» sería
+exactamente la misma partida).
+
 ## Paridad entre las dos versiones
 
 Cada módulo de `terminal/` tiene un hermano en `2d/` con la misma
@@ -989,6 +1023,7 @@ last-click-game/
     ├── Jugador.gd
     ├── Dificultad.gd
     ├── Azar.gd
+    ├── Diario.gd
     ├── Records.gd
     ├── Ajustes.gd
     ├── MainGame.gd
