@@ -29,6 +29,7 @@ Regenerar la tabla tras un cambio deliberado de reglas:
     python3 terminal/paridad.py
 """
 
+import itertools
 import json
 import random
 from collections.abc import Sequence
@@ -142,6 +143,32 @@ class _RngFijo(random.Random):
         return seq[min(self.indice, len(seq) - 1)]
 
 
+def _caso_de_pista(
+    huecos: int, posicion: int, ultimo: int | None, tipo: str, mentir: bool
+) -> dict:
+    posibles: list[dict] = []
+    for indice in (0, 1):
+        pista = pistas.generar_pista(
+            posicion,
+            huecos,
+            ultimo,
+            tipo=tipo,
+            mentir=mentir,
+            rng=_RngFijo(indice),
+        )
+        como_dict = _pista_a_dict(pista)
+        if como_dict not in posibles:
+            posibles.append(como_dict)
+    return {
+        "huecos": huecos,
+        "posicion": posicion,
+        "ultimo": -1 if ultimo is None else ultimo,
+        "tipo": tipo,
+        "mentir": mentir,
+        "posibles": posibles,
+    }
+
+
 def _pistas() -> list[dict]:
     """Texto y candidatos de cada pista posible, veraz y mentirosa.
 
@@ -152,35 +179,16 @@ def _pistas() -> list[dict]:
     """
     casos = []
     for huecos in HUECOS_PROBADOS:
-        for posicion in range(1, huecos + 1):
-            for ultimo in [None, *range(1, huecos + 1)]:
-                for tipo in pistas.TIPOS_PISTA:
-                    if tipo == "relativa" and ultimo is None:
-                        continue
-                    for mentir in (False, True):
-                        posibles = []
-                        for indice in (0, 1):
-                            pista = pistas.generar_pista(
-                                posicion,
-                                huecos,
-                                ultimo,
-                                tipo=tipo,
-                                mentir=mentir,
-                                rng=_RngFijo(indice),
-                            )
-                            como_dict = _pista_a_dict(pista)
-                            if como_dict not in posibles:
-                                posibles.append(como_dict)
-                        casos.append(
-                            {
-                                "huecos": huecos,
-                                "posicion": posicion,
-                                "ultimo": -1 if ultimo is None else ultimo,
-                                "tipo": tipo,
-                                "mentir": mentir,
-                                "posibles": posibles,
-                            }
-                        )
+        combinaciones = itertools.product(
+            range(1, huecos + 1),
+            [None, *range(1, huecos + 1)],
+            pistas.TIPOS_PISTA,
+            (False, True),
+        )
+        for posicion, ultimo, tipo, mentir in combinaciones:
+            if tipo == "relativa" and ultimo is None:
+                continue
+            casos.append(_caso_de_pista(huecos, posicion, ultimo, tipo, mentir))
     return casos
 
 
