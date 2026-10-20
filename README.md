@@ -824,13 +824,9 @@ de terceros más allá de las dos tipografías:
 4. Abre una *pull request*.
 
 Antes de tocar código, la [guía técnica](docs/GUIA.md) explica dónde vive
-cada cosa y por qué. Sobre los comentarios, el criterio del proyecto es que
-**expliquen el porqué, no el qué**: si una función hace lo que dice su
-nombre, no lleva comentario; si esconde una decisión (por qué el tambor gira
-un número entero de vueltas, por qué el orden de los tres bucles que colorean
-el tambor es el que es, por qué el bucle de música se marca en código y no en
-el `.import`), esa decisión va escrita encima. Un comentario que repite la
-línea siguiente envejece mal y estorba.
+cada cosa y por qué. El código no lleva comentarios: si algo esconde una
+decisión que no se lee en el propio código, va en la sección «Cómo está
+comentado el código» de esa guía.
 
 ## 📄 Licencia
 
