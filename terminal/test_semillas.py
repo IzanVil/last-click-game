@@ -12,8 +12,6 @@ class TestNueva(unittest.TestCase):
             self.assertLessEqual(valor, semillas.MAXIMO)
 
     def test_el_generador_inyectado_la_hace_predecible(self):
-        # Es lo que permite que un test (o un futuro banco de partidas)
-        # decida tambien que semillas van saliendo.
         primera = semillas.nueva(random.Random(7))
         segunda = semillas.nueva(random.Random(7))
         self.assertEqual(primera, segunda)
@@ -34,9 +32,6 @@ class TestGenerador(unittest.TestCase):
         self.assertNotEqual(uno, otro)
 
     def test_da_lo_mismo_que_sembrar_el_generador_global(self):
-        # Es lo que garantiza que un `--seed 42` apuntado antes de este
-        # cambio siga dando la misma partida: random.seed(n) y
-        # random.Random(n) arrancan el mismo Mersenne Twister.
         random.seed(1234)
         global_ = [random.randint(1, 1000) for _ in range(20)]
         propio = [semillas.generador(1234).randint(1, 1000) for _ in range(1)]
@@ -45,10 +40,6 @@ class TestGenerador(unittest.TestCase):
         self.assertEqual(propio[0], global_[0])
 
     def test_no_toca_el_generador_global(self):
-        # Si generador() sembrase random.seed(), la secuencia global
-        # quedaria atada a la partida y cualquier random.* del proceso
-        # le robaria numeros. Se comprueba que el global sigue donde
-        # estaba tras pedir un generador de partida.
         random.seed(12345)
         esperado = [random.random() for _ in range(3)]
         random.seed(12345)

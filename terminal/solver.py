@@ -21,7 +21,7 @@ from collections import Counter
 
 try:
     from . import estado
-except ImportError:  # pragma: no cover - ejecucion como script suelto
+except ImportError:  # pragma: no cover
     import estado  # type: ignore[no-redef,import-not-found]
 
 
@@ -139,8 +139,6 @@ class Creencia:
         """
         riesgos = self.riesgo_por_hueco()
         if not riesgos:
-            # Creencia vacia: algo se contradijo. Que el banco lo cuente
-            # en vez de reventar aqui (ver banco.Resultado.contradiccion).
             return 1
         return min(riesgos, key=lambda hueco: (riesgos[hueco], hueco))
 
@@ -201,9 +199,6 @@ class CreenciaSinPatron(Creencia):
     """
 
     def _mover_todos(self) -> None:
-        # Se etiquetan todas igual ("?") para que dos caminos que acaban
-        # en el mismo hueco cuenten como uno solo: eso es justo lo que
-        # significa no saber por donde vino la bala.
         self.estados = {
             ("?", estado._mover(posicion, patron, self.huecos))
             for _, posicion in self.estados

@@ -18,7 +18,6 @@ import records
 import ruleta
 import semillas
 
-# Parche vivo mientras corre este modulo de tests (ver setUpModule).
 _parche_teclado: object = None
 
 
@@ -61,7 +60,7 @@ class FakeTambor:
 
     def mover_extra(self):
         self.movimientos_extra += 1
-        self.posicion_bala += 1  # desplazamiento simbolico para el test
+        self.posicion_bala += 1
         return self.posicion_bala
 
 
@@ -191,9 +190,6 @@ class TestFlujoJuego(unittest.TestCase):
         ):
             ruleta.jugar()
 
-        # 1 disparo sobrevivido -> 0 dias completos (hacen falta 3), sin
-        # faroles ni eventos en el resumen, y sin record (no hay ninguno
-        # previo que batir por encima de 0 dias).
         _comprobar_final(
             self,
             mock_retirada,
@@ -250,7 +246,6 @@ class TestFlujoJuego(unittest.TestCase):
         mock_limpiar,
         mock_sleep,
     ):
-        # posicion_bala=5 por defecto: marcar el 3 acierta (no es la bala).
         mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor([])
 
         entradas = iter(["m", "3", "r", "n"])
@@ -260,8 +255,6 @@ class TestFlujoJuego(unittest.TestCase):
         ):
             ruleta.jugar()
 
-        # Marcar no cuenta como disparo (0) y suma el bono sin doblar:
-        # 100 + 50 = 150. El resumen refleja el farol acertado.
         _comprobar_final(
             self,
             mock_retirada,
@@ -290,7 +283,6 @@ class TestFlujoJuego(unittest.TestCase):
         mock_limpiar,
         mock_sleep,
     ):
-        # posicion_bala=5 por defecto: marcar justo el 5 falla.
         mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor([])
 
         entradas = iter(["m", "5", "r", "n"])
@@ -399,9 +391,6 @@ class TestFlujoJuego(unittest.TestCase):
         ):
             ruleta.jugar()
 
-        # 3 disparos sobrevividos (100 -> 200 -> 400 -> 800) = 1 dia
-        # completo, y como no habia ningun record previo (0 dias), este
-        # se marca como nuevo record.
         dias, ganados, disparos = 1, 800, 3
         llamada = mock_retirada.call_args
         self.assertEqual(llamada.args[:3], (disparos, ganados, dias))
@@ -421,8 +410,6 @@ class TestFlujoJuego(unittest.TestCase):
             for llamada in mock_print.call_args_list
             if llamada.args
         )
-        # Se comprueba el contenido real (BOOM, los puntos perdidos y el
-        # resumen), no el color exacto ni el espaciado entre letras.
         self.assertRegex(mensajes, r"(?i)b\s*o\s*o\s*m")
         self.assertIn("200", mensajes)
         self.assertIn("Hoy sobreviviste 0 dias.", mensajes)
@@ -464,9 +451,9 @@ class TestResultadoDuelo(unittest.TestCase):
     @patch("ruleta.limpiar", return_value=None)
     def test_gana_quien_sobrevive_mas_dias(self, mock_limpiar, mock_sleep):
         ana = jugador.Jugador("Ana", apuestas.Apuesta(100), farol.Farol())
-        ana.disparos, ana.puntos_finales = 6, 300  # 2 dias
+        ana.disparos, ana.puntos_finales = 6, 300
         beto = jugador.Jugador("Beto", apuestas.Apuesta(100), farol.Farol())
-        beto.disparos, beto.puntos_finales = 3, 900  # 1 dia, pero mas puntos
+        beto.disparos, beto.puntos_finales = 3, 900
 
         with (
             patch("builtins.input", return_value=""),
@@ -527,24 +514,21 @@ class TestJugarDuelo(unittest.TestCase):
         mock_limpiar,
         mock_sleep,
     ):
-        # posicion_bala=5 por defecto (nunca coincide con los disparos de
-        # abajo): dos disparos sobreviven, uno por jugador, y el turno
-        # vuelve al primer jugador, que se retira.
         mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor(
             [False, False]
         )
 
         entradas = iter(
             [
-                "",  # nombre jugador 1 (por defecto)
-                "",  # nombre jugador 2 (por defecto)
+                "",
+                "",
                 "d",
-                "3",  # turno 1: Jugador 1 dispara y sobrevive
+                "3",
                 "d",
-                "4",  # turno 2: Jugador 2 dispara y sobrevive
-                "r",  # turno 3: Jugador 1 se retira -> fin del duelo
-                "",  # "Pulsa Enter para continuar" del resultado
-                "n",  # no jugar otro duelo
+                "4",
+                "r",
+                "",
+                "n",
             ]
         )
         with (
@@ -554,21 +538,14 @@ class TestJugarDuelo(unittest.TestCase):
         ):
             ruleta.jugar(duelo=True)
 
-        # Jugador 1: 1 disparo sobrevivido (100 -> 200) y se retira con
-        # esos 200 puntos; 0 dias (hacen falta 3 disparos).
         _comprobar_final(
             self,
             mock_retirada,
             (1, 200, 0, "Hoy sobreviviste 0 dias, sin faroles ni sobresaltos.", False),
         )
 
-        # Jugador 2 tambien habia doblado su apuesta a 200 en su unico
-        # turno; al no retirarse ni morir, sus "puntos finales" son los
-        # que tenia en juego cuando el duelo termino.
         mensajes = " ".join(str(c.args[0]) for c in mock_print.call_args_list if c.args)
         self.assertIn("Jugador 2: 0 dia(s) sobrevividos, 200 puntos", mensajes)
-        # Con los mismos dias (0) y los mismos puntos (200 cada uno),
-        # el duelo termina en empate.
         self.assertIn("Empate", mensajes)
 
     @patch("ruleta.efectos.pausa", return_value=None)
@@ -585,17 +562,16 @@ class TestJugarDuelo(unittest.TestCase):
         mock_limpiar,
         mock_sleep,
     ):
-        # posicion_bala=5 por defecto: marcar el 3 acierta (no es la bala).
         mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor([])
 
         entradas = iter(
             [
                 "",
-                "",  # nombres por defecto
+                "",
                 "m",
-                "3",  # turno 1: Jugador 1 marca y acierta (+50 puntos)
-                "r",  # turno 2: Jugador 2 se retira -> fin del duelo
-                "",  # "Pulsa Enter para continuar" del resultado
+                "3",
+                "r",
+                "",
                 "n",
             ]
         )
@@ -606,16 +582,12 @@ class TestJugarDuelo(unittest.TestCase):
         ):
             ruleta.jugar(duelo=True)
 
-        # Jugador 2 se retira sin haber hecho nada: cobra su apuesta base.
         _comprobar_final(
             self,
             mock_retirada,
             (0, 100, 0, "Hoy sobreviviste 0 dias, sin faroles ni sobresaltos.", False),
         )
 
-        # Jugador 1 no llego a retirarse ni a morir: sus puntos finales
-        # quedan congelados en los 150 (100 + 50 de bono) que tenia en
-        # juego, y eso es justo lo que le hace ganar el duelo.
         mensajes = " ".join(str(c.args[0]) for c in mock_print.call_args_list if c.args)
         self.assertIn("Jugador 1: 0 dia(s) sobrevividos, 150 puntos", mensajes)
         self.assertIn("Gana Jugador 1", mensajes)
@@ -643,13 +615,13 @@ class TestJugarDuelo(unittest.TestCase):
         entradas = iter(
             [
                 "",
-                "",  # nombres por defecto
+                "",
                 "d",
-                "3",  # turno 1: Jugador 1 dispara y sobrevive (100 -> 200)
+                "3",
                 "d",
-                "5",  # turno 2: Jugador 2 dispara justo la bala -> BOOM
-                "",  # "Pulsa Enter para continuar" del resultado
-                "n",  # no jugar otro duelo
+                "5",
+                "",
+                "n",
             ]
         )
         with (
@@ -658,8 +630,6 @@ class TestJugarDuelo(unittest.TestCase):
         ):
             ruleta.jugar(duelo=True)
 
-        # Jugador 2 muere en su primer disparo: pierde su apuesta base
-        # entera (nunca llego a doblarla).
         _comprobar_final(
             self,
             mock_impacto,
@@ -784,9 +754,6 @@ class TestMain(CasoQueLlamaMain):
 
     @patch("ruleta.jugar")
     def test_duelo_enciende_el_modo_duelo_en_el_mismo_bucle(self, mock_jugar):
-        # Ya no hay dos funciones: el duelo es el mismo jugar() con dos
-        # jugadores (ver motor.py), asi que lo que se comprueba es que
-        # la opcion llega, no a quien se llama.
         ruleta.main(["--duelo", "--huecos", "6"])
         mock_jugar.assert_called_once_with(
             huecos=6,
@@ -813,7 +780,7 @@ class TestMain(CasoQueLlamaMain):
     @patch("ruleta.jugar", side_effect=KeyboardInterrupt)
     def test_ctrl_c_sale_con_mensaje_sin_traceback(self, mock_jugar):
         with patch("builtins.print") as mock_print:
-            ruleta.main([])  # no debe propagar la excepcion
+            ruleta.main([])
 
         mensajes = " ".join(
             str(llamada.args[0])
@@ -824,13 +791,8 @@ class TestMain(CasoQueLlamaMain):
 
     @patch("ruleta.jugar", side_effect=EOFError)
     def test_eof_sale_con_mensaje_sin_traceback(self, mock_jugar):
-        # El juego vive de input(), que lanza EOFError en cuanto se
-        # acaba la entrada: Ctrl+D, o stdin redirigido y agotado
-        # (`echo | ruleta`, un script que alimente la partida, CI).
-        # Antes solo se capturaba KeyboardInterrupt y eso terminaba en
-        # un traceback de EOFError en pantalla.
         with patch("builtins.print") as mock_print:
-            ruleta.main([])  # no debe propagar la excepcion
+            ruleta.main([])
 
         mensajes = " ".join(
             str(llamada.args[0])
@@ -841,9 +803,6 @@ class TestMain(CasoQueLlamaMain):
 
     @patch("ruleta.jugar", side_effect=EOFError)
     def test_eof_en_modo_duelo_tambien_sale_limpio(self, mock_duelo):
-        # --duelo entra por la otra rama del try, asi que se comprueba
-        # aparte: es justo el caso que se escapaba de una captura puesta
-        # solo alrededor de jugar().
         with patch("builtins.print") as mock_print:
             ruleta.main(["--duelo"])
 
@@ -1045,8 +1004,6 @@ class TestElegirHueco(unittest.TestCase):
             )
 
         self.assertEqual(dibujados, [3])
-        # El resaltado es cosa del selector: al salir, el tablero vuelve
-        # a quedar como estaba para el resto de la interfaz.
         self.assertIsNone(tablero.resaltado)
 
     def test_cancelar_devuelve_none(self):
@@ -1189,8 +1146,6 @@ class TestFlujoConSelectorCancelado(unittest.TestCase):
         ):
             ruleta.jugar()
 
-        # Se cancelo el hueco: ni se disparo ni se gasto marca, y el
-        # turno volvio a pedir accion (por eso la "r" siguiente cierra).
         self.assertEqual(fake.historial, [])
         _comprobar_final(
             self,
@@ -1262,8 +1217,6 @@ class TestFlujoAvanzado(unittest.TestCase):
         mock_limpiar,
         mock_pausa,
     ):
-        # Un tambor de 3 huecos ya nace "caliente": no hay margen que
-        # gastar antes de que empiece el latido.
         mock_tambor_cls.side_effect = lambda huecos=None, rng=None: FakeTambor(
             [], huecos=3
         )
@@ -1325,7 +1278,6 @@ class TestFlujoAvanzado(unittest.TestCase):
         fake = FakeTambor([], huecos=3)
         mock_tambor_cls.side_effect = lambda huecos=None, rng=None: fake
 
-        # Nombres, cancelar un farol, cancelar un disparo y retirarse.
         entradas = iter(["Ana", "Bea", "m", "d", "r", "n"])
         with (
             patch("entrada.modo_tecla_disponible", return_value=True),
@@ -1345,7 +1297,6 @@ class TestFlujoAvanzado(unittest.TestCase):
 
 class TestRivalDeLaMaquina(unittest.TestCase):
     def test_pedir_rival_enciende_el_duelo_solo(self):
-        # Nadie que escriba --rival quiere una partida en solitario.
         args = ruleta._parsear_args(["--rival", "templado"])
         self.assertEqual(args.rival, "templado")
         self.assertTrue(args.duelo)
@@ -1360,8 +1311,6 @@ class TestRivalDeLaMaquina(unittest.TestCase):
         self.assertEqual(mock_jugar.call_args.kwargs["rival_nivel"], "implacable")
 
     def test_se_anuncia_lo_que_hace_la_maquina(self):
-        # Su turno no tiene a nadie tecleando: sin este aviso el tablero
-        # cambiaria solo y el jugador no sabria por que.
         for accion, esperado in (
             ("disparar", "apunta al hueco 4"),
             ("marcar", "marca el hueco 4"),
@@ -1400,7 +1349,6 @@ class TestDueloContraLaMaquina(unittest.TestCase):
         self.assertIn("RESULTADO DEL DUELO", salida)
 
     def test_al_rival_no_se_le_pregunta_el_nombre(self):
-        # Solo se pide un nombre, el de la persona.
         pedidos = []
 
         def responder(prompt="", _guion=_guion()):
@@ -1426,10 +1374,6 @@ class TestContarSuceso(unittest.TestCase):
         mock_am.assert_called_once()
 
     def test_en_duelo_un_dia_completado_no_dice_nada(self):
-        # Decision conservada de jugar_duelo(): cada jugador lleva sus
-        # propios dias y un amanecer compartido a mitad del turno del
-        # otro no cuadraria. Se fija aqui para que unificar los bucles
-        # no lo cambie por descuido.
         partida = ruleta.Partida(motor.Motor(nombres=["Ana", "Bea"]), records.Records())
         partida.actor = partida.juego.jugador_activo
         with patch("builtins.print") as mock_print, patch("ruleta.amanecer") as mock_am:
@@ -1438,10 +1382,6 @@ class TestContarSuceso(unittest.TestCase):
         mock_am.assert_not_called()
 
     def test_un_hueco_fuera_del_tambor_se_avisa_por_pantalla(self):
-        # El selector de la terminal ya valida el rango antes de llegar
-        # al motor, asi que este caso no se alcanza jugando; se prueba
-        # aparte porque la interfaz grafica si deja teclear cualquier
-        # cosa y el manejador tiene que existir igualmente.
         partida = ruleta.Partida(motor.Motor(), records.Records())
         with patch("builtins.print") as mock_print:
             ruleta._contar_suceso(motor.EntradaInvalida(99), partida)
@@ -1455,10 +1395,6 @@ class TestTamborQueCabe(unittest.TestCase):
         return re.sub(r"\033\[[0-9;]*m", "", texto)
 
     def test_hueco_resaltado_se_ve_sin_color(self):
-        # Antes el resaltado era solo video inverso + color: al apagar el
-        # color (--sin-color, NO_COLOR, salida a fichero) la celda
-        # elegida quedaba identica a las demas y el selector de flechas
-        # se volvia invisible. Los corchetes lo marcan pase lo que pase.
         plano = self._sin_color(ruleta.tambor_ascii({}, huecos=8, resaltado=3))
         self.assertIn("[0]", plano)
         self.assertEqual(plano.count("[0]"), 1)
@@ -1468,17 +1404,13 @@ class TestTamborQueCabe(unittest.TestCase):
         self.assertNotIn("[", plano)
 
     def test_el_tambor_grande_se_parte_para_caber(self):
-        # Antes salia en una unica linea que la terminal partia por su
-        # cuenta, y eso descuadra la pantalla entera: la escena se
-        # repinta con posicionamiento absoluto contando sus lineas.
         with patch("ruleta.efectos.ancho_terminal", return_value=80):
             dibujo = ruleta.tambor_ascii({}, huecos=24)
         lineas = dibujo.split("\n")
 
-        self.assertGreater(len(lineas), 4)  # mas de una fila de tambor
+        self.assertGreater(len(lineas), 4)
         for linea in lineas:
             self.assertLessEqual(len(self._sin_color(linea)), 80, linea)
-        # Y no se pierde ningun hueco por el camino.
         self.assertIn("24", self._sin_color(lineas[-1]))
 
     def test_el_tambor_pequeno_sigue_en_una_fila(self):
@@ -1487,9 +1419,6 @@ class TestTamborQueCabe(unittest.TestCase):
         self.assertEqual(len(dibujo.split("\n")), 4)
 
     def test_todas_las_filas_conservan_el_alto_entre_fotogramas(self):
-        # repintar() da por hecho que los fotogramas miden lo mismo: si
-        # resaltar un hueco cambiara el numero de lineas, la animacion
-        # dejaria restos del fotograma anterior en pantalla.
         with patch("ruleta.efectos.ancho_terminal", return_value=80):
             altos = {
                 efectos.alto_de(ruleta.tambor_ascii({}, 24, resaltado=h))
@@ -1563,9 +1492,6 @@ class TestSemilla(CasoQueLlamaMain):
         self.assertEqual(mock_jugar.call_args.kwargs["seed"], 1234)
 
     def test_main_ya_no_siembra_el_generador_global(self):
-        # Sembrar el global ataba cualquier otro random.* del proceso a
-        # la partida. Se comprueba con y sin --seed: ninguno de los dos
-        # debe tocarlo.
         for argv in ([], ["--seed", "1234"]):
             with patch("ruleta.jugar"), patch("random.seed") as mock_seed:
                 ruleta.main(argv)
@@ -1589,9 +1515,6 @@ class TestSemillaRepetible(unittest.TestCase):
 
     def test_semillas_distintas_juegan_partidas_distintas(self):
         partidas = {_grabar_partida(seed=s) for s in range(8)}
-        # No se exige que las ocho sean distintas entre si (dos semillas
-        # pueden dar el mismo tambor y el mismo guion las juega igual),
-        # solo que la semilla cambie algo.
         self.assertGreater(len(partidas), 1)
 
     def test_sin_semilla_cada_partida_sortea_la_suya(self):
@@ -1626,14 +1549,9 @@ class TestSemillaRepetible(unittest.TestCase):
             self.assertEqual(len(sellos), 2)
             vistas.add(tuple(sellos))
         self.assertEqual(next(iter(vistas))[0], "31337")
-        # Entre ocho sesiones, la segunda partida no puede salir siempre
-        # la misma si de verdad se esta sorteando.
         self.assertGreater(len({v[1] for v in vistas}), 1)
 
     def test_la_semilla_sorteada_cae_en_el_rango_declarado(self):
-        # Se miran varias: con una sola, un sorteo roto que devolviese
-        # siempre el mismo numero pasaria el test igual (es el fallo que
-        # tuvo la version de Godot de esto, ver Azar.nueva).
         vistas = set()
         for _ in range(20):
             valor = int(
@@ -1646,9 +1564,6 @@ class TestSemillaRepetible(unittest.TestCase):
 
 
 class TestCodigoDeSalida(CasoQueLlamaMain):
-    # main() devuelve ahora el codigo de salida (lo consume el
-    # sys.exit(main()) del __main__ y el comando `ruleta` de setuptools).
-    # Antes devolvia None y el juego salia siempre con 0.
     def test_partida_normal_sale_con_cero(self):
         with patch("ruleta.jugar"):
             self.assertEqual(ruleta.main([]), 0)
@@ -1659,14 +1574,11 @@ class TestCodigoDeSalida(CasoQueLlamaMain):
                 self.assertEqual(ruleta.main(["--records"]), 0)
 
     def test_ctrl_c_sale_con_130(self):
-        # Convencion del shell para una interrupcion: 128 + SIGINT(2).
         with patch("ruleta.jugar", side_effect=KeyboardInterrupt):
             with patch("builtins.print"):
                 self.assertEqual(ruleta.main([]), 130)
 
     def test_eof_sale_con_cero(self):
-        # Quedarse sin entrada no es un fallo, solo el final de la
-        # partida: no merece un codigo de error.
         with patch("ruleta.jugar", side_effect=EOFError):
             with patch("builtins.print"):
                 self.assertEqual(ruleta.main([]), 0)

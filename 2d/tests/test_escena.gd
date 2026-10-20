@@ -1,24 +1,7 @@
 extends SceneTree
-## Test de integracion headless: carga la escena real (MainGame.tscn) y
-## simula partidas completas pulsando los mismos metodos que los botones
-## y el raton (_on_empezar_btn_pressed, _on_disparar_btn_pressed,
-## _on_marcar_btn_pressed, _on_retirarse_btn_pressed, _on_hueco_pulsado),
-## esperando de verdad a que las animaciones (Tween) y las pausas terminen
-## entre una accion y la siguiente.
-##
-## A diferencia de test_logica.gd (que prueba RuletaEstado y sus modulos
-## de logica pura de forma aislada, sin nodos), este ejercita tambien el
-## cableado de señales de MainGame.gd y el paso entre las cuatro pantallas
-## (menu, records, partida y final): la parte que test_logica.gd no toca.
-## Uso:
-##
-##   godot --headless --script res://tests/test_escena.gd --path 2d
 
 const ESCENA := preload("res://scenes/MainGame.tscn")
 
-## Los records y los ajustes se redirigen a archivos aparte (ver
-## MainGame.ruta_records y MainGame.ruta_ajustes) para no pisar los del
-## jugador que ejecute los tests.
 const RUTA_RECORDS_TEST := "user://test_escena_records_tmp.json"
 const RUTA_AJUSTES_TEST := "user://test_escena_ajustes_tmp.json"
 const RUTA_DIARIO_TEST := "user://test_escena_diario_tmp.json"
@@ -26,30 +9,20 @@ const RUTA_DIARIO_TEST := "user://test_escena_diario_tmp.json"
 var _main
 var _fallos: Array[String] = []
 
-## Lo que hay que esperar a que termine cada accion, calculado a partir de
-## las constantes de MainGame para que no se descuadre si alguna cambia.
 var _espera_disparo := 0.0
 var _espera_farol := 0.0
 var _espera_final := 0.0
 
 
-## Una sesion entera, en el mismo orden en que la jugaria una persona: mirar
-## el menu, trastear los ajustes, jugar, morir y volver.
-##
-## Es un solo hilo con `await` en vez de tests independientes porque la
-## escena tiene estado (records en disco, ajustes, la partida en curso) y
-## montarla y desmontarla en cada comprobacion costaria mas de lo que
-## aislaria. A cambio, cada bloque deja la interfaz como se la encontro.
 func _init() -> void:
 	_borrar_archivos_test()
 
 	_main = ESCENA.instantiate()
-	# Antes de add_child(), o sea antes de que corra _ready() y cargue.
 	_main.ruta_records = RUTA_RECORDS_TEST
 	_main.ruta_ajustes = RUTA_AJUSTES_TEST
 	_main.ruta_diario = RUTA_DIARIO_TEST
 	root.add_child(_main)
-	await process_frame  # deja que corra _ready() y sus @onready
+	await process_frame
 
 	_espera_disparo = _main.DURACION_GIRO + _main.DURACION_TENSION + 0.4
 	_espera_farol = _main.DURACION_TENSION + 0.3
@@ -79,11 +52,6 @@ func _init() -> void:
 	await _simular_reto_diario()
 
 	_borrar_archivos_test()
-	# Desmontaje: la escena se libera a mano porque este script no es la
-	# escena principal y nadie mas lo haria, y despues se le da al servidor
-	# de audio un rato de reloj (no basta con un fotograma) para descartar
-	# los sonidos que quedaran sonando. Sin las dos cosas, Godot avisa al
-	# salir de instancias y recursos sin liberar.
 	_main.free()
 	await create_timer(0.3).timeout
 
@@ -108,10 +76,6 @@ func _borrar_archivos_test() -> void:
 			DirAccess.remove_absolute(ruta)
 
 
-## La tipografia de maquina de escribir se aplica via Theme, y un fallo
-## ahi (un .tres mal referenciado, un .ttf que no importa) no da error:
-## la interfaz simplemente saldria con la fuente por defecto de Godot y
-## en headless no se notaria. De ahi que se compruebe explicitamente.
 func _comprobar_tipografia() -> void:
 	var courier: FontFile = load("res://assets/fonts/CourierPrime-Regular.ttf")
 	var elite: FontFile = load("res://assets/fonts/SpecialElite-Regular.ttf")
@@ -122,44 +86,33 @@ func _comprobar_tipografia() -> void:
 
 	_afirmar(_main.theme != null, "la escena raiz tiene tema")
 	if _main.theme == null:
-		return  # sin tema, las comprobaciones de abajo no tienen sentido
+		return
 	_afirmar(
 		_main.theme.default_font == courier,
 		"el tema pone Courier Prime como fuente por defecto",
 	)
-	# Los nodos la heredan del tema, sin override nodo por nodo.
 	for nodo in [_main.etiqueta_resultado, _main.disparar_btn, _main.dificultad_opt]:
 		_afirmar(
 			nodo.get_theme_font("font") == courier,
 			"%s hereda la tipografia del tema" % nodo.name,
 		)
-	# TamborView pinta los numeros con get_theme_default_font().
 	_afirmar(
 		_main.tambor.get_theme_default_font() == courier,
 		"el tambor dibuja sus numeros con la tipografia del tema",
 	)
-	# El titulo y el rotulo del final son las excepciones deliberadas.
 	_afirmar(
 		_main.titulo.get_theme_font("font") == elite, "el titulo usa Special Elite, no la del tema"
 	)
 
-	# Glifos que la interfaz usa de verdad y que no son ASCII: si la
-	# fuente no los tuviera, saldrian como recuadros en pantalla.
 	for glifo in ["·", "¡", "¿"]:
 		_afirmar(courier.has_char(glifo.unicode_at(0)), "Courier Prime tiene el glifo '%s'" % glifo)
 
-	# Un nombre de jugador es texto libre: lo que la fuente no cubra debe
-	# caer en el respaldo del motor (ver MainGame._encadenar_respaldo_de_fuentes).
 	_afirmar(
 		courier.fallbacks.has(ThemeDB.fallback_font),
 		"la fuente de la interfaz encadena el respaldo del motor",
 	)
 
 
-## El aspecto de chapa y laton (botones, campos, panel) vive en el mismo
-## Theme que la tipografia, y como ella falla en silencio: sin los
-## StyleBox, la interfaz saldria con el gris por defecto del motor y en
-## headless no se notaria.
 func _comprobar_chapa_del_tema() -> void:
 	if _main.theme == null:
 		return
@@ -192,7 +145,6 @@ func _comprobar_menu_inicial() -> void:
 		"los nombres estan ocultos mientras el duelo no este marcado",
 	)
 
-	# Marcar el duelo revela los campos de nombre, y desmarcarlo los oculta.
 	_main.duelo_check.button_pressed = true
 	await process_frame
 	_afirmar(_main.nombres_caja.visible, "marcar duelo muestra los campos de nombre")
@@ -200,7 +152,6 @@ func _comprobar_menu_inicial() -> void:
 	await process_frame
 	_afirmar(not _main.nombres_caja.visible, "desmarcar duelo vuelve a ocultarlos")
 
-	# La pantalla de records va y vuelve sin tocar el resto.
 	_main._on_records_btn_pressed()
 	await process_frame
 	_afirmar(_main.pantalla_records.visible, "el boton de records abre su pantalla")
@@ -214,9 +165,6 @@ func _comprobar_menu_inicial() -> void:
 	_afirmar(_main.menu.visible, "y se vuelve al menu")
 
 
-## Los ajustes viven en el panel que abre Escape. Se comprueba que se
-## guardan en disco y que llegan a quien los obedece (fondo, viñeta,
-## tambor, buses de audio).
 func _comprobar_ajustes() -> void:
 	_afirmar(not _main.efectos_check.button_pressed, "los efectos empiezan activados")
 
@@ -249,8 +197,6 @@ func _comprobar_ajustes() -> void:
 	_afirmar(guardados.alto_contraste, "y tambien las demas")
 	_afirmar(absf(guardados.volumen_musica - 0.4) < 0.001, "el volumen tambien se guarda")
 
-	# Se dejan como estaban: las animaciones siguen probandose en el resto
-	# del test, y el tema es un recurso compartido con el resto del juego.
 	_main.efectos_check.button_pressed = false
 	_main.contraste_check.button_pressed = false
 	_main.texto_check.button_pressed = false
@@ -262,7 +208,6 @@ func _comprobar_ajustes() -> void:
 	)
 
 
-## Los dos paneles superpuestos: la ayuda (H) y los ajustes (Escape).
 func _comprobar_ayuda_y_pausa() -> void:
 	_main._alternar_ayuda()
 	await process_frame
@@ -304,8 +249,6 @@ func _comprobar_dificultad_aplicada() -> void:
 	)
 
 
-## Los cuatro datos de la barra superior salen del estado, no de un texto
-## escrito a mano en la escena.
 func _comprobar_hud_inicial() -> void:
 	_afirmar(_main.hud_dia.text.find("1") != -1, "el HUD empieza en el dia 1")
 	_afirmar(_main.hud_puntos.text.find("100") != -1, "el HUD muestra la apuesta inicial")
@@ -316,16 +259,12 @@ func _comprobar_hud_inicial() -> void:
 	)
 
 
-## Sustituye el tambor sorteado por uno determinista (bala en el hueco 6,
-## lejos de los 1-3 que vamos a usar) para poder simular sin depender del
-## azar. Tambien apaga los eventos, que podrian mover la bala de mas.
 func _forzar_bala_lejos() -> void:
 	_main._estado.tambor = TamborJuicio.new(6, "avanza", 6)
 	_main._estado.probabilidad_eventos = 0.0
 	_afirmar(_main._estado.tambor.posicion_bala == 6, "el tambor forzado empieza en el hueco 6")
 
 
-## Pinchar un hueco del tambor es otra forma de escribir su numero.
 func _simular_eleccion_con_raton() -> void:
 	_main._on_hueco_pulsado(4)
 	await process_frame
@@ -349,7 +288,7 @@ func _simular_marcar_acierto() -> void:
 
 
 func _simular_marcar_fallo() -> void:
-	_main.entrada_numero.text = "6"  # ahi esta la bala de verdad
+	_main.entrada_numero.text = "6"
 	_main._on_marcar_btn_pressed()
 	await process_frame
 	await create_timer(_espera_farol).timeout
@@ -363,7 +302,7 @@ func _simular_marcar_fallo() -> void:
 
 
 func _simular_disparo_seguro() -> void:
-	_main.entrada_numero.text = "2"  # falla: la bala sigue en 6
+	_main.entrada_numero.text = "2"
 	_main._on_disparar_btn_pressed()
 	await process_frame
 	await create_timer(_espera_disparo).timeout
@@ -394,7 +333,6 @@ func _simular_retirada_y_pantalla_final() -> void:
 	_afirmar(not _main.juego.visible, "y el tablero se oculta")
 	_afirmar(_main.fin_titulo.text.find("RETIRAS") != -1, "el rotulo dice que salio con vida")
 	_afirmar(_main.fin_resumen.text != "", "y hay un resumen de la partida")
-	# 0 dias sobrevividos y 0 de record previo: no hay record que batir.
 	_afirmar(
 		_main.fin_resumen.text.find("Nuevo record") == -1,
 		"no se anuncia record si no se ha superado",
@@ -430,13 +368,12 @@ func _comprobar_records_guardados() -> void:
 	await process_frame
 
 
-## Duelo entero por la UI: turnos alternos y veredicto en la pantalla final.
 func _simular_duelo_completo() -> void:
 	await _empezar_partida("normal", ["Ana", "Beto"])
 	_afirmar(_main.etiqueta_turno.visible, "en duelo se ve de quien es el turno")
 	_afirmar(_main.etiqueta_turno.text.find("Ana") != -1, "empieza el primer jugador")
 
-	_main._estado.tambor = TamborJuicio.new(8, "avanza", 8)  # la bala nunca esta en 1..7
+	_main._estado.tambor = TamborJuicio.new(8, "avanza", 8)
 	_main._estado.probabilidad_eventos = 0.0
 
 	_main.entrada_numero.text = "1"
@@ -452,7 +389,6 @@ func _simular_duelo_completo() -> void:
 		"el HUD pasa a mostrar la apuesta de Beto, no la de Ana",
 	)
 
-	# Beto se retira: el duelo acaba y se muestra el veredicto.
 	_main._on_retirarse_btn_pressed()
 	await process_frame
 	var texto: String = _main.etiqueta_resultado.text
@@ -462,19 +398,12 @@ func _simular_duelo_completo() -> void:
 	_afirmar(_main.fin.visible, "tras el duelo tambien se abre la pantalla de final")
 	var resumen: String = _main.fin_resumen.text
 	_afirmar(resumen.find("Ana:") != -1, "el veredicto lista a los dos jugadores")
-	# Ana sobrevivio un disparo (200 en juego), Beto se retiro sin
-	# disparar (100): ambos con 0 dias, gana Ana por puntos.
 	_afirmar(resumen.find("Gana Ana") != -1, "gana quien acabo con mas puntos")
 
 	_main._on_menu_btn_pressed()
 	await process_frame
 
 
-## Tras un "tambor_caliente", la pista siguiente queda marcada como dudosa
-## en la lista. Las dos señales se emiten a mano porque el evento sale por
-## sorteo (ver Eventos.tirar_evento) y esperar a que toque haria el test
-## dependiente del azar; lo que se prueba aqui es el cableado de la vista,
-## no el sorteo, que ya cubre test_logica.gd.
 func _simular_pista_dudosa() -> void:
 	await _empezar_partida("normal")
 	_main._estado.tambor = TamborJuicio.new(8, "avanza", 8)
@@ -509,7 +438,7 @@ func _simular_impacto_y_reintento() -> void:
 	_main._estado.tambor = TamborJuicio.new(8, "avanza", 3)
 	_main._estado.probabilidad_eventos = 0.0
 
-	_main.entrada_numero.text = "3"  # justo la bala
+	_main.entrada_numero.text = "3"
 	_main._on_disparar_btn_pressed()
 	await process_frame
 	await create_timer(_espera_disparo).timeout
@@ -521,7 +450,6 @@ func _simular_impacto_y_reintento() -> void:
 	_afirmar(_main.fin.visible, "tras morir se abre la pantalla de final")
 	_afirmar(_main.fin_titulo.text == "HAS MUERTO", "con el rotulo que toca")
 
-	# Reintentar repite la misma configuracion sin pasar por el menu.
 	_main._on_reintentar_btn_pressed()
 	await process_frame
 	_afirmar(_main.juego.visible, "reintentar vuelve directo a la partida")
@@ -537,11 +465,6 @@ func _simular_impacto_y_reintento() -> void:
 	await process_frame
 
 
-## El reto del dia jugado por la interfaz, de principio a fin.
-##
-## Los tests de Diario.gd prueban sus cuentas; este prueba que esta
-## enchufado: que el boton arranca una partida con la semilla de hoy, que
-## al terminar queda anotada en el diario, y que el menu lo cuenta.
 func _simular_reto_diario() -> void:
 	_main._on_diario_btn_pressed()
 	await process_frame
@@ -555,15 +478,12 @@ func _simular_reto_diario() -> void:
 		"el reto se juega en normal aunque el menu diga otra cosa"
 	)
 
-	# Se retira en el primer turno: da igual el resultado, lo que se
-	# comprueba es que queda anotado.
 	_main._on_retirarse_btn_pressed()
 	await create_timer(_espera_final).timeout
 	_afirmar(_main._diario.jugado_hoy(), "el reto jugado queda anotado en el diario")
 	_afirmar(FileAccess.file_exists(RUTA_DIARIO_TEST), "y el diario se escribe a disco")
 	_afirmar(_main._diario.racha() == 1, "un dia jugado es una racha de uno")
 
-	# Volver al menu: la linea de estado tiene que contarlo.
 	_main._on_menu_btn_pressed()
 	await process_frame
 	_afirmar(
@@ -572,8 +492,6 @@ func _simular_reto_diario() -> void:
 	)
 	_afirmar(_main.diario_estado.text.find("sin jugar") == -1, "y ya no dice que esta sin jugar")
 
-	# Reintentar despues de un reto NO cuenta como reto: su semilla es la
-	# fecha, asi que seria exactamente la misma partida.
 	_main._on_diario_btn_pressed()
 	await process_frame
 	_main._on_reintentar_btn_pressed()

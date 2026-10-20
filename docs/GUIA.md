@@ -873,31 +873,29 @@ sea cuatro quintas partes de fondo negro. El script deja los PNG en
 
 ## Cómo está comentado el código
 
-Los dos lados del proyecto siguen el mismo criterio: **el comentario explica
-el porqué; el qué ya lo dice el código**. En la práctica:
+El código no lleva comentarios `#` ni `##`: lo que hace cada cosa lo dicen
+los nombres, los tipos y los tests. En Python quedan las docstrings de
+módulos, clases y funciones, que es lo que enseña `help()`.
 
-- Cada archivo abre con un bloque `##` (docstring en Python) que dice qué es,
-  qué **no** es y con quién se corresponde en la otra versión. Es lo primero
-  que hay que leer, y lo primero que hay que actualizar si algo cambia de
-  sitio.
-- Las funciones con una decisión detrás la llevan escrita encima: por qué el
-  tambor gira un número entero de vueltas (`TamborView.girar`), por qué el
-  orden de los tres bucles de `MainGame._calcular_estados` es el que es, por
-  qué el bucle de la música se marca en código y no en el `.import`
-  (`MainGame._arrancar_musica`), o por qué `_recordar_estilos()` tiene que
-  correr antes de aplicar ningún ajuste (`MainGame._ready`).
-- Las que hacen lo que dice su nombre —`_ready`, un manejador de botón que
-  cambia de pantalla, un `_init` que solo asigna campos— **no llevan
-  comentario a propósito**. Un `## Devuelve el color del hueco` sobre
-  `_color_de()` no informa: ocupa sitio y hay que mantenerlo.
-- En GDScript, `##` es documentación (Godot la enseña en la ayuda del editor
-  para las clases con `class_name`) y `#` es una nota puntual dentro de un
-  cuerpo. La distinción importa: lo que va en `##` es contrato; lo que va en
-  `#`, una advertencia local.
+Lo que no se lee en el código y conviene no volver a descubrir:
 
-A día de hoy llevan comentario **2 de cada 3 funciones** de la versión
-gráfica; el tercio restante son las triviales de las que habla el punto
-anterior.
+- **`TamborView.girar`** da siempre un número entero de vueltas, así que cada
+  hueco acaba donde empezó: el giro es dramatismo, no un sorteo. La bala se
+  mueve por su patrón (`TamborJuicio`), no por la animación.
+- **`MainGame._calcular_estados`** pinta en tres bucles cuyo orden manda: lo
+  que se escribe después pisa a lo anterior, así que la certeza (un farol
+  resuelto) gana a lo probado, y esto a la sospecha (un candidato).
+- **`MainGame._arrancar_musica`** marca el bucle en código y no en el
+  `.import`: el importador de WAV de Godot 4.7 deja escrito `edit/loop_mode`
+  pero el recurso cargado sigue diciendo `LOOP_DISABLED`.
+- **`MainGame._ready`** tiene un orden que no es casual: las señales se
+  conectan antes de que `RuletaEstado` pueda emitir, `_recordar_estilos()`
+  corre antes de que ningún ajuste pise los colores de la escena, la música
+  arranca antes de aplicar los ajustes y los records se cargan antes de
+  `_mostrar()`.
+- **`Partida.actor`** (terminal) no es lo mismo que `juego.jugador_activo`: el
+  motor pasa el turno antes de devolver los sucesos, así que para cuando se
+  pintan el activo ya es el otro.
 
 ## Publicar ejecutables
 

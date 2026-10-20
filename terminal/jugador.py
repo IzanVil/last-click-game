@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 
 try:
     from . import apuestas, estado, farol, historial
-except ImportError:  # pragma: no cover - ejecucion como script suelto
+except ImportError:  # pragma: no cover
     import apuestas  # type: ignore[no-redef,import-not-found]
     import estado  # type: ignore[no-redef,import-not-found]
     import farol  # type: ignore[no-redef,import-not-found]
@@ -30,15 +30,8 @@ class Jugador:
     bitacora: "historial.Historial" = field(default_factory=historial.Historial)
     disparos: int = 0
 
-    # Si la bala lo encontro. `disparos` sigue contando el tiro fatal
-    # -- se apreto el gatillo, y de ahi sale el "caiste tras N
-    # disparo(s)" de la pantalla final -- pero ese tiro no se
-    # sobrevivio, asi que no cuenta para los dias.
     murio: bool = False
 
-    # Puntos con los que este jugador termina la partida. Lo fija el
-    # motor al morir (0), al retirarse (lo cobrado) o, para el rival que
-    # no llego a jugar su ultimo turno, lo que tuviera en juego.
     puntos_finales: int = 0
 
     @property

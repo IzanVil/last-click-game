@@ -24,12 +24,8 @@ import wave
 
 SAMPLE_RATE = 44100
 
-# La musica en bucle usa su propia frecuencia de muestreo (ver docstring).
 SAMPLE_RATE_MUSICA = 22050
 
-# Compas de la musica: 70 pulsos por minuto, cuatro por compas, ocho
-# compases de bucle. En segundos sale un numero feo (27.428571...), pero en
-# muestras es exacto: 22050 * 32 * 60 / 70 = 604800.
 BPM = 70
 PULSOS_POR_COMPAS = 4
 COMPASES = 8
@@ -90,7 +86,7 @@ def derrota() -> list[float]:
         freq = f_start + (f_end - f_start) * t
         phase += 2 * math.pi * freq / SAMPLE_RATE
         square = 1.0 if math.sin(phase) >= 0 else -1.0
-        env = 1.0 - t * 0.85  # se apaga hacia el final, no corta en seco
+        env = 1.0 - t * 0.85
         out.append(square * env * 0.5)
     return out
 
@@ -98,7 +94,7 @@ def derrota() -> list[float]:
 def victoria() -> list[float]:
     """Victoria: arpegio ascendente (Do-Mi-Sol-Do agudo) con envolvente
     de pulso corto por nota, superpuestas un poco entre si."""
-    notas = [523.25, 659.25, 783.99, 1046.50]  # C5 E5 G5 C6
+    notas = [523.25, 659.25, 783.99, 1046.50]
     dur_nota = 0.22
     solape = 0.06
     n_nota = int(SAMPLE_RATE * dur_nota)
@@ -109,9 +105,7 @@ def victoria() -> list[float]:
         inicio = idx * paso
         for i in range(n_nota):
             t = i / SAMPLE_RATE
-            env = math.exp(-4.5 * t) * (
-                1.0 - math.exp(-80.0 * t)
-            )  # ataque rapido, caida suave
+            env = math.exp(-4.5 * t) * (1.0 - math.exp(-80.0 * t))
             out[inicio + i] += math.sin(2 * math.pi * freq * t) * env * 0.5
     peak = max(abs(x) for x in out) or 1.0
     return [x / peak * 0.9 for x in out]
@@ -130,16 +124,14 @@ def engranaje() -> list[float]:
     zumbido_freq = 220.0
     for i in range(n):
         t = i / SAMPLE_RATE
-        # Vibrato lento: el mecanismo "arrastra" al girar.
         freq = zumbido_freq * (1.0 + 0.06 * math.sin(2 * math.pi * 3.0 * t))
-        env = math.sin(math.pi * t / duracion) ** 2  # entra y sale sin cortes
+        env = math.sin(math.pi * t / duracion) ** 2
         out[i] += math.sin(2 * math.pi * freq * t) * env * 0.18
 
     dientes = 12
     n_diente = int(SAMPLE_RATE * 0.035)
     for d in range(dientes):
         inicio = int(d * (n - n_diente) / (dientes - 1))
-        # Los ultimos dientes suenan mas flojos: el tambor pierde impulso.
         fuerza = 1.0 - 0.55 * d / (dientes - 1)
         env = _envelope_exp(n_diente, 90.0)
         for i in range(n_diente):
@@ -215,10 +207,9 @@ def calor() -> list[float]:
         t = i / n
         freq = f_inicio + (f_final - f_inicio) * t
         fase += 2 * math.pi * freq / SAMPLE_RATE
-        # Diente de sierra pobre (dos armonicos): mas aspero que un seno.
         onda = math.sin(fase) + 0.45 * math.sin(2 * fase)
         temblor = 0.75 + 0.25 * math.sin(2 * math.pi * 11.0 * i / SAMPLE_RATE)
-        env = math.sin(math.pi * t) ** 0.7  # entra y sale sin cortes
+        env = math.sin(math.pi * t) ** 0.7
         out.append(onda * temblor * env * 0.5)
     return _normalizar(out, 0.75)
 
@@ -275,7 +266,6 @@ def musica_base() -> list[float]:
     n = int(rate * DURACION_MUSICA)
     out = [0.0] * n
 
-    # Bordon: La1 y su quinta, mas un temblor lento de lampara.
     grave = _frecuencia_de_bucle(55.0, DURACION_MUSICA)
     quinta = _frecuencia_de_bucle(82.5, DURACION_MUSICA)
     tremolo = _frecuencia_de_bucle(0.14, DURACION_MUSICA)
@@ -286,13 +276,11 @@ def musica_base() -> list[float]:
         bordon += math.sin(2 * math.pi * quinta * t) * 0.25
         out[i] += bordon * respira
 
-    # Arpegio: La menor -> Fa -> Do -> Sol, dos compases cada acorde en el
-    # bajo y una nota suelta por cada dos pulsos encima.
     acordes = [
-        [220.00, 261.63, 329.63],  # Am
-        [174.61, 220.00, 261.63],  # F
-        [261.63, 329.63, 392.00],  # C
-        [196.00, 246.94, 293.66],  # G
+        [220.00, 261.63, 329.63],
+        [174.61, 220.00, 261.63],
+        [261.63, 329.63, 392.00],
+        [196.00, 246.94, 293.66],
     ]
     pulsos = PULSOS_POR_COMPAS * COMPASES
     for pulso in range(0, pulsos, 2):
@@ -317,7 +305,6 @@ def musica_tension() -> list[float]:
     n = int(rate * DURACION_MUSICA)
     out = [0.0] * n
 
-    # Latido: un golpe grave por pulso, mas fuerte al empezar cada compas.
     n_golpe = int(rate * 0.26)
     env = _envelope_exp(n_golpe, 16.0, rate)
     for pulso in range(PULSOS_POR_COMPAS * COMPASES):
@@ -326,14 +313,11 @@ def musica_tension() -> list[float]:
         for i in range(n_golpe):
             t = i / rate
             ataque = 1.0 - math.exp(-140.0 * t)
-            # El tono cae mientras suena: un latido, no una nota.
             freq = 62.0 * math.exp(-6.0 * t) + 38.0
             onda = math.sin(2 * math.pi * freq * t)
             golpe.append(onda * env[i] * ataque * fuerza * 0.8)
         _sumar_con_vuelta(out, int(pulso * PULSO * rate), golpe)
 
-    # Tritono sostenido (La y Mi bemol), muy bajo y con temblor: no se
-    # escucha como melodia, se nota como desasosiego.
     la = _frecuencia_de_bucle(440.0, DURACION_MUSICA)
     mi_bemol = _frecuencia_de_bucle(622.25, DURACION_MUSICA)
     vaiven = _frecuencia_de_bucle(0.5, DURACION_MUSICA)

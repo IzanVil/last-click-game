@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 
 try:
     from . import estado, jugador, motor, rival, semillas, solver
-except ImportError:  # pragma: no cover - ejecucion como script suelto
+except ImportError:  # pragma: no cover
     import estado  # type: ignore[no-redef,import-not-found]
     import jugador  # type: ignore[no-redef,import-not-found]
     import motor  # type: ignore[no-redef,import-not-found]
@@ -32,19 +32,12 @@ except ImportError:  # pragma: no cover - ejecucion como script suelto
     import semillas  # type: ignore[no-redef,import-not-found]
     import solver  # type: ignore[no-redef,import-not-found]
 
-# Presets, copiados de ruleta.DIFICULTADES pero sin importar la interfaz:
-# este modulo no pinta nada y no deberia arrastrar la terminal entera.
-# terminal/paridad.py ya comprueba que los dos lados no se separen.
 DIFICULTADES = {
     "facil": {"huecos": 10, "marcas": 4},
     "normal": {"huecos": 8, "marcas": 3},
     "dificil": {"huecos": 6, "marcas": 2},
 }
 
-# Tope de disparos por partida. Hace falta porque una politica que
-# deduzca bien NO muere nunca: en cuanto sabe en que hueco esta la bala
-# puede disparar a cualquier otro para siempre. Llegar al tope no es un
-# empate, es una victoria; se cuenta aparte (ver `inmortales`).
 TOPE_DISPAROS = 300
 
 
@@ -55,16 +48,10 @@ class Resultado:
     disparos: int
     dias: int
     murio: bool
-    # El patron que de verdad seguia la bala. Se lee del motor al
-    # terminar (el jugador no lo sabe): sirve para ver si alguno se
-    # delata antes que los demas.
     patron: str
-    # "Acorralada" es que la creencia se quedo con un unico hueco posible.
     disparo_acorralada: int | None
     disparo_patron_unico: int | None
     faroles: int
-    # Si la deduccion se quedo sin estados posibles. Es un fallo, no un
-    # resultado: significaria que el solver y el motor no dicen lo mismo.
     contradiccion: bool
 
 
@@ -85,10 +72,9 @@ class Politica:
     def quiere_farolear(self) -> bool:
         return False
 
-    def elegir_farol(self) -> int:  # pragma: no cover - nunca farolea
+    def elegir_farol(self) -> int:  # pragma: no cover
         return 1
 
-    # La politica base no aprende nada de lo que observa.
     def vio_disparo_fallido(self, hueco: int) -> None: ...
     def vio_clic_metalico(self) -> None: ...
     def vio_pista(self, candidatos: frozenset[int], mentira: bool) -> None: ...
@@ -176,9 +162,6 @@ def jugar_una(
 ) -> Resultado:
     """Juega una partida entera contra el motor y devuelve como acabo."""
     juego = motor.Motor(huecos=huecos, marcas=marcas, rng=semillas.generador(semilla))
-    # La politica sortea con un generador aparte del de la partida: si
-    # compartieran, elegir un hueco al azar cambiaria el tambor y las
-    # dos politicas dejarian de jugar la misma partida.
     politica = politica_cls(huecos, marcas, random.Random(semilla ^ 0x5EED))
 
     acorralada: int | None = None
@@ -204,8 +187,6 @@ def jugar_una(
                 if suceso.tipo == "clic_metalico":
                     politica.vio_clic_metalico()
             elif isinstance(suceso, motor.PistaNueva):
-                # El aviso de tambor caliente llega ANTES que la pista,
-                # asi que a estas alturas ya se sabe si miente.
                 miente = any(
                     isinstance(s, motor.EventoTambor) and s.tipo == "tambor_caliente"
                     for s in sucesos
@@ -219,10 +200,6 @@ def jugar_una(
 
     return Resultado(
         disparos=juego.disparos,
-        # Del jugador y no de estado.dias_sobrevividos(juego.disparos):
-        # el tiro que te mata no cuenta como dia sobrevivido, y eso lo
-        # sabe Jugador.dias. Calcularlo aqui del recuento crudo daba
-        # numeros que el propio juego no reconocia.
         dias=juego.jugadores[0].dias,
         murio=juego.terminada,
         patron=juego.tambor.patron,
@@ -246,10 +223,6 @@ class Informe:
     acorraladas: list[int] = field(default_factory=list)
     patrones: list[int] = field(default_factory=list)
     contradicciones: int = 0
-    # Por patron real de la bala: cuantas partidas le tocaron y, de
-    # esas, en cuantos disparos se acorralo la bala. Hacen falta las
-    # dos: un patron que casi nunca se acorrala saldria con una media
-    # estupenda calculada sobre las cuatro veces que si se pudo.
     partidas_por_patron: dict[str, int] = field(default_factory=dict)
     por_patron: dict[str, list[int]] = field(default_factory=dict)
 
@@ -413,7 +386,7 @@ def _parsear(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def main(argv: list[str] | None = None) -> int:  # pragma: no cover - CLI
+def main(argv: list[str] | None = None) -> int:  # pragma: no cover
     args = _parsear(argv)
     if args.duelos:
         print(tabla_de_duelos(args.duelos))
@@ -422,16 +395,8 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - CLI
     return 0
 
 
-if __name__ == "__main__":  # pragma: no cover - CLI
+if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(main())
-
-
-# --- Duelos: quien gana a quien -----------------------------------------------
-#
-# El rival de la maquina (rival.Rival) es un jugador de duelo completo:
-# observa, decide y sabe cuando plantarse. Asi que para medir si un
-# duelo contra la maquina es jugable basta con sentar a dos niveles
-# frente a frente y contar. No hace falta una politica aparte.
 
 
 def jugar_duelo(

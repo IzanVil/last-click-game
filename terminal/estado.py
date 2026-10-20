@@ -9,13 +9,8 @@ import random
 
 HUECOS = 8
 
-# Cuantos disparos sobrevividos forman un "dia de vida" (el objetivo de la
-# Fase 2: la partida no acaba al perder, se cuenta cuanto se ha aguantado).
 DISPAROS_POR_DIA = 3
 
-# Patrones de movimiento de la bala tras un disparo fallido (que no la
-# encuentra). Se sortea uno al iniciar la partida y se mantiene oculto:
-# el jugador debe deducirlo a partir de las pistas que va recibiendo.
 PATRONES = ("avanza", "retrocede", "salta_dos", "espejo")
 
 

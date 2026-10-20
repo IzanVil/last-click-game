@@ -25,7 +25,7 @@ from dataclasses import dataclass
 
 try:
     from . import motor, solver
-except ImportError:  # pragma: no cover - ejecucion como script suelto
+except ImportError:  # pragma: no cover
     import motor  # type: ignore[no-redef,import-not-found]
     import solver  # type: ignore[no-redef,import-not-found]
 
@@ -36,27 +36,16 @@ NIVELES = ("novato", "templado", "implacable")
 class Caracter:
     """Los tres numeros que distinguen a un nivel de otro."""
 
-    # Riesgo a partir del cual prefiere gastar una marca antes que
-    # disparar. En un duelo marcar CUESTA el turno (a diferencia de la
-    # partida en solitario), asi que no sale gratis.
     umbral_farol: float
-    # Riesgo a partir del cual se retira, pero solo si va ganando:
-    # retirarse perdiendo es regalar la partida.
     umbral_retirada: float
-    # Solo para el novato, que no tiene con que decidir: probabilidad de
-    # plantarse en un turno cualquiera en el que vaya ganando.
     prisa_por_retirarse: float
 
 
 CARACTERES = {
-    # El novato no sabe lo que arriesga, asi que no farolea por miedo ni
-    # calcula cuando plantarse: se planta de vez en cuando, y ya.
     "novato": Caracter(umbral_farol=2.0, umbral_retirada=2.0, prisa_por_retirarse=0.2),
     "templado": Caracter(
         umbral_farol=0.34, umbral_retirada=0.5, prisa_por_retirarse=0.0
     ),
-    # El implacable aguanta mas antes de plantarse porque casi siempre
-    # tiene un hueco de riesgo cero que disparar.
     "implacable": Caracter(
         umbral_farol=0.25, umbral_retirada=0.34, prisa_por_retirarse=0.0
     ),
@@ -92,8 +81,6 @@ class Rival:
         elif nivel == "implacable":
             self.creencia = solver.Creencia(huecos)
 
-    # --- Mirar ---------------------------------------------------------
-
     def observar(
         self, sucesos: list["motor.Suceso"], hueco_disparado: int | None
     ) -> None:
@@ -126,8 +113,6 @@ class Rival:
             elif isinstance(suceso, motor.FarolResuelto):
                 self.creencia.tras_farol(suceso.hueco, suceso.acierto)
 
-    # --- Decidir -------------------------------------------------------
-
     def _riesgo_y_hueco(self) -> tuple[float, int]:
         """El hueco mas seguro que ve y lo que cree arriesgar en el."""
         if self.creencia is None or self.creencia.contradictoria():
@@ -138,9 +123,6 @@ class Rival:
             ]
             elegidos = sin_probar or list(range(1, self.huecos + 1))
             return 1.0 / self.huecos, self.azar.choice(elegidos)
-        # Entre los empatados a riesgo minimo elige al azar: son igual
-        # de seguros, y disparar siempre al mismo le daria un aire de
-        # robot que no tiene por que tener.
         candidatos = self.creencia.huecos_mas_seguros()
         hueco = self.azar.choice(candidatos)
         return self.creencia.riesgo_por_hueco().get(hueco, 1.0), hueco

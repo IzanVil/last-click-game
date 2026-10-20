@@ -1,54 +1,18 @@
 extends SceneTree
-## Genera las capturas de la version grafica que ilustran el README, en
-## docs/img/. No es un test: no comprueba nada, solo juega una partida
-## guionizada y fotografia cada pantalla. Uso:
-##
-##   godot --resolution 1728x1296 --fixed-fps 60 \
-##       --script res://tools/capturas.gd --path 2d
-##
-## Los tres detalles que hacen falta para que las capturas salgan bien:
-##
-## - **--resolution 1728x1296**: la ventana por defecto (1152x864) da
-##   imagenes de 900 px con el panel diminuto en medio. Como el proyecto
-##   escala el lienzo (`stretch/mode=canvas_items`), pedir una ventana mas
-##   grande agranda tambien la interfaz, y el recorte sale nitido.
-## - **--fixed-fps 60**: sin esto, una ventana sin foco avanza a un ritmo
-##   que no es el de los temporizadores de este script, y las capturas
-##   pillan animaciones a medias. Con delta fijo, todo cae donde debe.
-## - **El recorte** al panel de cada pantalla (ver _captura), para que la
-##   imagen no sea cuatro quintas partes de fondo negro.
-##
-## Las capturas se guardan en `user://` (la carpeta de datos del juego, que
-## Godot imprime al arrancar) y de ahi se copian a docs/img/ ya recortadas.
 
 const ESCENA := preload("res://scenes/MainGame.tscn")
 
-## Margen que se deja alrededor del panel al recortar, en unidades de
-## lienzo: lo justo para que se vea el taller detras.
 const MARGEN := 46.0
 
 var _main
 
 
-## Fotografia la ventana y guarda solo el rectangulo del panel `nodo_marco`,
-## con MARGEN alrededor.
-##
-## La conversion no es directa: `get_global_rect()` da unidades de lienzo
-## (las 1152x864 que declara el proyecto) y la imagen esta en pixeles de la
-## ventana, que aqui son mas porque se pide una resolucion mayor. De ahi la
-## escala, y de ahi que el recorte se acote al tamaño de la imagen: un panel
-## pegado al borde daria un rectangulo que se sale.
 func _captura(nombre: String, nodo_marco: Control) -> void:
-	# Sin esto la captura puede pillar el texto a medio teclear: la ventana
-	# de este script no tiene el foco y no avanza al mismo ritmo que los
-	# temporizadores de aqui.
 	for etiqueta in [_main.etiqueta_resultado, _main.fin_resumen, _main.ayuda_texto]:
 		Maquina.completar(etiqueta)
 	await RenderingServer.frame_post_draw
 	await RenderingServer.frame_post_draw
 	var imagen := root.get_texture().get_image()
-	# El lienzo esta escalado (stretch canvas_items): del rectangulo en
-	# unidades de lienzo a pixeles del framebuffer.
 	var escala := Vector2(imagen.get_size()) / root.get_visible_rect().size
 	var caja := nodo_marco.get_global_rect().grow(MARGEN)
 	var recorte := Rect2i(
@@ -82,8 +46,6 @@ func _init() -> void:
 		_main.entrada_numero.text = numero
 		_main._on_disparar_btn_pressed()
 		await create_timer(2.2).timeout
-	# Pistas controladas para que la captura enseñe candidatos encendidos:
-	# "par" e "izquierda" se cruzan en los huecos 2 y 4.
 	_main._estado.pistas_reveladas.clear()
 	_main._estado.pistas_reveladas.append(Pistas.generar_pista(4, 8, -1, "paridad"))
 	_main._estado.pistas_reveladas.append(Pistas.generar_pista(4, 8, -1, "mitad"))
@@ -95,8 +57,6 @@ func _init() -> void:
 
 	_main._on_evento_ocurrido("tambor_caliente", Eventos.texto_de("tambor_caliente"))
 	_main._on_pista_nueva("La bala esta en un hueco par.", [2, 4, 6, 8])
-	# Se deja que el texto acabe de teclearse y se vuelven a lanzar los dos
-	# efectos, que duran menos: asi la captura los pilla a la vez.
 	await create_timer(1.3).timeout
 	_main.fondo_taller.calentar()
 	_main.vineta.resplandor(Paleta.ROJO, 1.6)

@@ -7,7 +7,7 @@ import estado
 class TestMovimientoTambor(unittest.TestCase):
     def test_avanza(self):
         tambor = estado.TamborJuicio(huecos=8, patron="avanza", posicion_inicial=3)
-        tambor.disparar(1)  # falla: no encuentra la bala, que se desplaza
+        tambor.disparar(1)
         self.assertEqual(tambor.posicion_bala, 4)
 
     def test_avanza_da_la_vuelta(self):
@@ -73,8 +73,8 @@ class TestMoverExtra(unittest.TestCase):
 
     def test_se_puede_combinar_con_un_fallo_normal(self):
         tambor = estado.TamborJuicio(huecos=8, patron="avanza", posicion_inicial=3)
-        tambor.disparar(1)  # falla: avanza a 4
-        tambor.mover_extra()  # evento: avanza otra vez a 5
+        tambor.disparar(1)
+        tambor.mover_extra()
         self.assertEqual(tambor.posicion_bala, 5)
 
 

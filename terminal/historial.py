@@ -9,8 +9,6 @@ acciones para que la interfaz pueda mostrarlas en un panel.
 from dataclasses import dataclass, field
 from typing import NamedTuple
 
-# Cuantas acciones recientes se conservan para el panel de la interfaz.
-# Mas no caben en pantalla sin robarle sitio al tambor.
 MAX_ACCIONES = 5
 
 
