@@ -25,8 +25,6 @@ class TestActualizaciones(unittest.TestCase):
     def test_un_disparo_fallido_descarta_el_hueco_y_mueve(self):
         creencia = solver.Creencia(8, patrones=("avanza",))
         creencia.tras_disparo_fallido(3)
-        # Sin el 3, y todo adelantado un paso: el 4 deja de ser posible
-        # porque solo se llegaba a el desde el 3.
         self.assertNotIn(4, creencia.posiciones_posibles())
         self.assertIn(5, creencia.posiciones_posibles())
 
@@ -53,8 +51,6 @@ class TestActualizaciones(unittest.TestCase):
         self.assertNotIn(5, creencia.posiciones_posibles())
 
     def test_un_farol_fallido_clava_la_posicion(self):
-        # Fallar un farol es malo para el bolsillo y buenisimo para la
-        # deduccion: dice exactamente donde esta la bala.
         creencia = solver.Creencia(8)
         creencia.tras_farol(5, acierto=False)
         self.assertEqual(creencia.posiciones_posibles(), {5})
@@ -73,8 +69,6 @@ class TestElecciones(unittest.TestCase):
         self.assertIn(creencia.hueco_mas_probable(), {2, 4})
 
     def test_los_empates_se_rompen_siempre_igual(self):
-        # Da igual cual se elija, pero elegir siempre el mismo es lo que
-        # permite que dos politicas jueguen el mismo tambor.
         uno = solver.Creencia(8).hueco_mas_seguro()
         otro = solver.Creencia(8).hueco_mas_seguro()
         self.assertEqual(uno, otro)
@@ -157,9 +151,6 @@ class TestContraElMotor(unittest.TestCase):
 
 class TestPistasMentirosasDeVerdad(unittest.TestCase):
     def test_el_complemento_de_una_mentira_cubre_la_posicion_real(self):
-        # Se generan pistas mentirosas de verdad (no a mano) para cada
-        # tipo y posicion, y se comprueba que quedarse con lo contrario
-        # nunca descarta donde esta la bala.
         for huecos in (6, 8, 10):
             for posicion in range(1, huecos + 1):
                 for ultimo in [None, *range(1, huecos + 1)]:

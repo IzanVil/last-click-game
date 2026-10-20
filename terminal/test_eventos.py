@@ -27,7 +27,6 @@ class TestTirarEvento(unittest.TestCase):
         self.assertIn(evento, eventos.TIPOS_EVENTO)
 
     def test_limite_no_es_evento(self):
-        # random() == probabilidad no debe contar como "por debajo".
         rng = FakeRng(0.25)
         self.assertIsNone(eventos.tirar_evento(probabilidad=0.25, rng=rng))
 

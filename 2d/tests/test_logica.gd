@@ -1,18 +1,5 @@
 extends SceneTree
-## Smoke test headless de la logica pura de "El Tambor del Juicio" en
-## Godot (TamborJuicio, Pistas, Apuesta, Farol, Eventos, Historial,
-## Records, Dificultad, Jugador, RuletaEstado). Es el equivalente en
-## GDScript a `terminal/test_*.py`: no hay framework de tests instalado
-## en el proyecto (ni GUT ni nada similar), así que este script hace de
-## arnes minimo, pensado para correr en CI vía:
-##
-##   godot --headless --script res://tests/test_logica.gd --path 2d
-##
-## Sale con exit code 0 si todo pasa, 1 si algo falla (y lo imprime).
 
-## Los tests de Records escriben de verdad en disco: se usa una ruta
-## aparte de la real (Records.RUTA_POR_DEFECTO) para no pisar los
-## records de quien ejecute los tests, y se borra al terminar.
 const RUTA_RECORDS_TEST := "user://test_records_tmp.json"
 const RUTA_AJUSTES_TEST := "user://test_ajustes_tmp.json"
 const RUTA_DIARIO_TEST := "user://test_diario_tmp.json"
@@ -20,10 +7,6 @@ const RUTA_DIARIO_TEST := "user://test_diario_tmp.json"
 var _fallos: Array[String] = []
 
 
-## Lanza todos los tests y sale con el codigo que espera la CI: 0 si todo
-## pasa, 1 si algo falla. No para en el primer fallo a proposito —los
-## acumula en `_fallos` y los imprime juntos— para que un cambio que rompa
-## tres cosas se vea entero de una pasada.
 func _init() -> void:
 	_test_tambor_juicio_movimiento()
 	_test_tambor_juicio_disparo()
@@ -78,7 +61,7 @@ func _test_tambor_juicio_movimiento() -> void:
 	]
 	for caso in casos:
 		var tambor := TamborJuicio.new(8, caso[0], caso[1])
-		tambor.disparar(1 if caso[1] != 1 else 2)  # falla a proposito
+		tambor.disparar(1 if caso[1] != 1 else 2)
 		_afirmar_igual(
 			tambor.posicion_bala, caso[2], "movimiento '%s' desde %d" % [caso[0], caso[1]]
 		)
@@ -95,8 +78,8 @@ func _test_tambor_juicio_disparo() -> void:
 	_afirmar_igual(otro.historial, [1], "historial registra el disparo")
 
 	var extra := TamborJuicio.new(8, "avanza", 3)
-	extra.disparar(1)  # avanza a 4
-	extra.mover_extra()  # avanza otra vez a 5
+	extra.disparar(1)
+	extra.mover_extra()
 	_afirmar_igual(extra.posicion_bala, 5, "mover_extra desplaza fuera de un disparo")
 
 
@@ -117,11 +100,6 @@ func _test_pistas_candidatos() -> void:
 	)
 
 
-## La bala se mueve DESPUES de un disparo fallido, asi que puede acabar
-## justo en el hueco recien probado: con el patron "avanza" basta con
-## disparar un hueco por delante de ella. El codigo daba ese caso por
-## imposible. Espejo de TestRelativaCuandoLaBalaCaeEnElUltimoDisparo en
-## terminal/test_pistas.py.
 func _test_pista_relativa_sobre_el_ultimo_disparo() -> void:
 	var tambor := TamborJuicio.new(8, "avanza", 3)
 	_afirmar(not tambor.disparar(4), "disparar al 4 con la bala en el 3 no impacta")
@@ -136,23 +114,17 @@ func _test_pista_relativa_sobre_el_ultimo_disparo() -> void:
 	)
 	_afirmar_igual(veraz.candidatos, [4], "la pista veraz senala el hueco exacto")
 
-	# Antes esta rama ignoraba `mentir`, asi que un evento
-	# "tambor_caliente" regalaba la posicion exacta en vez de enganiar.
 	var mentira := Pistas.generar_pista(4, 8, 4, "relativa", true)
 	_afirmar(mentira.texto.find("justo donde") == -1, "mintiendo no revela el hueco exacto")
 	_afirmar(not mentira.candidatos.has(4), "el hueco real no esta entre los candidatos")
 	_afirmar(not mentira.candidatos.is_empty(), "la mentira afirma algo, no el conjunto vacio")
 
-	# Disparando al hueco 1 no hay "izquierda" posible: mentir hacia ese
-	# lado daria una pista con cero candidatos, que se delata sola.
 	var en_el_borde := Pistas.generar_pista(1, 8, 1, "relativa", true)
 	_afirmar(
 		en_el_borde.texto.find("derecha") != -1, "en el borde se miente hacia el lado que existe"
 	)
 	_afirmar(not en_el_borde.candidatos.is_empty(), "y esa mentira tiene candidatos")
 
-	# El hueco disparado no esta "a la derecha" de si mismo: la rama
-	# derecha usaba h >= ultimo_disparo y lo colaba entre los candidatos.
 	var derecha := Pistas.generar_pista(7, 8, 5, "relativa")
 	_afirmar_igual(derecha.candidatos, [6, 7, 8], "los candidatos a la derecha excluyen el disparo")
 
@@ -213,9 +185,6 @@ func _test_historial() -> void:
 	_afirmar(texto.find("1 evento del tambor") != -1, "resumen cuenta los eventos")
 
 
-## Ejercita RuletaEstado (el orquestador con señales) de punta a punta,
-## en vez de solo sus piezas, para pillar errores de cableado entre
-## señales que las pruebas unitarias de arriba no verian.
 func _test_ruleta_estado_flujo_completo() -> void:
 	var juego := RuletaEstado.new()
 
@@ -237,14 +206,8 @@ func _test_ruleta_estado_flujo_completo() -> void:
 	juego.iniciar_juego(8)
 	_afirmar_igual(juego.disparos, 0, "iniciar_juego arranca en 0 disparos")
 
-	# Desactivamos los eventos aleatorios para este test: uno de tipo
-	# "clic_metalico" podria mover la bala un paso de mas y hacerla
-	# coincidir con el siguiente disparo de la secuencia fija de abajo,
-	# lo que la volveria intermitente (ver probabilidad_eventos).
 	juego.probabilidad_eventos = 0.0
 
-	# Forzamos una bala que nunca esta en 1..7 para poder disparar 3
-	# veces sin morir y comprobar el dia completo de forma deterministica.
 	juego.tambor = TamborJuicio.new(8, "avanza", 8)
 	for numero in [1, 2, 3]:
 		juego.disparar(numero)
@@ -261,12 +224,6 @@ func _test_ruleta_estado_flujo_completo() -> void:
 		_afirmar_igual(retiradas[0]["dias"], 1, "retirarse informa de los dias sobrevividos")
 
 
-## Azar.nueva() se prueba con muchas muestras y mirando cuantas SALEN
-## DISTINTAS, no con una sola: la forma evidente de escribirlo
-## -- randi_range(0, MAXIMO) -- desborda el int de 32 bits de Godot y
-## devuelve siempre 0 o -1. Con una muestra el test fallaria una de cada
-## dos veces (flaky), y un "salen al menos dos distintas" lo daria por
-## bueno, porque 0 y -1 ya son dos.
 func _test_azar() -> void:
 	_afirmar_igual(Azar.parsear("4242"), 4242, "parsear lee una semilla escrita")
 	_afirmar_igual(Azar.parsear("  4242  "), 4242, "parsear ignora los espacios")
@@ -298,11 +255,6 @@ func _test_azar() -> void:
 	_afirmar(iguales, "la misma semilla da la misma secuencia")
 
 
-## Juega dos partidas con la misma semilla y el mismo guion de disparos
-## y compara lo que salio: patron, posicion inicial, pistas y eventos.
-## Es el equivalente de TestSemillaRepetible en terminal/test_ruleta.py:
-## un sorteo nuevo que manana se anada sin pasarle el generador de la
-## partida rompe aqui.
 func _test_partida_repetible() -> void:
 	var primera := _cronica_de_partida(4242)
 	_afirmar_igual(_cronica_de_partida(4242), primera, "la misma semilla juega la misma partida")
@@ -313,9 +265,6 @@ func _test_partida_repetible() -> void:
 			distintas = true
 	_afirmar(distintas, "semillas distintas juegan partidas distintas")
 
-	# Se exigen casi todas distintas y no "mas de una": con "mas de una"
-	# bastaba con que el sorteo alternase entre dos valores, que es
-	# justo lo que hacia randi_range(0, MAXIMO).
 	var sorteadas := {}
 	for i in range(50):
 		var juego := RuletaEstado.new()
@@ -327,9 +276,6 @@ func _test_partida_repetible() -> void:
 	)
 
 
-## Todo lo observable de una partida jugada con un guion fijo de disparos.
-## Los eventos NO se desactivan aqui (al reves que en el resto de tests):
-## son justo uno de los sorteos que la semilla tiene que fijar.
 func _cronica_de_partida(semilla: int) -> Array:
 	var juego := RuletaEstado.new()
 	var cronica: Array = []
@@ -346,15 +292,12 @@ func _cronica_de_partida(semilla: int) -> Array:
 	cronica.append(juego.tambor.patron)
 	cronica.append(juego.tambor.posicion_bala)
 	for numero: int in [1, 2, 3, 4, 5, 6]:
-		# Una vez muerta la partida no se sigue disparando: el tambor ya
-		# no tiene nada que decir y `disparar` volveria a mover la bala.
 		if muerto[0]:
 			break
 		juego.disparar(numero)
 	return cronica
 
 
-## El reto del dia: semilla, mejor intento y racha.
 func _test_diario() -> void:
 	var ayer := {"year": 2026, "month": 9, "day": 24}
 	var hoy := {"year": 2026, "month": 9, "day": 25}
@@ -364,8 +307,6 @@ func _test_diario() -> void:
 	_afirmar(Diario.semilla_de(hoy) <= Azar.MAXIMO, "la semilla del dia cabe en el rango")
 	_afirmar(Diario.semilla_de(ayer) != Diario.semilla_de(hoy), "cada dia es otro reto")
 
-	# Se queda con el MEJOR intento del dia, no con el primero ni el
-	# ultimo: mandan los dias y, a igualdad, los puntos.
 	var diario := Diario.new()
 	diario.registrar(2, 400, "2026-09-25")
 	diario.registrar(1, 9999, "2026-09-25")
@@ -375,7 +316,6 @@ func _test_diario() -> void:
 	diario.registrar(3, 100, "2026-09-25")
 	_afirmar_igual(diario.resultados["2026-09-25"]["dias"], 3, "mas dias siempre pisa")
 
-	# Racha: dias seguidos hacia atras desde hoy.
 	var racha := Diario.new()
 	_afirmar_igual(racha.racha(hoy), 0, "sin jugar nada, racha 0")
 	racha.registrar(1, 100, "2026-09-25")
@@ -383,24 +323,19 @@ func _test_diario() -> void:
 	racha.registrar(1, 100, "2026-09-23")
 	_afirmar_igual(racha.racha(hoy), 3, "tres dias seguidos")
 
-	# Un hueco la corta: el 21 no cuenta porque falta el 22.
 	racha.registrar(1, 100, "2026-09-21")
 	_afirmar_igual(racha.racha(hoy), 3, "un dia saltado corta la racha")
 
-	# Si hoy aun no se ha jugado, la racha se mide desde ayer: estar a
-	# media mañana sin entrar no deberia borrar lo anterior.
 	var pendiente := Diario.new()
 	pendiente.registrar(1, 100, "2026-09-24")
 	pendiente.registrar(1, 100, "2026-09-23")
 	_afirmar_igual(pendiente.racha(hoy), 2, "hoy sin jugar no rompe la racha")
 	_afirmar(not pendiente.resultados.has(Diario.clave_de(hoy)), "y sigue sin jugarse")
 
-	# Ida y vuelta a disco.
 	diario.guardar(RUTA_DIARIO_TEST)
 	var leido := Diario.cargar(RUTA_DIARIO_TEST)
 	_afirmar_igual(leido.resultados, diario.resultados, "el diario sobrevive al viaje a disco")
 
-	# Un archivo corrupto no debe impedir jugar.
 	var roto := FileAccess.open(RUTA_DIARIO_TEST, FileAccess.WRITE)
 	roto.store_string("{ esto no es json")
 	roto.close()
@@ -435,8 +370,6 @@ func _test_dificultad() -> void:
 	_afirmar_igual(Dificultad.huecos_de("dificil"), 6, "dificil son 6 huecos")
 	_afirmar_igual(Dificultad.marcas_de("dificil"), 2, "dificil son 2 marcas")
 
-	# El preset normal no repite numeros a mano: sale de las constantes
-	# que ya usaba el juego antes de existir la dificultad configurable.
 	_afirmar_igual(
 		Dificultad.huecos_de("normal"), RuletaEstado.HUECOS, "normal usa los huecos por defecto"
 	)
@@ -452,7 +385,6 @@ func _test_records() -> void:
 		"sin partidas jugadas el resumen lo dice"
 	)
 
-	# Los maximos suben, pero nunca bajan; los acumulados suman siempre.
 	var records := Records.new()
 	records.registrar_partida(5, 800, 1, 1)
 	records.registrar_partida(2, 100, 1, 0)
@@ -470,7 +402,6 @@ func _test_records() -> void:
 	_afirmar(texto.find("1/2") != -1, "el resumen incluye los faroles acertados/usados")
 	_afirmar(texto.find("50%") != -1, "el resumen incluye el porcentaje de acierto")
 
-	# Sin faroles el porcentaje no puede dividir por cero.
 	var sin_faroles := Records.new()
 	sin_faroles.registrar_partida(1, 100, 0, 0)
 	_afirmar(sin_faroles.resumen().find("0/0") != -1, "sin faroles no divide por cero")
@@ -479,8 +410,6 @@ func _test_records() -> void:
 	_test_records_en_disco(records)
 
 
-## La tabla de mejores partidas: ordenada por dias y, a empate, por puntos
-## (el mismo criterio que decide un duelo), y recortada a MAX_MEJORES.
 func _test_mejores_marcas() -> void:
 	var records := Records.new()
 	for caso in [[1, 100], [5, 200], [5, 900], [3, 400]]:
@@ -496,7 +425,6 @@ func _test_mejores_marcas() -> void:
 		"cada marca guarda su fecha (AAAA-MM-DD)",
 	)
 
-	# Solo caben MAX_MEJORES: la peor se cae al entrar una mejor.
 	for i in range(Records.MAX_MEJORES + 3):
 		records.registrar_partida(9, 1000 + i, 0, 0)
 	_afirmar_igual(records.mejores.size(), Records.MAX_MEJORES, "la tabla no crece sin limite")
@@ -504,8 +432,6 @@ func _test_mejores_marcas() -> void:
 
 
 func _test_records_en_disco(records: Records) -> void:
-	# Un archivo que no existe todavia (primera partida de siempre) no es
-	# un error: devuelve records vacios.
 	_borrar_records_test()
 	var inexistente := Records.cargar(RUTA_RECORDS_TEST)
 	_afirmar_igual(inexistente.partidas_jugadas, 0, "cargar sin archivo devuelve records vacios")
@@ -525,15 +451,10 @@ func _test_records_en_disco(records: Records) -> void:
 	_afirmar_igual(recargados.dias_maximos, records.dias_maximos, "recarga los dias maximos")
 	_afirmar_igual(recargados.puntos_maximos, records.puntos_maximos, "recarga los puntos maximos")
 	_afirmar_igual(recargados.faroles_usados, records.faroles_usados, "recarga los faroles usados")
-	# Un JSON devuelve los numeros como float. Esto fija el contrato de
-	# que, pese a ello, los campos recargados son enteros (hoy lo
-	# garantizan por partida doble el int() de cargar() y el tipo
-	# estatico de los campos, que convierte al asignar).
 	_afirmar(
 		typeof(recargados.dias_maximos) == TYPE_INT, "los numeros recargados son enteros, no floats"
 	)
 
-	# Un archivo corrupto tampoco debe impedir jugar.
 	var archivo := FileAccess.open(RUTA_RECORDS_TEST, FileAccess.WRITE)
 	archivo.store_string("esto no es json valido {{{")
 	archivo.close()
@@ -543,7 +464,6 @@ func _test_records_en_disco(records: Records) -> void:
 		"un archivo corrupto devuelve records vacios"
 	)
 
-	# Ni un JSON valido que no sea un objeto.
 	var archivo2 := FileAccess.open(RUTA_RECORDS_TEST, FileAccess.WRITE)
 	archivo2.store_string("[1, 2, 3]")
 	archivo2.close()
@@ -553,8 +473,6 @@ func _test_records_en_disco(records: Records) -> void:
 		"un JSON que no es un objeto devuelve records vacios"
 	)
 
-	# Claves desconocidas (p. ej. de una version futura) se ignoran sin
-	# romper las que si se entienden.
 	var archivo3 := FileAccess.open(RUTA_RECORDS_TEST, FileAccess.WRITE)
 	archivo3.store_string('{"dias_maximos": 3, "campo_futuro": "x"}')
 	archivo3.close()
@@ -596,20 +514,14 @@ func _test_ajustes() -> void:
 	_afirmar(not recargados.sonido, "recarga el sonido apagado")
 	_afirmar(absf(recargados.volumen_musica - 0.25) < 0.001, "recarga el volumen de la musica")
 
-	# Un archivo escrito a mano puede traer cualquier cosa: los booleanos y
-	# los volumenes se leen con el tipo del campo, y estos ultimos ademas
-	# acotados a [0, 1] (un bus no acepta un volumen de 7).
 	var archivo_raro := FileAccess.open(RUTA_AJUSTES_TEST, FileAccess.WRITE)
 	archivo_raro.store_string('{"volumen_efectos": 7, "sonido": 1}')
 	archivo_raro.close()
 	var raros := Ajustes.cargar(RUTA_AJUSTES_TEST)
 	_afirmar_igual(raros.volumen_efectos, 1.0, "un volumen fuera de rango se acota")
 	_afirmar(raros.sonido, "y un 1 se lee como un si")
-	# Un JSON devuelve true/false como bool, pero el contrato es el mismo
-	# que en Records: lo recargado tiene el tipo del campo, no el del JSON.
 	_afirmar(typeof(recargados.efectos_reducidos) == TYPE_BOOL, "lo recargado son booleanos")
 
-	# Un archivo corrupto no debe impedir jugar: se vuelve a los de fabrica.
 	var archivo := FileAccess.open(RUTA_AJUSTES_TEST, FileAccess.WRITE)
 	archivo.store_string("esto no es json valido {{{")
 	archivo.close()
@@ -630,17 +542,15 @@ func _test_jugador_ganadores() -> void:
 	var ana := Jugador.new("Ana", Apuesta.new(100), Farol.new())
 	var beto := Jugador.new("Beto", Apuesta.new(100), Farol.new())
 
-	# Sobrevivir mas dias manda, aunque el otro tenga mas puntos.
-	ana.disparos = 6  # 2 dias
+	ana.disparos = 6
 	ana.puntos_finales = 300
-	beto.disparos = 3  # 1 dia
+	beto.disparos = 3
 	beto.puntos_finales = 900
 	var ganadores := Jugador.ganadores([ana, beto])
 	_afirmar_igual(ganadores.size(), 1, "gana uno solo cuando hay mas dias")
 	if ganadores.size() == 1:
 		_afirmar_igual(ganadores[0].nombre, "Ana", "gana quien sobrevivio mas dias")
 
-	# Con los mismos dias, desempatan los puntos.
 	ana.disparos = 3
 	ana.puntos_finales = 400
 	beto.puntos_finales = 900
@@ -651,15 +561,12 @@ func _test_jugador_ganadores() -> void:
 			ganadores[0].nombre, "Beto", "con los mismos dias gana quien tiene mas puntos"
 		)
 
-	# Mismos dias y mismos puntos: empate de verdad, sin ganador unico.
 	ana.puntos_finales = 900
 	_afirmar_igual(Jugador.ganadores([ana, beto]).size(), 2, "empate total deja dos ganadores")
 
 	_afirmar(Jugador.ganadores([]).is_empty(), "sin jugadores no hay ganadores")
 
 
-## Ejercita un duelo entero por señales: turnos alternos, tambor y pistas
-## compartidos, y el veredicto al terminar.
 func _test_duelo_flujo_completo() -> void:
 	var juego := RuletaEstado.new()
 
@@ -679,30 +586,26 @@ func _test_duelo_flujo_completo() -> void:
 	_afirmar_igual(juego.jugador_activo.nombre, "Ana", "empieza el primer jugador")
 
 	juego.probabilidad_eventos = 0.0
-	juego.tambor = TamborJuicio.new(8, "avanza", 8)  # la bala nunca esta en 1..7
+	juego.tambor = TamborJuicio.new(8, "avanza", 8)
 
-	juego.disparar(1)  # Ana sobrevive
+	juego.disparar(1)
 	_afirmar_igual(juego.jugador_activo.nombre, "Beto", "tras disparar pasa el turno")
 	_afirmar_igual(turnos, ["Beto"] as Array[String], "el cambio de turno se anuncia")
 
-	juego.disparar(2)  # Beto sobrevive
+	juego.disparar(2)
 	_afirmar_igual(juego.jugador_activo.nombre, "Ana", "el turno vuelve al primero")
 
-	# Cada jugador lleva su propia apuesta y sus propios disparos...
 	_afirmar_igual(juego.jugadores[0].disparos, 1, "Ana lleva un disparo")
 	_afirmar_igual(juego.jugadores[1].disparos, 1, "Beto lleva un disparo")
 	_afirmar_igual(juego.jugadores[0].apuesta.en_juego, 200, "Ana doblo su apuesta")
 	_afirmar_igual(juego.jugadores[1].apuesta.en_juego, 200, "Beto doblo la suya, aparte")
-	# ...pero el tambor y sus pistas son compartidos.
 	_afirmar_igual(juego.pistas_reveladas.size(), 2, "las pistas de ambos van al mismo monton")
 
-	# Marcar tambien consume turno, y solo gasta las marcas de quien marca.
 	juego.marcar(3)
 	_afirmar_igual(juego.jugadores[0].farol.marcas_restantes, 2, "marcar gasta la marca de Ana")
 	_afirmar_igual(juego.jugadores[1].farol.marcas_restantes, 3, "las marcas de Beto no se tocan")
 	_afirmar_igual(juego.jugador_activo.nombre, "Beto", "marcar tambien pasa el turno")
 
-	# Beto se retira: el duelo acaba ahi, Ana no sigue jugando sola.
 	juego.retirarse()
 	_afirmar_igual(duelos_terminados.size(), 1, "retirarse termina el duelo")
 	if duelos_terminados.is_empty():
@@ -711,16 +614,12 @@ func _test_duelo_flujo_completo() -> void:
 	var jugadores: Array = duelos_terminados[0]["jugadores"]
 	var ganadores: Array = duelos_terminados[0]["ganadores"]
 	_afirmar_igual(jugadores[1].puntos_finales, 200, "quien se retira cobra lo que tenia en juego")
-	# Ana no llego a jugar su ultimo turno: ni perdio ni cobro, se queda
-	# con lo que tuviera en juego (200 doblados + 50 del farol acertado).
 	_afirmar_igual(jugadores[0].puntos_finales, 250, "el rival congela los puntos que tenia")
 	_afirmar_igual(ganadores.size(), 1, "con puntos distintos hay un unico ganador")
 	if ganadores.size() == 1:
 		_afirmar_igual(ganadores[0].nombre, "Ana", "gana quien acabo con mas puntos")
 
 
-## Una partida en solitario es un duelo de un jugador: ni emite
-## turno_cambiado ni duelo_terminado, y los atajos apuntan al unico que hay.
 func _test_solitario_no_es_duelo() -> void:
 	var juego := RuletaEstado.new()
 	var turnos := 0

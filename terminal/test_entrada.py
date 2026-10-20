@@ -205,10 +205,6 @@ class TestSeleccionarTeclasRaras(unittest.TestCase):
             return entrada.seleccionar(huecos, pintar=lambda _hueco: None)
 
     def test_un_superindice_no_tumba_la_seleccion(self):
-        # "²" y "³" salen con AltGr+2/3 en varias distribuciones de
-        # teclado. str.isdigit() los da por buenos pero int() no sabe
-        # leerlos: pulsarlos aqui reventaba con un ValueError. Deben
-        # ignorarse como cualquier otra tecla que no interesa.
         self.assertEqual(self._seleccionar_con(["²", "³", "4", entrada.ENTER]), 4)
 
     def test_los_digitos_normales_siguen_saltando_al_hueco(self):

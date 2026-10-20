@@ -61,9 +61,6 @@ class TestCoberturaDeLaTabla(unittest.TestCase):
         self.assertEqual(sin_disparo, [])
 
     def test_incluye_el_caso_de_la_bala_en_el_ultimo_disparo(self):
-        # Es el que destapo las dos divergencias de Pistas.gd; si se
-        # cayera de la tabla, la tabla dejaria de servir para lo que se
-        # hizo.
         caso = next(
             c
             for c in self.tabla["pistas"]

@@ -28,10 +28,6 @@ class TestMurio(unittest.TestCase):
         self.assertEqual(caido.dias, 0)
 
     def test_quien_abre_ya_no_gana_solo_por_haber_disparado_mas(self):
-        # Es el caso que rompia el duelo: en un duelo por turnos, el que
-        # abre siempre ha disparado al menos tantas veces como el otro
-        # cuando la partida se cierra. Si su tiro fatal contase como dia
-        # sobrevivido, no podria perder nunca.
         caido = _jugador("Ana", disparos=3, puntos=0)
         caido.murio = True
         vivo = _jugador("Bea", disparos=2, puntos=400)

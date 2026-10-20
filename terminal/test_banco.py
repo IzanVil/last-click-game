@@ -16,9 +16,6 @@ class TestJugarUna(unittest.TestCase):
         self.assertFalse(resultado.contradiccion)
 
     def test_el_tiro_fatal_no_cuenta_como_dia_en_el_banco(self):
-        # El banco calculaba los dias del recuento crudo de disparos, un
-        # numero que el propio juego no reconoce: morir en el tercer tiro
-        # no es un dia sobrevivido.
         partidas = [
             banco.jugar_una(banco.Politica, 8, 3, semilla=s, tope=40) for s in range(60)
         ]
@@ -33,9 +30,6 @@ class TestJugarUna(unittest.TestCase):
         self.assertEqual(una, otra)
 
     def test_las_dos_politicas_juegan_el_mismo_tambor(self):
-        # Es lo que hace justa la comparacion: el azar de la politica
-        # sale de un generador aparte del de la partida, asi que elegir
-        # huecos distintos no cambia el tambor que toco.
         azar = banco.jugar_una(banco.Politica, 8, 3, semilla=11, tope=20)
         deduce = banco.jugar_una(banco.Deductiva, 8, 3, semilla=11, tope=20)
         self.assertEqual(azar.patron, deduce.patron)
@@ -116,9 +110,6 @@ class TestDeducirEsMejorQueElAzar(unittest.TestCase):
         azar = banco.correr("normal", "azar", 60, tope=40)
         deduce = banco.correr("normal", "deduce", 60, tope=40)
         self.assertGreater(deduce.dias_medios, azar.dias_medios * 2)
-        # Al azar tambien le puede tocar sobrevivir de chiripa (con este
-        # tope pasa alguna vez de cada cien), asi que se compara la
-        # proporcion y no se exige un cero.
         self.assertGreater(deduce.porcentaje_inmortal, azar.porcentaje_inmortal * 5)
 
     def test_farolear_acorrala_antes_que_no_hacerlo(self):
@@ -140,8 +131,6 @@ class TestInforme(unittest.TestCase):
         self.assertEqual(banco._medio(3.14), "3.1")
 
     def test_sin_datos_por_patron_no_se_imprime_la_tabla(self):
-        # Le pasa a la politica del azar: nunca acorrala, asi que no hay
-        # nada que desglosar por patron.
         vacio = banco.Informe("normal", "azar", 10)
         self.assertEqual(banco._tabla_patrones(vacio), [])
 
@@ -168,16 +157,12 @@ class TestDuelos(unittest.TestCase):
         self.assertEqual(uno, otro)
 
     def test_deducir_gana_al_que_no_deduce(self):
-        # Lo unico que hace util la tabla: si el nivel no cambiara el
-        # resultado, no estaria midiendo nada.
         victorias = sum(
             banco.jugar_duelo("implacable", "novato", 8, 3, i) == "a" for i in range(60)
         )
         self.assertGreater(victorias, 30)
 
     def test_en_un_tambor_diminuto_alguien_se_planta(self):
-        # Con tres huecos el riesgo minimo es 1/3 y los umbrales de
-        # retirada entran en juego; en uno de ocho casi nunca aprietan.
         veredictos = {
             banco.jugar_duelo("implacable", "templado", 3, 2, i) for i in range(40)
         }

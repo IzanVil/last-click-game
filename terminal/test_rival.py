@@ -63,8 +63,6 @@ class TestObservar(unittest.TestCase):
         self.assertEqual(bot.creencia.posiciones_posibles(), {1, 3, 5, 7})
 
     def test_un_farol_ajeno_tambien_enseña(self):
-        # El tambor es compartido: lo que descubre el de enfrente al
-        # marcar vale igual para la maquina.
         bot = _rival("implacable")
         bot.observar([motor.FarolResuelto(5, False, 100, 2, 0)], None)
         self.assertEqual(bot.creencia.posiciones_posibles(), {5})
@@ -78,25 +76,18 @@ class TestDecidir(unittest.TestCase):
         self.assertEqual(accion, "disparar")
         self.assertNotEqual(hueco, 2)
 
-    # Los tres siguientes usan tambores diminutos a proposito. En uno
-    # de ocho huecos, estrechar la creencia a dos posiciones deja los
-    # otros SEIS a riesgo cero, asi que disparar siempre es lo correcto
-    # y no hay decision que probar. El riesgo solo aprieta de verdad
-    # cuando la bala puede estar en cualquier hueco de los que hay.
-
     def test_se_planta_si_va_ganando_y_el_riesgo_aprieta(self):
-        bot = _rival("implacable", huecos=2)  # 50% en cada hueco
+        bot = _rival("implacable", huecos=2)
         accion, _ = bot.decidir(mis_dias=2, mis_puntos=800, sus_dias=1, sus_puntos=100)
         self.assertEqual(accion, "retirarse")
 
     def test_no_se_planta_si_va_perdiendo(self):
-        # Retirarse perdiendo es regalar el duelo: prefiere arriesgar.
         bot = _rival("implacable", huecos=2)
         accion, _ = bot.decidir(mis_dias=0, mis_puntos=100, sus_dias=2, sus_puntos=800)
         self.assertIn(accion, ("disparar", "marcar"))
 
     def test_gasta_una_marca_cuando_el_riesgo_aprieta_y_va_perdiendo(self):
-        bot = _rival("implacable", huecos=3)  # 33% en cada hueco
+        bot = _rival("implacable", huecos=3)
         accion, _ = bot.decidir(0, 100, 5, 9000)
         self.assertEqual(accion, "marcar")
         self.assertEqual(bot.marcas, 2)
@@ -124,7 +115,6 @@ class TestVaGanando(unittest.TestCase):
         self.assertFalse(rival.Rival._va_ganando(1, 100, 1, 800))
 
     def test_el_empate_total_cuenta_como_ir_ganando(self):
-        # Si el duelo se cierra ahora mismo, un empate no se pierde.
         self.assertTrue(rival.Rival._va_ganando(1, 400, 1, 400))
 
 

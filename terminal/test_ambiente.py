@@ -100,18 +100,12 @@ class TestEpilogo(unittest.TestCase):
 
 class TestCartelQueNoSeDescuadra(unittest.TestCase):
     def test_un_texto_largo_se_reparte_en_varias_lineas(self):
-        # str.center() devuelve la cadena intacta cuando ya es mas larga
-        # que el ancho pedido, asi que un texto largo se salia del marco
-        # y dejaba esa linea mas ancha que el resto.
         texto = "palabra " * 12
         lineas = ambiente.cartel("TITULO", texto.strip())
         self.assertEqual(len({len(linea) for linea in lineas}), 1, lineas)
-        self.assertGreater(len(lineas), 7)  # el texto ocupa varias lineas
+        self.assertGreater(len(lineas), 7)
 
     def test_los_carteles_de_evento_reales_cuadran(self):
-        # Es el caso que fallaba de verdad: los textos de evento miden
-        # ~53 caracteres frente a los 46 de ANCHO_CARTEL, y el cartel de
-        # evento aparece muy a menudo durante la partida.
         for tipo in eventos.TIPOS_EVENTO:
             with self.subTest(tipo=tipo):
                 lineas = ambiente.cartel_evento(tipo, eventos.texto_de(tipo))

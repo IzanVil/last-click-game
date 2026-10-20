@@ -47,7 +47,7 @@ try:
         ruleta,
         semillas,
     )
-except ImportError:  # pragma: no cover - ejecucion como script suelto
+except ImportError:  # pragma: no cover
     import apuestas  # type: ignore[no-redef,import-not-found]
     import estado  # type: ignore[no-redef,import-not-found]
     import eventos  # type: ignore[no-redef,import-not-found]
@@ -60,16 +60,7 @@ except ImportError:  # pragma: no cover - ejecucion como script suelto
 
 FORMATO = 4
 
-# Tamaños de tambor que se recorren enteros. No hace falta probarlos
-# todos: 6/8/10 son los tres presets de dificultad, y entre un par y un
-# impar ya se cubren las dos formas de partir el tambor por la mitad.
 HUECOS_PROBADOS = (6, 8, 10)
-
-# La apuesta base, el bono del farol y los presets de dificultad viven
-# hoy en ruleta.py (el modulo de interfaz) porque es quien los consume:
-# los dos primeros para pintarlos y el tercero para argparse. Este
-# modulo los lee de ahi en vez de copiarlos, que es justo el error que
-# viene a cazar: una copia se desincroniza en silencio.
 
 
 def ruta_por_defecto() -> Path:
@@ -97,11 +88,6 @@ def _constantes() -> dict:
         "apuesta_base": ruleta.APUESTA_BASE,
         "bono_marca_acertada": ruleta.BONO_MARCA_ACERTADA,
         "max_acciones": historial.MAX_ACCIONES,
-        # El rango de semillas tiene que ser el mismo en las dos
-        # versiones para que un numero apuntado en una se pueda teclear
-        # en la otra. El generador NO lo es (Mersenne Twister contra
-        # PCG32), asi que la misma semilla no da la misma partida entre
-        # versiones -- pero el rango si debe cuadrar.
         "semilla_maxima": semillas.MAXIMO,
         "dificultades": ruleta.DIFICULTADES,
     }
@@ -152,9 +138,6 @@ class _RngFijo(random.Random):
         super().__init__()
         self.indice = indice
 
-    # El `choice` de random.Random esta declarado sobre una Sequence
-    # generica; aqui solo se usa con la lista de dos lados de una pista
-    # relativa, asi que se anota con lo que de verdad recibe.
     def choice(self, seq: "Sequence[Any]") -> "Any":  # type: ignore[override]
         return seq[min(self.indice, len(seq) - 1)]
 
@@ -318,12 +301,6 @@ def _ganadores() -> list[dict]:
     mientras estuvo escrito dentro de `ruleta.resultado_duelo`, mezclado
     con el pintado, no habia funcion pura que tabular.
     """
-    # (disparos, puntos finales, si murio). Se parte de los DISPAROS y no
-    # de los dias a proposito: los dias son justo lo que se comprueba, y
-    # darlos como entrada haria que las dos versiones coincidieran por
-    # construccion. El caso que separa una version buena de una que
-    # vuelva a contar el tiro fatal es el de un muerto con un multiplo
-    # de tres disparos: caer en el tercero son 0 dias, no 1.
     mesas: list[list[tuple[int, int, bool]]] = [
         [(9, 100, False), (18, 100, False)],
         [(18, 100, False), (9, 800, False)],
@@ -331,12 +308,8 @@ def _ganadores() -> list[dict]:
         [(9, 800, False), (9, 800, False)],
         [(0, 0, False), (0, 0, False)],
         [(27, 50, False), (9, 900, False), (27, 50, False)],
-        # Caer en el tercer disparo no sobrevive ningun dia, asi que no
-        # le gana al que se retiro con dos disparos y puntos.
         [(3, 0, True), (2, 400, False)],
-        # Muriendo en el cuarto si aguanto un dia entero, y ese si gana.
         [(4, 0, True), (2, 400, False)],
-        # Y morir ya no paga: mismos dias, gana quien conserva puntos.
         [(4, 0, True), (3, 400, False)],
     ]
     casos = []
@@ -352,9 +325,6 @@ def _ganadores() -> list[dict]:
         casos.append(
             {
                 "mesa": [{"disparos": d, "puntos": p, "murio": m} for d, p, m in mesa],
-                # Los dias de cada uno, aparte del veredicto: asi la tabla
-                # falla aunque un cambio en como se cuentan no llegue a
-                # alterar quien gana.
                 "dias": [uno.dias for uno in jugadores],
                 "ganadores": [jugadores.index(v) for v in vencedores],
             }
@@ -393,6 +363,6 @@ def escribir(ruta: Path | None = None) -> Path:
     return destino
 
 
-if __name__ == "__main__":  # pragma: no cover - utilidad de linea de comandos
+if __name__ == "__main__":  # pragma: no cover
     escrito = escribir()
     print(f"Tabla de paridad escrita en {escrito}")

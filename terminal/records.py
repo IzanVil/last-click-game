@@ -70,12 +70,6 @@ def cargar(ruta: Path | None = None) -> Records:
     try:
         datos = json.loads(ruta.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        # OSError cubre que el fichero no exista (FileNotFoundError lo es)
-        # y cualquier problema de lectura; ValueError cubre las dos formas
-        # de contenido invalido: JSON mal formado (JSONDecodeError) y
-        # bytes que no son UTF-8 (UnicodeDecodeError). Antes se listaba
-        # JSONDecodeError a mano y el fichero no-UTF-8 se escapaba, asi
-        # que unos records corruptos impedian arrancar el juego.
         return Records()
 
     campos_validos = {campo.name for campo in fields(Records)}
@@ -88,7 +82,7 @@ def cargar(ruta: Path | None = None) -> Records:
     }
     try:
         return Records(**datos_filtrados)
-    except TypeError:  # pragma: no cover - _es_contador ya filtra el caso
+    except TypeError:  # pragma: no cover
         return Records()
 
 

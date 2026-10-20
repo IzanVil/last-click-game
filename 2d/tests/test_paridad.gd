@@ -1,41 +1,12 @@
 extends SceneTree
-## Comprueba que esta version dice exactamente lo mismo que la de Python.
-##
-## Cada modulo de 2d/ tiene un hermano en terminal/ con la misma mecanica
-## escrita a mano en GDScript, y hasta ahora lo unico que lo garantizaba
-## era un comentario que decia "hermano de X.py". No bastaba: al escribir
-## los tests de la semilla aparecieron dos divergencias en Pistas.gd que
-## llevaban ahi desde el principio.
-##
-## terminal/paridad.py genera una tabla de casos con la respuesta que da
-## la version de Python; este script la replica aqui y compara. Se corre
-## en CI via:
-##
-##   godot --headless --script res://tests/test_paridad.gd --path 2d
-##
-## Sale con exit code 0 si todo coincide, 1 si algo no. Si falla, lo
-## primero que hay que mirar es cual de las dos versiones tiene razon:
-## la tabla es la foto de lo que hace Python, no un oraculo.
-##
-## Regenerar la tabla tras un cambio deliberado de reglas:
-##
-##   python3 terminal/paridad.py
 
 const RUTA_TABLA := "res://tests/paridad.json"
 
-## Formato de tabla que este script sabe leer. Si Python sube el suyo sin
-## que se actualice esto, el test falla en vez de comparar a medias.
 const FORMATO := 4
 
 var _fallos: Array[String] = []
 var _comparaciones := 0
 
-## Cuantos casos de cada seccion se han llegado a recorrer. Godot sale con
-## exit code 0 aunque un script reviente a media ejecucion (solo lo
-## imprime como SCRIPT ERROR), asi que sin esto un error en mitad de
-## _test_pistas dejaba el test diciendo "OK" con una fraccion de los
-## casos comparados. Se comprueba al final contra el tamaño de cada lista
-## de la tabla: si falta uno, es que no se llego hasta el final.
 var _vistos: Dictionary = {}
 
 
@@ -61,9 +32,6 @@ func _init() -> void:
 		quit(0)
 	else:
 		print("DIVERGENCIAS entre la version de Godot y la de Python (%d):" % _fallos.size())
-		# Se imprimen todas y no solo la primera: si una regla cambio en
-		# un lado, normalmente arrastra decenas de casos, y verlos juntos
-		# dice cual es la regla mucho mejor que verlos de uno en uno.
 		for fallo in _fallos.slice(0, 40):
 			print("  - ", fallo)
 		if _fallos.size() > 40:
@@ -71,7 +39,6 @@ func _init() -> void:
 		quit(1)
 
 
-## Ninguna seccion puede quedarse a medias sin que se note.
 func _comprobar_que_se_recorrio_todo(tabla: Dictionary) -> void:
 	for seccion: String in [
 		"mover", "dias", "pistas", "interseccion", "apuesta", "farol", "resumen", "ganadores"
@@ -119,9 +86,6 @@ func _afirmar_igual(obtenido: Variant, esperado: Variant, que: String) -> void:
 		_fallos.append("%s: Godot dice %s y Python dice %s" % [que, obtenido, esperado])
 
 
-## JSON.parse_string devuelve todo numero como float, asi que cualquier
-## entero que venga de la tabla hay que convertirlo antes de compararlo
-## con uno de GDScript (1.0 != 1 al comparar Variants de distinto tipo).
 func _enteros(lista: Array) -> Array[int]:
 	var salida: Array[int] = []
 	for valor in lista:
@@ -189,9 +153,6 @@ func _test_dias(casos: Array) -> void:
 		)
 
 
-## Una pista puede tener mas de una respuesta valida: la relativa
-## mentirosa con la bala justo en el ultimo disparo elige lado al azar.
-## Por eso se compara contra una lista de posibles y no contra una sola.
 func _test_pistas(casos: Array) -> void:
 	for caso: Dictionary in casos:
 		_vistos["pistas"] = int(_vistos.get("pistas", 0)) + 1
@@ -311,8 +272,6 @@ func _test_resumen(casos: Array) -> void:
 		)
 
 
-## El desempate de un duelo: mandan los dias y, si empatan, los puntos.
-## Un empate total devuelve mas de un ganador.
 func _test_ganadores(casos: Array) -> void:
 	for caso: Dictionary in casos:
 		_vistos["ganadores"] = int(_vistos.get("ganadores", 0)) + 1
@@ -323,8 +282,6 @@ func _test_ganadores(casos: Array) -> void:
 			uno.murio = fila["murio"]
 			uno.puntos_finales = int(fila["puntos"])
 			jugadores.append(uno)
-		# Los dias de cada uno, aparte del veredicto: asi falla aunque un
-		# cambio en como se cuentan no llegue a alterar quien gana.
 		var dias: Array[int] = []
 		for cada in jugadores:
 			dias.append(cada.dias)

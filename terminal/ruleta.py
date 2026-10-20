@@ -37,12 +37,7 @@ try:
         rival,
         semillas,
     )
-except ImportError:  # pragma: no cover - ejecucion como script suelto
-    # mypy resuelve el paquete via el `from .` de arriba y no encuentra
-    # estos como modulos sueltos de nivel superior (solo existen asi en
-    # tiempo de ejecucion, cuando este archivo corre como script suelto
-    # con `terminal/` en sys.path): son el mismo modulo por las dos vias,
-    # asi que ignorarlo aqui es correcto y no un error real.
+except ImportError:  # pragma: no cover
     import ambiente  # type: ignore[no-redef,import-not-found]
     import apuestas  # type: ignore[no-redef,import-not-found]
     import efectos  # type: ignore[no-redef,import-not-found]
@@ -58,24 +53,15 @@ except ImportError:  # pragma: no cover - ejecucion como script suelto
     import rival  # type: ignore[no-redef,import-not-found]
     import semillas  # type: ignore[no-redef,import-not-found]
 
-# Reglas del juego: viven en motor.py. Se reexportan aqui porque la
-# cabecera las enseña en pantalla, porque terminal/paridad.py las lee de
-# este modulo y porque quien ya las importaba de ruleta no tiene por que
-# enterarse de la mudanza.
 APUESTA_BASE = motor.APUESTA_BASE
 BONO_MARCA_ACERTADA = motor.BONO_MARCA_ACERTADA
 
-# Presets de dificultad: huecos del tambor y marcas de farol por partida.
-# --huecos/--marcas explicitos en la CLI pisan el valor del preset (ver
-# _parsear_args).
 DIFICULTADES = {
     "facil": {"huecos": 10, "marcas": 4},
     "normal": {"huecos": estado.HUECOS, "marcas": farol.MARCAS_INICIALES},
     "dificil": {"huecos": 6, "marcas": 2},
 }
 
-# La paleta vive en efectos.py (unico sitio que sabe de codigos ANSI); se
-# reexporta aqui porque toda la interfaz la usa en cada linea.
 ROJO = efectos.ROJO
 VERDE = efectos.VERDE
 AMARILLO = efectos.AMARILLO
@@ -85,8 +71,6 @@ NEGRITA = efectos.NEGRITA
 INVERSO = efectos.INVERSO
 RESET = efectos.RESET
 
-# Como se ve cada hueco segun lo que se sabe de el (ver calcular_estados).
-# "oculto" solo aparece en el modo oscuridad (ver `oscurecer`).
 GLIFOS_ESTADO = {
     "seguro": "✓",
     "peligro": "✗",
@@ -102,7 +86,6 @@ COLORES_ESTADO = {
     "oculto": GRIS,
 }
 
-# Color de cada linea del panel de acciones recientes, por tipo.
 COLORES_ACCION = {
     "disparo": CELESTE,
     "farol": AMARILLO,
@@ -111,28 +94,17 @@ COLORES_ACCION = {
     "aviso": ROJO,
 }
 
-# Estados que el modo oscuridad deja ver: solo lo que el jugador ha
-# comprobado el mismo. Los candidatos que se deducen de las pistas se
-# ocultan; para eso estan las pistas escritas y la memoria.
 ESTADOS_VISIBLES_A_OSCURAS = ("seguro", "peligro", "probado")
 
 ANCHO_PANEL = 50
 ANCHO_EPILOGO = 62
 
-# Huecos sin probar a partir de los cuales el tambor empieza a latir.
 HUECOS_LATIDO = 3
 
-# Vueltas completas que da el resaltado antes de pararse en el hueco
-# elegido, al disparar.
 VUELTAS_GIRO = 1
 
 
 if os.name == "nt":
-    # Habilita el procesamiento VT100 (codigos ANSI) en cmd.exe moderno:
-    # es un efecto secundario documentado de esta llamada "vacia", sin
-    # necesitar ninguna dependencia extra (colorama, etc.). Sin esto, en
-    # un cmd.exe "clasico" los codigos de color de abajo se verian
-    # literales en pantalla en vez de colorear.
     os.system("")
 
 
@@ -209,12 +181,6 @@ def tambor_ascii(
     color_marco = f"{NEGRITA}{ROJO}" if alerta else NEGRITA
     barra = f"{color_marco}│{RESET}"
 
-    # Cada hueco ocupa 4 columnas (3 de celda + el separador) y la fila
-    # arrastra un margen de 3 mas el borde de cierre. Con muchos huecos
-    # el tambor no cabe de una pieza y se parte en varias filas: antes
-    # salia en una sola linea que la terminal partia por su cuenta, y eso
-    # descuadraba la pantalla entera, porque la escena se repinta con
-    # posicionamiento absoluto contando las lineas que ocupa.
     por_fila = max(1, (efectos.ancho_terminal() - 4) // 4)
 
     lineas: list[str] = []
@@ -227,11 +193,6 @@ def tambor_ascii(
             color = COLORES_ESTADO.get(estado_hueco, CELESTE)
             glifo = GLIFOS_ESTADO.get(estado_hueco, "0")
             if hueco == resaltado:
-                # Los corchetes, y no solo el video inverso, son lo que
-                # hace visible el hueco elegido cuando no hay color
-                # (--sin-color, NO_COLOR, salida a un fichero): sin ellos
-                # la celda resaltada quedaba exactamente igual que las
-                # demas y el selector se volvia invisible.
                 celdas.append(f"{INVERSO}{NEGRITA}[{glifo}]{RESET}")
                 etiquetas.append(f"{NEGRITA}{AMARILLO}{str(hueco).center(3)}{RESET}")
             else:
@@ -318,11 +279,6 @@ def cabecera(
     print(f"{marco}╔{'═' * ANCHO_PANEL}╗{RESET}")
     print(_fila_panel(f"{NEGRITA}{'EL TAMBOR DEL JUICIO'.center(ANCHO_PANEL)}{RESET}"))
     print(f"{marco}╟{'─' * ANCHO_PANEL}╢{RESET}")
-    # El dia y las marcas ocupan un campo fijo para que las etiquetas de
-    # la derecha caigan en la misma columna en las dos filas; los puntos
-    # y las pistas crecen a sus anchas, y el relleno del final absorbe lo
-    # que ocupen (el marco solo se descuadraria por encima de mil
-    # millones de puntos, que son mas dias de los que da el tambor).
     print(
         _fila_panel(
             f"  Dia {AMARILLO}{dia:<2}{RESET}"
@@ -658,10 +614,6 @@ class Partida:
     misrecords: "records.Records"
     resultados_farol: dict[int, str] = field(default_factory=dict)
 
-    # Quien acaba de actuar. NO es lo mismo que `juego.jugador_activo`:
-    # el motor pasa el turno antes de devolver los sucesos, asi que para
-    # cuando esto se pinta el activo ya es el otro. En un duelo eso
-    # escribia el "Disparo al 3: vacio" en la bitacora del rival.
     actor: "jugador.Jugador | None" = None
 
 
@@ -701,12 +653,6 @@ def _contar_suceso(suceso: "motor.Suceso", partida: Partida) -> None:
         return
 
     if isinstance(suceso, motor.DiaCompletado):
-        # El duelo no anuncia dias ni amanece: cada jugador lleva los
-        # suyos, y un amanecer compartido a mitad del turno del otro no
-        # cuadraria. Se conserva tal cual estaba antes de unificar los
-        # dos bucles -- aunque los dias sean justo lo que decide quien
-        # gana un duelo, y anunciarlos ahi tenga su logica: eso es un
-        # cambio de juego y no entra en un commit que mueve codigo.
         if juego.es_duelo():
             return
         print(f"{AMARILLO}   Sobrevives al dia {suceso.dia}.{RESET}")
@@ -761,10 +707,6 @@ def _cerrar_partida(final: "motor.Impacto | motor.Retirada", partida: Partida) -
     puntos = final.perdidos if isinstance(final, motor.Impacto) else final.ganados
 
     nuevo_record = final.dias > partida.misrecords.dias_maximos
-    # Morir no deja puntos que apuntar: `puntos_maximos` son los puntos
-    # que se llegaron a COBRAR, y el bote que se pierde con la bala no
-    # lo cobro nadie. Lo perdido si se sigue usando para la pantalla y
-    # para el epilogo, que hablan de lo que se dejo en la mesa.
     partida.misrecords.registrar_partida(
         final.dias,
         0 if muerto else puntos,
@@ -866,8 +808,6 @@ def jugar(
         )
         juego = partida.juego
 
-        # El rival nace con cada partida: su deduccion no puede
-        # arrastrar nada de la anterior, que es otro tambor.
         maquina = (
             rival.Rival(
                 rival_nivel, huecos, marcas, random.Random(semilla_partida ^ 0xB07)
@@ -880,10 +820,6 @@ def jugar(
         if not duelo:
             amanecer(1, juego.bitacora, juego.azar)
         if pedida:
-            # Solo cuando el jugador la pidio: quien juega normal no
-            # necesita ver un numero de diez cifras antes de empezar,
-            # pero quien viene a repetir una partida (o a reproducir un
-            # fallo) si quiere confirmar que arranco la que pidio.
             print(f"{GRIS}   Semilla: {semilla_partida}{RESET}")
 
         while not juego.terminada:
@@ -910,7 +846,6 @@ def jugar(
                     posicion = elegido
                     refrescar(dibujar)
 
-            # Se apunta antes de actuar: despues, el turno ya ha pasado.
             partida.actor = juego.jugador_activo
             if accion == "retirarse":
                 sucesos = juego.retirarse()
@@ -923,9 +858,6 @@ def jugar(
 
             for suceso in sucesos:
                 _contar_suceso(suceso, partida)
-            # La maquina mira TODOS los turnos, no solo los suyos: el
-            # tambor y las pistas son compartidos, asi que lo que le
-            # pasa al de enfrente tambien le enseña donde esta la bala.
             if maquina is not None:
                 maquina.observar(sucesos, posicion if accion == "disparar" else None)
             if accion == "disparar" and not juego.terminada:
@@ -1049,16 +981,11 @@ def _parsear_args(argv: list[str] | None = None) -> argparse.Namespace:
         args.marcas = preset["marcas"]
 
     if args.huecos < 2:
-        # Mismo mensaje que TamborJuicio.__init__, pero convertido al
-        # idioma de error de argparse (exit code 2) en vez de dejar que
-        # un ValueError suelto reviente a mitad de partida.
         parser.error(f"huecos debe ser al menos 2 (recibido: {args.huecos}).")
     if args.marcas < 0:
         parser.error(f"marcas no puede ser negativo (recibido: {args.marcas}).")
 
     if args.rival:
-        # Pedir --rival sin --duelo es lo que quiere decir cualquiera
-        # que escriba eso: no hay rival en una partida en solitario.
         args.duelo = True
 
     return args
@@ -1078,8 +1005,6 @@ def main(argv: list[str] | None = None) -> int:
     siempre con 0 y un `ruleta && algo` encadenaba aunque el jugador
     hubiera abortado con Ctrl+C.
     """
-    # Lo primero de todo: sin esto, en Windows con la salida redirigida
-    # (cp1252) el primer caracter de marco aborta la partida.
     efectos.asegurar_utf8()
 
     args = _parsear_args(argv)
@@ -1089,10 +1014,6 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     efectos.configurar(animaciones=not args.sin_animaciones, sonido=not args.sin_sonido)
-    # El filtro va sobre sys.stdout, asi que se instala antes de la
-    # primera linea de juego y se quita en el finally: dejarlo puesto
-    # ensuciaria la salida de quien importe este modulo en vez de
-    # ejecutarlo.
     efectos.filtrar_color(not efectos.color_activo(sin_color=args.sin_color))
 
     try:
@@ -1105,19 +1026,8 @@ def main(argv: list[str] | None = None) -> int:
             rival_nivel=args.rival,
         )
     except (KeyboardInterrupt, EOFError) as interrupcion:
-        # EOFError ademas de KeyboardInterrupt: el juego se apoya en
-        # input() en seis sitios (la accion del turno, la posicion, el
-        # farol, las dos preguntas de "otra partida?" y la pausa entre
-        # pantallas), y todos lo lanzan cuando ya no queda entrada que
-        # leer: Ctrl+D, o stdin redirigido y agotado (`echo | ruleta`,
-        # un script que alimente la partida, un run de CI). Sin
-        # capturarlo, cualquiera de esos casos terminaba escupiendo un
-        # traceback de EOFError en vez de la despedida.
         print()
         print(AMARILLO + "   Hasta la proxima. El tambor siempre espera." + RESET)
-        # Ctrl+C es una interrupcion de verdad, y la convencion del shell
-        # para eso es 128+SIGINT = 130; quedarse sin entrada (Ctrl+D, un
-        # pipe agotado) no es ningun fallo, solo el final de la partida.
         return 130 if isinstance(interrupcion, KeyboardInterrupt) else 0
     finally:
         efectos.cursor(True)

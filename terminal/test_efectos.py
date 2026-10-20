@@ -104,7 +104,6 @@ class TestEscribir(_EfectosTestCase):
                 efectos.escribir, f"{efectos.ROJO}ab c{efectos.RESET}"
             )
         self.assertEqual(salida, f"{efectos.ROJO}ab c{efectos.RESET}\n")
-        # Tres letras esperan; el espacio y los dos codigos de color, no.
         self.assertEqual(mock_sleep.call_count, 3)
 
     def test_sin_animaciones_sale_de_una_vez_por_print(self):
@@ -168,8 +167,6 @@ class TestRepintar(_EfectosTestCase):
             salida = self.capturar(
                 efectos.repintar, ["una\ndos", "tres\ncuatro"], retardo=0
             )
-        # Dos fotogramas de dos lineas: dos subidas de dos lineas cada una
-        # (la primera pisa el bloque que ya habia en pantalla).
         self.assertEqual(salida.count("\033[2A"), 2)
         self.assertIn("cuatro", salida)
 
@@ -211,7 +208,6 @@ class TestBanner(_EfectosTestCase):
 
 class TestColorActivo(unittest.TestCase):
     def test_no_color_lo_apaga_aunque_haya_terminal(self):
-        # https://no-color.org
         with patch.dict(os.environ, {"NO_COLOR": "1"}):
             with patch("efectos.hay_terminal", return_value=True):
                 self.assertFalse(efectos.color_activo())
@@ -222,8 +218,6 @@ class TestColorActivo(unittest.TestCase):
                 self.assertFalse(efectos.color_activo(sin_color=True))
 
     def test_depende_de_la_terminal_si_no_se_pide_nada(self):
-        # clear=True: nos aislamos del NO_COLOR real del entorno donde
-        # corran los tests, no solo del que pusieramos nosotros.
         with patch.dict(os.environ, {}, clear=True):
             with patch("efectos.hay_terminal", return_value=True):
                 self.assertTrue(efectos.color_activo())
@@ -254,7 +248,7 @@ class TestAsegurarUtf8(unittest.TestCase):
 
         limpia = self._stream("cp1252")
         efectos.asegurar_utf8(limpia)
-        limpia.write("╔══╗")  # ahora no debe lanzar nada
+        limpia.write("╔══╗")
         limpia.flush()
 
     def test_una_salida_ya_utf8_se_queda_igual(self):
@@ -264,8 +258,6 @@ class TestAsegurarUtf8(unittest.TestCase):
         salida.flush()
 
     def test_un_stream_sin_reconfigure_no_revienta(self):
-        # StringIO no tiene reconfigure(): es una red de seguridad, no
-        # algo por lo que merezca la pena no arrancar.
         efectos.asegurar_utf8(io.StringIO())
 
     def test_por_defecto_actua_sobre_stdout(self):
@@ -294,8 +286,6 @@ class TestFiltroDeColor(unittest.TestCase):
         self.assertEqual(salida, "peligro")
 
     def test_respeta_los_codigos_que_mueven_el_cursor(self):
-        # Filtrar tambien estos romperia la animacion: son los que
-        # repintan la escena en su sitio.
         salida = self._escribir(f"{efectos.CSI}2A{efectos.CSI}K{efectos.VERDE}ok")
         self.assertEqual(salida, f"{efectos.CSI}2A{efectos.CSI}K" + "ok")
 
@@ -303,18 +293,14 @@ class TestFiltroDeColor(unittest.TestCase):
         sys.stdout = io.StringIO()
         efectos.filtrar_color(True)
         una_vez = sys.stdout
-        efectos.filtrar_color(True)  # no debe apilar otro envoltorio
+        efectos.filtrar_color(True)
         self.assertIs(sys.stdout, una_vez)
 
         efectos.filtrar_color(False)
-        efectos.filtrar_color(False)  # ni perder el stdout original
+        efectos.filtrar_color(False)
         self.assertIsInstance(sys.stdout, io.StringIO)
 
     def test_se_comporta_como_el_stream_que_envuelve(self):
-        # No es cosmetico: hay_terminal() consulta sys.stdout.isatty() y
-        # se llama durante la partida, con el filtro ya puesto. Si el
-        # envoltorio no delegara, apagar el color cambiaria ademas la
-        # deteccion de terminal (y con ella el sonido).
         falso = io.StringIO()
         falso.isatty = lambda: True  # type: ignore[method-assign]
         sys.stdout = falso
@@ -325,8 +311,6 @@ class TestFiltroDeColor(unittest.TestCase):
         self.assertTrue(sys.stdout.writable())
 
     def test_devuelve_lo_escrito_al_emisor(self):
-        # write() debe devolver lo que pidio quien llama, no lo que se
-        # escribio de verdad: para el emisor el filtro es transparente.
         sys.stdout = io.StringIO()
         efectos.filtrar_color(True)
         texto = f"{efectos.ROJO}hola{efectos.RESET}"

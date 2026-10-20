@@ -21,8 +21,6 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import TextIO
 
-# Prefijo de las secuencias ANSI ("Control Sequence Introducer"): todo lo
-# que mueve el cursor o borra pantalla empieza asi.
 CSI = "\033["
 BEL = "\a"
 
@@ -38,10 +36,6 @@ RESET = "\033[0m"
 RETARDO_TECLEO = 0.018
 RETARDO_FOTOGRAMA = 0.06
 
-# Cada patron es la espera (en segundos) ANTES de cada pitido. El timbre
-# de la terminal (BEL) no tiene tono que ajustar, asi que lo que
-# distingue a un sonido de otro es el ritmo: cuantos pips suenan y como
-# de separados. Un pip seco no se parece en nada a una rafaga de cuatro.
 PATRONES_SONIDO: dict[str, tuple[float, ...]] = {
     "clic": (0.0,),
     "fallo": (0.0, 0.10),
@@ -50,13 +44,8 @@ PATRONES_SONIDO: dict[str, tuple[float, ...]] = {
     "zumbido": (0.0, 0.16, 0.16, 0.16),
 }
 
-# Secuencia ANSI completa: se usa para que el tecleo letra a letra no
-# gaste tiempo "escribiendo" codigos de color, que son invisibles.
 _SECUENCIA_ANSI = re.compile(r"\033\[[0-9;?]*[A-Za-z]")
 
-# Solo las secuencias SGR (las que acaban en "m"): color, negrita, video
-# inverso. Deliberadamente NO casa con las que mueven el cursor o borran
-# pantalla, que son las que montan la animacion y deben pasar siempre.
 _SECUENCIA_COLOR = re.compile(r"\033\[[0-9;]*m")
 
 
@@ -91,8 +80,6 @@ class _SalidaSinColor(io.TextIOBase):
 
     def write(self, texto: str) -> int:
         self._destino.write(_SECUENCIA_COLOR.sub("", texto))
-        # Se devuelve lo que pidio quien llama, no lo que se escribio de
-        # verdad: para el emisor el color es transparente.
         return len(texto)
 
     def flush(self) -> None:
@@ -132,7 +119,7 @@ def asegurar_utf8(salida: TextIO | None = None) -> None:
         return
     try:
         reconfigurar(encoding="utf-8")
-    except (ValueError, OSError, LookupError):  # pragma: no cover - stdout exotico
+    except (ValueError, OSError, LookupError):  # pragma: no cover
         try:
             reconfigurar(errors="replace")
         except (ValueError, OSError, LookupError):
@@ -163,8 +150,6 @@ def filtrar_color(activo: bool) -> None:
     if activo and not isinstance(salida, _SalidaSinColor):
         sys.stdout = _SalidaSinColor(salida)
     elif not activo and isinstance(salida, _SalidaSinColor):
-        # La variable local, y no sys.stdout directamente: es la que
-        # isinstance estrecha a _SalidaSinColor y deja ver `.destino`.
         sys.stdout = salida.destino
 
 
@@ -182,7 +167,7 @@ def hay_terminal() -> bool:
     """
     try:
         return bool(sys.stdout.isatty())
-    except (AttributeError, ValueError):  # pragma: no cover - stdout exotico
+    except (AttributeError, ValueError):  # pragma: no cover
         return False
 
 

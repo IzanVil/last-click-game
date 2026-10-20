@@ -10,13 +10,8 @@ import random
 import textwrap
 from typing import NamedTuple
 
-# Ancho interior de los carteles (ver `cartel`). Cabe de sobra en los 80
-# caracteres de una terminal estrecha, contando el sangrado de la
-# interfaz.
 ANCHO_CARTEL = 46
 
-# Frases de apertura de dia. Son solo atmosfera: ninguna dice nada del
-# tambor ni de la bala, para que no se confundan con una pista.
 MENSAJES_DIA: tuple[str, ...] = (
     "El reloj marca las tres de la madrugada. Nadie va a venir.",
     "Hoy el juez parece mas severo. Ni te ha mirado al entrar.",
@@ -30,7 +25,6 @@ MENSAJES_DIA: tuple[str, ...] = (
     "Nadie ha dicho tu nombre en voz alta en toda la noche.",
 )
 
-# Cartel grande de derrota (ver ruleta.impacto).
 ARTE_BOOM: tuple[str, ...] = (
     "██████   ██████   ██████  ███    ███",
     "██   ██ ██    ██ ██    ██ ████  ████",
@@ -39,8 +33,6 @@ ARTE_BOOM: tuple[str, ...] = (
     "██████   ██████   ██████  ██      ██",
 )
 
-# Titulo de cada evento en su cartel a pantalla completa. El texto lo
-# pone eventos.texto_de: aqui solo esta como se anuncia.
 TITULOS_EVENTO: dict[str, str] = {
     "clic_metalico": "C L I C   M E T A L I C O",
     "tambor_caliente": "T A M B O R   C A L I E N T E",
@@ -79,8 +71,6 @@ def cartel(titulo: str, texto: str = "", ancho: int = ANCHO_CARTEL) -> tuple[str
     lo hacian, y el cartel de evento sale muy a menudo.
     """
     lineas_texto = textwrap.wrap(texto, width=ancho - 2) if texto else []
-    # El +2 deja un espacio a cada lado; se toma el mayor por si el
-    # titulo, o una palabra que textwrap no haya podido partir, se pasan.
     ancho_real = max(
         [ancho, len(titulo) + 2] + [len(linea) + 2 for linea in lineas_texto]
     )

@@ -44,7 +44,7 @@ try:
         jugador,
         pistas,
     )
-except ImportError:  # pragma: no cover - ejecucion como script suelto
+except ImportError:  # pragma: no cover
     import apuestas  # type: ignore[no-redef,import-not-found]
     import estado  # type: ignore[no-redef,import-not-found]
     import eventos  # type: ignore[no-redef,import-not-found]
@@ -163,12 +163,6 @@ class Motor:
         rng: random.Random | None = None,
         probabilidad_eventos: float = eventos.PROBABILIDAD,
     ) -> None:
-        # `rng=None` deja que cada modulo caiga en el `random` global,
-        # que es lo que hace la partida de verdad hoy y lo que permite
-        # que `--seed` funcione sembrandolo una vez desde main(). El
-        # parametro existe ya para que un generador por partida (o un
-        # banco que juegue miles seguidas) pueda entrar sin tocar nada
-        # mas que esta linea.
         self.azar = rng
         self.probabilidad_eventos = probabilidad_eventos
 
@@ -177,17 +171,10 @@ class Motor:
         self.turno = 0
         self.terminada = False
 
-        # Una partida en solitario es un duelo de uno (ver jugador.py).
         self.jugadores = [
             jugador.Jugador(nombre, apuestas.Apuesta(APUESTA_BASE), farol.Farol(marcas))
             for nombre in (nombres or [""])
         ]
-
-    # --- Atajos al jugador activo -------------------------------------
-    #
-    # En solitario "el jugador" es el unico que hay, asi que la interfaz
-    # lee motor.apuesta, motor.disparos... sin tener que saber si esto
-    # es un duelo o no.
 
     @property
     def jugador_activo(self) -> "jugador.Jugador":
@@ -226,8 +213,6 @@ class Motor:
         """Huecos a los que ya se ha disparado en esta partida."""
         return set(self.tambor.historial)
 
-    # --- Acciones -----------------------------------------------------
-
     def disparar(self, numero: int) -> list[Suceso]:
         """Resuelve un disparo real a `numero`.
 
@@ -243,11 +228,6 @@ class Motor:
 
         if self.tambor.disparar(numero):
             activo.murio = True
-            # Lo perdido va en el suceso, para el "perdiendo N puntos" de
-            # la pantalla final; pero con lo que el jugador TERMINA es
-            # con nada, que es lo que se compara en un duelo y lo que se
-            # apunta en los records. Apuesta.perder() devuelve la
-            # cantidad perdida, asi que no vale como puntos finales.
             perdidos = activo.apuesta.perder()
             activo.puntos_finales = 0
             return self._terminar(
@@ -260,12 +240,6 @@ class Motor:
             )
 
         activo.apuesta.doblar()
-        # Orden cronologico, que es el mismo en el que ocurren aqui
-        # arriba: sobrevives, entonces el tambor hace de las suyas, y
-        # solo despues llega la pista. La version de terminal apuntaba
-        # en su bitacora "disparo" antes que "evento" pero los pintaba
-        # al reves en pantalla; con un unico orden dejan de poder
-        # discrepar.
         sucesos: list[Suceso] = [
             DisparoSobrevivido(activo.disparos, activo.apuesta.en_juego)
         ]
@@ -334,8 +308,6 @@ class Motor:
                 historial.resumen(activo.bitacora, activo.dias),
             )
         )
-
-    # --- Tripas -------------------------------------------------------
 
     def _avanzar_turno(self) -> list[Suceso]:
         """Pasa el turno tras un disparo sobrevivido o un farol.

@@ -19,8 +19,6 @@ import sys
 from collections.abc import Callable
 from typing import Any
 
-# Nombres canonicos que devuelve `leer_tecla`; cualquier otra tecla se
-# devuelve tal cual (un caracter suelto, ya en minuscula).
 IZQUIERDA = "izquierda"
 DERECHA = "derecha"
 ARRIBA = "arriba"
@@ -28,8 +26,6 @@ ABAJO = "abajo"
 ENTER = "enter"
 ESCAPE = "escape"
 
-# Tercer byte de las secuencias de flecha en Unix (ESC [ X) y segundo
-# caracter del codigo extendido de Windows.
 _FLECHAS_UNIX = {"A": ARRIBA, "B": ABAJO, "C": DERECHA, "D": IZQUIERDA}
 _FLECHAS_WINDOWS = {"H": ARRIBA, "P": ABAJO, "M": DERECHA, "K": IZQUIERDA}
 
@@ -38,7 +34,7 @@ def _modulo(nombre: str) -> Any | None:
     """Importa un modulo de plataforma, o None si no existe aqui."""
     try:
         return importlib.import_module(nombre)
-    except ImportError:  # pragma: no cover - depende del sistema operativo
+    except ImportError:  # pragma: no cover
         return None
 
 
@@ -50,7 +46,7 @@ def _modulo_obligatorio(nombre: str) -> Any:
     faltara, mejor un error claro que un `None` propagandose.
     """
     modulo = _modulo(nombre)
-    if modulo is None:  # pragma: no cover - lo descarta modo_tecla_disponible
+    if modulo is None:  # pragma: no cover
         raise RuntimeError(f"Este sistema no puede leer el teclado sin {nombre}.")
     return modulo
 
@@ -59,7 +55,7 @@ def _hay_entrada_interactiva() -> bool:
     """True si stdin es una terminal (y no un fichero, un pipe o un test)."""
     try:
         return bool(sys.stdin.isatty())
-    except (AttributeError, ValueError):  # pragma: no cover - stdin exotico
+    except (AttributeError, ValueError):  # pragma: no cover
         return False
 
 
@@ -76,7 +72,7 @@ def _leer_tecla_windows() -> str:
     """Lee una tecla con msvcrt (Windows)."""
     msvcrt = _modulo_obligatorio("msvcrt")
     caracter = msvcrt.getwch()
-    if caracter in ("\x00", "\xe0"):  # prefijo de tecla extendida (flechas)
+    if caracter in ("\x00", "\xe0"):
         return _FLECHAS_WINDOWS.get(msvcrt.getwch(), "")
     if caracter in ("\r", "\n"):
         return ENTER
@@ -97,9 +93,6 @@ def _leer_tecla_unix() -> str:
         tty.setraw(descriptor)
         caracter = sys.stdin.read(1)
         if caracter == "\x1b":
-            # Puede ser un ESC suelto o el principio de una flecha
-            # (ESC [ A..D). Los dos caracteres que faltan ya estan en el
-            # buffer si es una flecha, asi que leerlos no bloquea.
             siguiente = sys.stdin.read(1)
             if siguiente != "[":
                 return ESCAPE
@@ -153,10 +146,6 @@ def seleccionar(
             return seleccion
         elif tecla in (ESCAPE, "q"):
             return None
-        # isdecimal() y no isdigit(): isdigit() tambien da True para los
-        # superindices ("²", "³", que salen con AltGr+2/3 en varias
-        # distribuciones de teclado), y con esos int() lanza ValueError.
-        # Pulsarlos aqui tumbaba la seleccion con un traceback.
         elif tecla.isdecimal() and 1 <= int(tecla) <= huecos:
             seleccion = int(tecla)
         else:

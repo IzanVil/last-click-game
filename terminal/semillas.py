@@ -23,9 +23,6 @@ apuntada.
 
 import random
 
-# Rango de semillas: 32 bits sin signo. Es corto de teclear a mano y
-# cabe de sobra en el `seed` de RandomNumberGenerator (int64), para que
-# la version de Godot pueda aceptar el mismo numero.
 MAXIMO = 2**32 - 1
 
 

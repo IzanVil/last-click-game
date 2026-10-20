@@ -109,7 +109,6 @@ class TestInterseccion(unittest.TestCase):
         self.assertEqual(pistas.interseccion([pista]), pista.candidatos)
 
     def test_cruza_varias_pistas_compatibles(self):
-        # Par (2,4,6,8) y mitad izquierda (1,2,3,4) -> solo 2 y 4.
         par = pistas.generar_pista(4, 8, None, tipo="paridad")
         izquierda = pistas.generar_pista(2, 8, None, tipo="mitad")
         self.assertEqual(pistas.interseccion([par, izquierda]), frozenset({2, 4}))
@@ -128,7 +127,7 @@ class TestRelativaCuandoLaBalaCaeEnElUltimoDisparo(unittest.TestCase):
 
     def test_el_caso_es_alcanzable_jugando(self):
         tambor = estado.TamborJuicio(huecos=8, patron="avanza", posicion_inicial=3)
-        self.assertFalse(tambor.disparar(4))  # falla: la bala estaba en 3
+        self.assertFalse(tambor.disparar(4))
         self.assertEqual(tambor.posicion_bala, tambor.ultimo_disparo)
 
     def test_sin_mentir_dice_la_verdad(self):
@@ -137,20 +136,14 @@ class TestRelativaCuandoLaBalaCaeEnElUltimoDisparo(unittest.TestCase):
         self.assertEqual(pista.candidatos, frozenset({4}))
 
     def test_mintiendo_no_regala_la_posicion_exacta(self):
-        # Antes esta rama ignoraba `mentir`, asi que un evento
-        # "tambor_caliente" (que existe justo para mentir) acababa
-        # revelando el hueco exacto en vez de enganiar.
         pista = pistas.generar_pista(
             4, 8, ultimo_disparo=4, tipo="relativa", mentir=True
         )
         self.assertNotIn("justo donde", pista.texto)
         self.assertNotIn(4, pista.candidatos)
-        self.assertTrue(pista.candidatos)  # y afirma algo, no el conjunto vacio
+        self.assertTrue(pista.candidatos)
 
     def test_mintiendo_en_un_extremo_elige_el_lado_que_existe(self):
-        # Disparando al hueco 1 no hay "izquierda" posible: mentir hacia
-        # ese lado daria una pista con cero candidatos, que se delata
-        # sola en cuanto se cruza con cualquier otra.
         for disparo, esperado in ((1, "derecha"), (8, "izquierda")):
             with self.subTest(disparo=disparo):
                 pista = pistas.generar_pista(
