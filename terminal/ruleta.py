@@ -306,6 +306,19 @@ def _imprimir_pistas(pistas_reveladas: list["pistas.Pista"]) -> None:
         print(GRIS + "   La bala descansa en algun hueco. Aun no hay pistas." + RESET)
 
 
+def _cuerpo_de_escena(
+    disparos: int,
+    apuesta: "apuestas.Apuesta",
+    marca: "farol.Farol",
+    tablero: Tablero,
+) -> None:
+    cabecera(disparos, apuesta, marca, len(tablero.pistas_reveladas))
+    print()
+    _imprimir_pistas(tablero.pistas_reveladas)
+    print()
+    efectos.pintar_bloque(bloque_tablero(tablero))
+
+
 def escena(
     disparos: int,
     apuesta: "apuestas.Apuesta",
@@ -314,11 +327,7 @@ def escena(
 ) -> None:
     """Repinta la pantalla entera: panel, pistas y bloque del tablero."""
     limpiar()
-    cabecera(disparos, apuesta, marca, len(tablero.pistas_reveladas))
-    print()
-    _imprimir_pistas(tablero.pistas_reveladas)
-    print()
-    efectos.pintar_bloque(bloque_tablero(tablero))
+    _cuerpo_de_escena(disparos, apuesta, marca, tablero)
 
 
 def refrescar(dibujar: "partial[None]") -> None:
@@ -570,13 +579,7 @@ def escena_duelo(
         f"{rival.nombre}: {rival.dias} dia(s) sobrevividos"
     )
     print()
-    cabecera(
-        activo.disparos, activo.apuesta, activo.marca, len(tablero.pistas_reveladas)
-    )
-    print()
-    _imprimir_pistas(tablero.pistas_reveladas)
-    print()
-    efectos.pintar_bloque(bloque_tablero(tablero))
+    _cuerpo_de_escena(activo.disparos, activo.apuesta, activo.marca, tablero)
 
 
 def resultado_duelo(jugadores: list["jugador.Jugador"]) -> None:
@@ -627,72 +630,53 @@ def _contar_suceso(suceso: "motor.Suceso", partida: Partida) -> None:
     juego = partida.juego
     bitacora = partida.actor.bitacora if partida.actor else juego.bitacora
 
-    if isinstance(suceso, motor.EntradaInvalida):
-        print(ROJO + "   Ese numero no esta en el tambor." + RESET)
-        return
-
-    if isinstance(suceso, motor.EventoTambor):
-        bitacora.registrar_accion("evento", suceso.tipo.replace("_", " ").capitalize())
-        cartel_evento(suceso.tipo)
-        return
-
-    if isinstance(suceso, motor.DisparoSobrevivido):
-        efectos.beep("fallo")
-        bitacora.registrar_accion(
-            "disparo",
-            f"Disparo al {juego.tambor.ultimo_disparo}: vacio ({suceso.en_juego} pts)",
-        )
-        print(
-            f"{VERDE}   Click. Cartucho vacio. Lo apostado se dobla "
-            f"a {suceso.en_juego} puntos.{RESET}"
-        )
-        return
-
-    if isinstance(suceso, motor.PistaNueva):
-        revelar_pista(suceso.numero, suceso.pista)
-        return
-
-    if isinstance(suceso, motor.DiaCompletado):
-        if juego.es_duelo():
-            return
-        print(f"{AMARILLO}   Sobrevives al dia {suceso.dia}.{RESET}")
-        amanecer(suceso.dia + 1, bitacora, juego.azar)
-        return
-
-    if isinstance(suceso, motor.FarolResuelto):
-        partida.resultados_farol[suceso.hueco] = (
-            "seguro" if suceso.acierto else "peligro"
-        )
-        if suceso.acierto:
-            bitacora.registrar_accion(
-                "farol", f"Farol en el {suceso.hueco}: vacio (+{suceso.bono} pts)"
-            )
-            efectos.beep("acierto")
-            print(
-                f"{VERDE}   Farol acertado: el hueco {suceso.hueco} estaba "
-                f"vacio. +{suceso.bono} puntos.{RESET}"
-            )
-        else:
-            bitacora.registrar_accion(
-                "aviso", f"Farol en el {suceso.hueco}: ahi estaba"
-            )
+    match suceso:
+        case motor.EntradaInvalida():
+            print(ROJO + "   Ese numero no esta en el tambor." + RESET)
+        case motor.EventoTambor(tipo=tipo):
+            bitacora.registrar_accion("evento", tipo.replace("_", " ").capitalize())
+            cartel_evento(tipo)
+        case motor.DisparoSobrevivido(en_juego=en_juego):
             efectos.beep("fallo")
-            print(
-                f"{ROJO}   Farol fallido: ahi estaba la bala. "
-                f"Pierdes la marca.{RESET}"
+            bitacora.registrar_accion(
+                "disparo",
+                f"Disparo al {juego.tambor.ultimo_disparo}: vacio ({en_juego} pts)",
             )
-        efectos.pausa(1.5)
-        return
+            print(
+                f"{VERDE}   Click. Cartucho vacio. Lo apostado se dobla "
+                f"a {en_juego} puntos.{RESET}"
+            )
+        case motor.PistaNueva(numero=numero, pista=pista):
+            revelar_pista(numero, pista)
+        case motor.DiaCompletado(dia=dia) if not juego.es_duelo():
+            print(f"{AMARILLO}   Sobrevives al dia {dia}.{RESET}")
+            amanecer(dia + 1, bitacora, juego.azar)
+        case motor.FarolResuelto():
+            _contar_farol(suceso, partida, bitacora)
+        case motor.Impacto() | motor.Retirada():
+            _cerrar_partida(suceso, partida)
+        case motor.DueloTerminado(jugadores=jugadores):
+            resultado_duelo(jugadores)
 
-    if isinstance(suceso, motor.Impacto | motor.Retirada):
-        _cerrar_partida(suceso, partida)
-        return
 
-    if isinstance(suceso, motor.TurnoCambiado):
-        return
-
-    if isinstance(suceso, motor.DueloTerminado):
-        resultado_duelo(suceso.jugadores)
+def _contar_farol(
+    suceso: "motor.FarolResuelto", partida: Partida, bitacora: "historial.Historial"
+) -> None:
+    partida.resultados_farol[suceso.hueco] = "seguro" if suceso.acierto else "peligro"
+    if suceso.acierto:
+        bitacora.registrar_accion(
+            "farol", f"Farol en el {suceso.hueco}: vacio (+{suceso.bono} pts)"
+        )
+        efectos.beep("acierto")
+        print(
+            f"{VERDE}   Farol acertado: el hueco {suceso.hueco} estaba "
+            f"vacio. +{suceso.bono} puntos.{RESET}"
+        )
+    else:
+        bitacora.registrar_accion("aviso", f"Farol en el {suceso.hueco}: ahi estaba")
+        efectos.beep("fallo")
+        print(f"{ROJO}   Farol fallido: ahi estaba la bala. Pierdes la marca.{RESET}")
+    efectos.pausa(1.5)
 
 
 def _cerrar_partida(final: "motor.Impacto | motor.Retirada", partida: Partida) -> None:
@@ -753,6 +737,95 @@ def _pintar_turno(partida: Partida, oscuridad: bool) -> tuple[Tablero, "partial[
     return tablero, partial(escena, juego.disparos, juego.apuesta, juego.marca, tablero)
 
 
+def _nombres_del_duelo(rival_nivel: str | None) -> list[str]:
+    limpiar(duro=True)
+    print(NEGRITA + CELESTE + "\n   === EL TAMBOR DEL JUICIO: DUELO ===\n" + RESET)
+    if rival_nivel:
+        print(f"{GRIS}   Enfrente: la maquina, en modo {rival_nivel}.{RESET}\n")
+        return [_pedir_nombre(1), f"La maquina ({rival_nivel})"]
+    return [_pedir_nombre(1), _pedir_nombre(2)]
+
+
+def _turno_de_la_maquina(
+    maquina: "rival.Rival", juego: "motor.Motor"
+) -> tuple[str, int]:
+    yo, tu = juego.jugadores[1], juego.jugadores[0]
+    accion, posicion = maquina.decidir(
+        yo.dias, yo.apuesta.en_juego, tu.dias, tu.apuesta.en_juego
+    )
+    anunciar_rival(yo.nombre, accion, posicion)
+    return accion, posicion
+
+
+def _turno_del_jugador(
+    juego: "motor.Motor", tablero: Tablero, dibujar: "partial[None]"
+) -> tuple[str, int] | None:
+    accion = elegir_accion(juego.marca.marcas_restantes)
+    if accion == "retirarse":
+        return accion, 0
+    verbo = "Marcar" if accion == "marcar" else "Disparar a"
+    elegido = elegir_hueco(tablero, dibujar, verbo)
+    if elegido is None:
+        return None
+    refrescar(dibujar)
+    return accion, elegido
+
+
+def _ejecutar(
+    juego: "motor.Motor",
+    accion: str,
+    posicion: int,
+    tablero: Tablero,
+    con_giro: bool,
+) -> list["motor.Suceso"]:
+    if accion == "retirarse":
+        return juego.retirarse()
+    if accion == "marcar":
+        return juego.marcar(posicion)
+    if con_giro:
+        animar_giro(tablero, posicion)
+    return juego.disparar(posicion)
+
+
+def _jugar_turno(
+    partida: Partida, maquina: "rival.Rival | None", oscuridad: bool
+) -> None:
+    juego = partida.juego
+    tablero, dibujar = _pintar_turno(partida, oscuridad)
+    dibujar()
+    if bala_cerca(juego.marcadas(), juego.huecos):
+        latido(tablero)
+
+    eleccion: tuple[str, int] | None
+    if maquina is not None and juego.turno % 2 == 1:
+        eleccion = _turno_de_la_maquina(maquina, juego)
+        con_giro = False
+    else:
+        eleccion = _turno_del_jugador(juego, tablero, dibujar)
+        con_giro = True
+    if eleccion is None:
+        return
+    accion, posicion = eleccion
+
+    partida.actor = juego.jugador_activo
+    sucesos = _ejecutar(juego, accion, posicion, tablero, con_giro)
+    for suceso in sucesos:
+        _contar_suceso(suceso, partida)
+    if maquina is not None:
+        maquina.observar(sucesos, posicion if accion == "disparar" else None)
+    if accion == "disparar" and not juego.terminada:
+        efectos.pausa(1.5)
+
+
+def _quiere_otra(duelo: bool) -> bool:
+    pregunta = "Jugar otro duelo? (s/n): " if duelo else "Jugar otra partida? (s/n): "
+    otra = input(NEGRITA + f"   {pregunta}" + RESET).strip().lower()
+    if otra in ("s", "si", "y", "yes"):
+        return True
+    print(f"{AMARILLO}   Hasta la proxima. El tambor siempre espera.{RESET}")
+    return False
+
+
 def jugar(
     huecos: int = estado.HUECOS,
     marcas: int = farol.MARCAS_INICIALES,
@@ -782,16 +855,7 @@ def jugar(
     """
     misrecords = records.cargar()
     pendiente = seed
-
-    nombres: list[str] = []
-    if duelo:
-        limpiar(duro=True)
-        print(NEGRITA + CELESTE + "\n   === EL TAMBOR DEL JUICIO: DUELO ===\n" + RESET)
-        if rival_nivel:
-            print(f"{GRIS}   Enfrente: la maquina, en modo {rival_nivel}.{RESET}\n")
-            nombres = [_pedir_nombre(1), f"La maquina ({rival_nivel})"]
-        else:
-            nombres = [_pedir_nombre(1), _pedir_nombre(2)]
+    nombres = _nombres_del_duelo(rival_nivel) if duelo else []
 
     while True:
         pedida = pendiente is not None
@@ -807,7 +871,6 @@ def jugar(
             misrecords,
         )
         juego = partida.juego
-
         maquina = (
             rival.Rival(
                 rival_nivel, huecos, marcas, random.Random(semilla_partida ^ 0xB07)
@@ -823,53 +886,10 @@ def jugar(
             print(f"{GRIS}   Semilla: {semilla_partida}{RESET}")
 
         while not juego.terminada:
-            tablero, dibujar = _pintar_turno(partida, oscuridad)
-            dibujar()
-            if bala_cerca(juego.marcadas(), juego.huecos):
-                latido(tablero)
-
-            le_toca_a_la_maquina = maquina is not None and juego.turno % 2 == 1
-            if maquina is not None and le_toca_a_la_maquina:
-                yo, tu = juego.jugadores[1], juego.jugadores[0]
-                accion, posicion = maquina.decidir(
-                    yo.dias, yo.apuesta.en_juego, tu.dias, tu.apuesta.en_juego
-                )
-                anunciar_rival(yo.nombre, accion, posicion)
-            else:
-                accion = elegir_accion(juego.marca.marcas_restantes)
-                posicion = 0
-                if accion != "retirarse":
-                    verbo = "Marcar" if accion == "marcar" else "Disparar a"
-                    elegido = elegir_hueco(tablero, dibujar, verbo)
-                    if elegido is None:
-                        continue
-                    posicion = elegido
-                    refrescar(dibujar)
-
-            partida.actor = juego.jugador_activo
-            if accion == "retirarse":
-                sucesos = juego.retirarse()
-            elif accion == "marcar":
-                sucesos = juego.marcar(posicion)
-            else:
-                if not le_toca_a_la_maquina:
-                    animar_giro(tablero, posicion)
-                sucesos = juego.disparar(posicion)
-
-            for suceso in sucesos:
-                _contar_suceso(suceso, partida)
-            if maquina is not None:
-                maquina.observar(sucesos, posicion if accion == "disparar" else None)
-            if accion == "disparar" and not juego.terminada:
-                efectos.pausa(1.5)
+            _jugar_turno(partida, maquina, oscuridad)
 
         sello_semilla(semilla_partida)
-        pregunta = (
-            "Jugar otro duelo? (s/n): " if duelo else "Jugar otra partida? (s/n): "
-        )
-        otra = input(NEGRITA + f"   {pregunta}" + RESET).strip().lower()
-        if otra not in ("s", "si", "y", "yes"):
-            print(f"{AMARILLO}   Hasta la proxima. El tambor siempre espera.{RESET}")
+        if not _quiere_otra(duelo):
             break
 
 
