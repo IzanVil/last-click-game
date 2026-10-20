@@ -21,62 +21,12 @@ static func generar_pista(
 
 	match elegido:
 		"paridad":
-			var par := posicion_bala % 2 == 0
-			if mentir:
-				par = not par
-			if par:
-				return Pista.new("La bala descansa en un hueco par.", _por_paridad(huecos, true))
-			return Pista.new("La bala no esta en los huecos pares.", _por_paridad(huecos, false))
-
+			return _pista_paridad(posicion_bala, huecos, mentir)
 		"mitad":
-			var mitad := huecos / 2
-			var izquierda := posicion_bala <= mitad
-			if mentir:
-				izquierda = not izquierda
-			if izquierda:
-				return Pista.new(
-					"La bala esta en la mitad izquierda del tambor.",
-					_por_mitad(huecos, mitad, true)
-				)
-			return Pista.new(
-				"La bala esta en la mitad derecha del tambor.", _por_mitad(huecos, mitad, false)
-			)
-
+			return _pista_mitad(posicion_bala, huecos, mentir)
 		"relativa":
 			assert(ultimo_disparo != -1, "No hay disparo previo para dar una pista relativa.")
-			if posicion_bala == ultimo_disparo:
-				if not mentir:
-					return Pista.new(
-						"La bala esta justo donde acabas de disparar.", [ultimo_disparo]
-					)
-				var lados: Array[bool] = []
-				if ultimo_disparo > 1:
-					lados.append(true)
-				if ultimo_disparo < huecos:
-					lados.append(false)
-				var miente_a_la_izquierda: bool = lados[Azar.entero(rng, 0, lados.size() - 1)]
-				if miente_a_la_izquierda:
-					return Pista.new(
-						"La bala esta a la izquierda de tu ultimo disparo.",
-						_por_relativa(huecos, ultimo_disparo, true)
-					)
-				return Pista.new(
-					"La bala esta a la derecha de tu ultimo disparo.",
-					_por_relativa(huecos, ultimo_disparo, false)
-				)
-			var izquierda := posicion_bala < ultimo_disparo
-			if mentir:
-				izquierda = not izquierda
-			if izquierda:
-				return Pista.new(
-					"La bala esta a la izquierda de tu ultimo disparo.",
-					_por_relativa(huecos, ultimo_disparo, true)
-				)
-			return Pista.new(
-				"La bala esta a la derecha de tu ultimo disparo.",
-				_por_relativa(huecos, ultimo_disparo, false)
-			)
-
+			return _pista_relativa(posicion_bala, huecos, ultimo_disparo, mentir, rng)
 		_:
 			push_error("Tipo de pista desconocido: %s" % elegido)
 			return Pista.new("", [])
@@ -90,6 +40,56 @@ static func interseccion(pistas: Array[Pista]) -> Array[int]:
 		var candidatos_pista := pistas[i].candidatos
 		resultado = resultado.filter(func(h: int) -> bool: return candidatos_pista.has(h))
 	return resultado
+
+
+static func _pista_paridad(posicion_bala: int, huecos: int, mentir: bool) -> Pista:
+	var par := (posicion_bala % 2 == 0) != mentir
+	if par:
+		return Pista.new("La bala descansa en un hueco par.", _por_paridad(huecos, true))
+	return Pista.new("La bala no esta en los huecos pares.", _por_paridad(huecos, false))
+
+
+static func _pista_mitad(posicion_bala: int, huecos: int, mentir: bool) -> Pista:
+	var mitad := huecos / 2
+	var izquierda := (posicion_bala <= mitad) != mentir
+	if izquierda:
+		return Pista.new(
+			"La bala esta en la mitad izquierda del tambor.", _por_mitad(huecos, mitad, true)
+		)
+	return Pista.new(
+		"La bala esta en la mitad derecha del tambor.", _por_mitad(huecos, mitad, false)
+	)
+
+
+static func _pista_relativa(
+	posicion_bala: int, huecos: int, ultimo_disparo: int, mentir: bool, rng: RandomNumberGenerator
+) -> Pista:
+	var izquierda: bool
+	if posicion_bala == ultimo_disparo:
+		if not mentir:
+			return Pista.new("La bala esta justo donde acabas de disparar.", [ultimo_disparo])
+		izquierda = _lado_al_azar(huecos, ultimo_disparo, rng)
+	else:
+		izquierda = (posicion_bala < ultimo_disparo) != mentir
+
+	if izquierda:
+		return Pista.new(
+			"La bala esta a la izquierda de tu ultimo disparo.",
+			_por_relativa(huecos, ultimo_disparo, true)
+		)
+	return Pista.new(
+		"La bala esta a la derecha de tu ultimo disparo.",
+		_por_relativa(huecos, ultimo_disparo, false)
+	)
+
+
+static func _lado_al_azar(huecos: int, ultimo_disparo: int, rng: RandomNumberGenerator) -> bool:
+	var lados: Array[bool] = []
+	if ultimo_disparo > 1:
+		lados.append(true)
+	if ultimo_disparo < huecos:
+		lados.append(false)
+	return lados[Azar.entero(rng, 0, lados.size() - 1)]
 
 
 static func _por_paridad(huecos: int, par: bool) -> Array[int]:
