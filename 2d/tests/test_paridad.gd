@@ -176,24 +176,11 @@ func _test_pistas(casos: Array) -> void:
 
 		_comparaciones += 1
 		if not coincide:
-			(
-				_fallos
-				. append(
-					(
-						"pista %s (bala %d, ultimo %d, %d huecos, mentir=%s): Godot dice '%s' %s y Python admite %s"
-						% [
-							tipo,
-							posicion,
-							ultimo,
-							huecos,
-							mentir,
-							obtenido["texto"],
-							obtenido["candidatos"],
-							esperados
-						]
-					)
-				)
-			)
+			var situacion := "pista %s (bala %d, ultimo %d, %d huecos, mentir=%s)"
+			var veredicto := "Godot dice '%s' %s y Python admite %s"
+			situacion = situacion % [tipo, posicion, ultimo, huecos, mentir]
+			veredicto = veredicto % [obtenido["texto"], obtenido["candidatos"], esperados]
+			_fallos.append("%s: %s" % [situacion, veredicto])
 
 
 func _test_interseccion(casos: Array) -> void:

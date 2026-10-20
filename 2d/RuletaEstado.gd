@@ -86,15 +86,8 @@ func disparar(numero: int) -> void:
 		activo.murio = true
 		var perdidos := activo.apuesta.perder()
 		activo.puntos_finales = 0
-		(
-			impacto
-			. emit(
-				activo.disparos,
-				perdidos,
-				activo.dias,
-				activo.historial.resumen(activo.dias),
-			)
-		)
+		var resumen := activo.historial.resumen(activo.dias)
+		impacto.emit(activo.disparos, perdidos, activo.dias, resumen)
 		_terminar_duelo_si_procede()
 		return
 
@@ -144,15 +137,8 @@ func marcar(hueco: int) -> void:
 func retirarse() -> void:
 	var activo := jugador_activo
 	activo.puntos_finales = activo.apuesta.retirarse()
-	(
-		retirada
-		. emit(
-			activo.disparos,
-			activo.puntos_finales,
-			activo.dias,
-			activo.historial.resumen(activo.dias),
-		)
-	)
+	var resumen := activo.historial.resumen(activo.dias)
+	retirada.emit(activo.disparos, activo.puntos_finales, activo.dias, resumen)
 	_terminar_duelo_si_procede()
 
 

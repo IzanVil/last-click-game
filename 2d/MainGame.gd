@@ -245,34 +245,15 @@ func _pintar_records() -> void:
 		records_tabla.text = "[i]Aun no hay ninguna partida anotada.[/i]"
 		return
 
-	var lineas: Array[String] = [
-		(
-			"[color=#%s]%s %s %s  %s[/color]"
-			% [
-				_con_contraste(Paleta.BRONCE).to_html(false),
-				"  #",
-				"DIAS".rpad(6),
-				"PUNTOS".rpad(8),
-				"FECHA",
-			]
-		)
-	]
+	var columnas := "%s %s %s  %s" % ["  #", "DIAS".rpad(6), "PUNTOS".rpad(8), "FECHA"]
+	var color_cabecera := _con_contraste(Paleta.BRONCE).to_html(false)
+	var lineas: Array[String] = ["[color=#%s]%s[/color]" % [color_cabecera, columnas]]
 	for i in range(_records.mejores.size()):
 		var marca: Dictionary = _records.mejores[i]
-		(
-			lineas
-			. append(
-				(
-					"%s %s %s  %s"
-					% [
-						("%d." % (i + 1)).lpad(3),
-						str(marca["dias"]).rpad(6),
-						str(marca["puntos"]).rpad(8),
-						marca.get("fecha", ""),
-					]
-				)
-			)
-		)
+		var puesto := ("%d." % (i + 1)).lpad(3)
+		var dias := str(marca["dias"]).rpad(6)
+		var puntos := str(marca["puntos"]).rpad(8)
+		lineas.append("%s %s %s  %s" % [puesto, dias, puntos, marca.get("fecha", "")])
 	records_tabla.text = "\n".join(lineas)
 
 

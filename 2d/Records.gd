@@ -27,16 +27,8 @@ func registrar_partida(
 
 func _anotar_en_mejores(dias: int, puntos: int) -> void:
 	var fecha := Time.get_date_dict_from_system()
-	(
-		mejores
-		. append(
-			{
-				"dias": dias,
-				"puntos": puntos,
-				"fecha": "%04d-%02d-%02d" % [fecha["year"], fecha["month"], fecha["day"]],
-			}
-		)
-	)
+	var fecha_texto := "%04d-%02d-%02d" % [fecha["year"], fecha["month"], fecha["day"]]
+	mejores.append({"dias": dias, "puntos": puntos, "fecha": fecha_texto})
 	mejores.sort_custom(
 		func(a: Dictionary, b: Dictionary) -> bool:
 			if a["dias"] != b["dias"]:
@@ -62,17 +54,12 @@ static func cargar(ruta := RUTA_POR_DEFECTO) -> Records:
 	if json.data.get("mejores") is Array:
 		for entrada in json.data["mejores"]:
 			if entrada is Dictionary and entrada.has("dias") and entrada.has("puntos"):
-				(
-					records
-					. mejores
-					. append(
-						{
-							"dias": int(entrada["dias"]),
-							"puntos": int(entrada["puntos"]),
-							"fecha": str(entrada.get("fecha", "")),
-						}
-					)
-				)
+				var marca := {
+					"dias": int(entrada["dias"]),
+					"puntos": int(entrada["puntos"]),
+					"fecha": str(entrada.get("fecha", "")),
+				}
+				records.mejores.append(marca)
 	for campo in records._campos():
 		if json.data.has(campo):
 			records.set(campo, int(json.data[campo]))
