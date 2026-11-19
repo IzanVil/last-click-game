@@ -119,13 +119,6 @@ class TestVaGanando(unittest.TestCase):
 
 
 class TestNoHaceTrampa(unittest.TestCase):
-    """La verdad nunca se queda fuera de lo que el rival cree posible.
-
-    Mismo criterio que test_solver, pero pasando por el rival entero y
-    por un duelo de verdad: si alguna vez descartara el estado real,
-    seria que mira donde no debe o que entiende mal alguna regla.
-    """
-
     def test_juega_duelos_enteros_sin_descartar_la_verdad(self):
         for semilla in range(60):
             juego = motor.Motor(

@@ -46,14 +46,6 @@ class TestJugarUna(unittest.TestCase):
 
 
 class TestSolverYMotorNoSeContradicen(unittest.TestCase):
-    """Ni una sola contradiccion en muchas partidas seguidas.
-
-    Una creencia vacia significaria que el solver y el motor entienden
-    el juego de forma distinta. Es la misma comprobacion que hace
-    test_solver, pero aqui pasada por el banco entero y con faroles y
-    eventos de por medio.
-    """
-
     def test_ninguna_politica_se_queda_sin_estados(self):
         for politica in banco.POLITICAS.values():
             for dificultad, preset in banco.DIFICULTADES.items():
@@ -67,15 +59,6 @@ class TestSolverYMotorNoSeContradicen(unittest.TestCase):
 
 
 class PoliticaRota(banco.Deductiva):
-    """Una politica que se contradice a proposito.
-
-    Descarta el hueco al que acaba de disparar Y tambien se queda solo
-    con ese hueco: incompatible, asi que la creencia se vacia enseguida.
-    Existe para comprobar que el contador de contradicciones salta
-    cuando tiene que saltar; si no, el "0 contradicciones" del resto de
-    tests no diria nada.
-    """
-
     nombre = "rota"
 
     def vio_disparo_fallido(self, hueco: int) -> None:
@@ -100,12 +83,6 @@ class TestElContadorDeContradiccionesFunciona(unittest.TestCase):
 
 
 class TestDeducirEsMejorQueElAzar(unittest.TestCase):
-    """El banco solo vale si distingue una politica buena de una mala.
-
-    Si deducir no ganase al azar por goleada, o el solver no sirve o el
-    banco no esta midiendo lo que dice medir.
-    """
-
     def test_deducir_sobrevive_mucho_mas(self):
         azar = banco.correr("normal", "azar", 60, tope=40)
         deduce = banco.correr("normal", "deduce", 60, tope=40)

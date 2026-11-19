@@ -1,16 +1,9 @@
 name: Release
 
-# Solo con una etiqueta vX.Y.Z. No corre en cada push: construir los
-# cuatro binarios se lleva varios minutos y ~1,3 GB de plantillas de
-# Godot, y eso no tiene sentido pagarlo en cada commit -- para eso esta
-# ci.yml, que corre siempre y es lo que de verdad protege master.
 "on":
   push:
     tags:
       - "v*"
-  # Con workflow_dispatch se puede ensayar el proceso entero sin crear
-  # una etiqueta: construye y sube los artefactos del run, pero no
-  # publica ninguna release (ver el `if` del job publicar).
   workflow_dispatch:
 
 permissions:
@@ -40,26 +33,17 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          # El mismo minimo que declara requires-python: el binario que
-          # se publica no deberia depender de una version mas nueva que
-          # la que el proyecto dice soportar.
           python-version: "3.11"
 
       - name: Instalar el proyecto y pyinstaller
         run: python -m pip install --upgrade pip && python -m pip install . pyinstaller
 
       - name: Construir el ejecutable
-        # --paths . para que `terminal` se importe como paquete: ver el
-        # docstring de empaquetado/lanzador.py, que explica por que no se
-        # puede partir de terminal/ruleta.py a secas.
         run: >
           pyinstaller --onefile --name tambor-del-juicio --paths .
           --distpath dist empaquetado/lanzador.py
 
       - name: Comprobar que el binario arranca
-        # Un ejecutable que no se ha ejecutado nunca no es un
-        # ejecutable. --version prueba el arranque y el empaquetado de
-        # los modulos; la partida prueba que el juego llega al final.
         shell: bash
         run: |
           ./dist/${{ matrix.binario }} --version
@@ -82,7 +66,6 @@ jobs:
     name: grafica (Godot)
     runs-on: ubuntu-latest
     env:
-      # La misma version que ci.yml. Si una sube, la otra tambien.
       GODOT_VERSION: "4.7.2-stable"
       GODOT_ZIP: "Godot_v4.7.2-stable_linux.x86_64.zip"
       GODOT_SHA512: "9aa00f7a605200940bce3027a567b782f49bd8e940dd06ae9e987bd65aee1b1467edd56ed84fcdcbdd44354bf613bdbb4e5d2913e925850368e150c59ed54c65"
@@ -102,9 +85,6 @@ jobs:
           chmod +x godot
 
       - name: Instalar las plantillas de exportacion
-        # ~1,3 GB. Sin ellas `--export-release` falla: el ejecutable que
-        # se publica no es el editor, es una plantilla aparte por
-        # plataforma a la que se le pega el .pck del juego.
         run: |
           curl -sL -o plantillas.tpz \
             "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/${TPZ}"
@@ -114,8 +94,6 @@ jobs:
           mv templates "$destino"
 
       - name: Importar el proyecto
-        # Igual que en ci.yml: .godot/ no esta versionado y sin el no se
-        # resuelven los uid:// (entre ellos el de la escena principal).
         run: ./godot --headless --import --path 2d
 
       - name: Exportar Linux y Windows
@@ -126,9 +104,6 @@ jobs:
           ls -la dist
 
       - name: Comprobar que salieron binarios de verdad
-        # Que el export "termine" no basta: un preset mal puesto deja un
-        # fichero de cero bytes o del formato equivocado sin que el
-        # comando falle.
         run: |
           file dist/* 
           file dist/tambor-del-juicio-linux.x86_64 | grep -q "ELF 64-bit"
@@ -146,8 +121,6 @@ jobs:
 
   publicar:
     name: publicar la release
-    # Solo con etiqueta. Un workflow_dispatch construye y deja los
-    # artefactos en el run, pero no publica nada.
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [terminal, grafica]
     runs-on: ubuntu-latest

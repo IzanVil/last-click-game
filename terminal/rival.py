@@ -1,25 +1,3 @@
-"""El rival de la maquina para el modo duelo.
-
-Hasta ahora el duelo pedia dos personas delante del mismo teclado. Esto
-pone a la maquina en la silla de enfrente, apoyandose en la deduccion de
-`solver.py`: el bot ve exactamente lo mismo que el jugador -- las pistas
-son compartidas, los eventos se anuncian -- y saca sus propias
-conclusiones. No hace trampa: no mira donde esta la bala.
-
-Tres niveles, y ninguno se consigue haciendo fallar al bot a proposito.
-Un rival que de vez en cuando tira al aire se nota y se siente tramposo;
-uno que razona con menos informacion se siente humano:
-
-- `novato`   no deduce nada, dispara donde no ha disparado todavia.
-- `templado` sigue las pistas pero no deduce el patron de la bala
-             (`solver.CreenciaSinPatron`).
-- `implacable` deduce con todo lo que hay (`solver.Creencia`).
-
-Ojo con `implacable`: el banco (ver banco.py) demostro que una deduccion
-completa acaba acorralando la bala y entonces ya no puede morir. Contra
-el, la unica forma de ganar es puntuar mas antes de que el se retire.
-"""
-
 import random
 from dataclasses import dataclass
 
@@ -34,8 +12,6 @@ NIVELES = ("novato", "templado", "implacable")
 
 @dataclass(frozen=True)
 class Caracter:
-    """Los tres numeros que distinguen a un nivel de otro."""
-
     umbral_farol: float
     umbral_retirada: float
     prisa_por_retirarse: float
@@ -53,13 +29,6 @@ CARACTERES = {
 
 
 class Rival:
-    """Un jugador automatico que observa el duelo y decide su turno.
-
-    Observa TODOS los turnos, no solo los suyos: el tambor y las pistas
-    son compartidos, asi que lo que le pasa al humano tambien le enseña
-    donde esta la bala.
-    """
-
     def __init__(
         self,
         nivel: str,
@@ -84,12 +53,6 @@ class Rival:
     def observar(
         self, sucesos: list["motor.Suceso"], hueco_disparado: int | None
     ) -> None:
-        """Actualiza lo que sabe con lo que acaba de pasar en la mesa.
-
-        `hueco_disparado` es a donde se disparo, o None si el turno fue
-        un farol o una retirada. Los sucesos no lo llevan dentro y hace
-        falta para saber que hueco descartar.
-        """
         if hueco_disparado is not None:
             self.disparados.add(hueco_disparado)
 
@@ -114,7 +77,6 @@ class Rival:
                 self.creencia.tras_farol(suceso.hueco, suceso.acierto)
 
     def _riesgo_y_hueco(self) -> tuple[float, int]:
-        """El hueco mas seguro que ve y lo que cree arriesgar en el."""
         if self.creencia is None or self.creencia.contradictoria():
             sin_probar = [
                 hueco
@@ -130,13 +92,6 @@ class Rival:
     def decidir(
         self, mis_dias: int, mis_puntos: int, sus_dias: int, sus_puntos: int
     ) -> tuple[str, int]:
-        """Que hace en su turno: ("disparar"|"marcar"|"retirarse", hueco).
-
-        El orden de las reglas es el orden de sus prioridades: si hay un
-        hueco que sabe vacio no hay nada que pensar; si no, plantarse
-        solo tiene sentido yendo por delante; y gastar una marca es el
-        recurso para cuando el riesgo aprieta y aun no va ganando.
-        """
         riesgo, hueco = self._riesgo_y_hueco()
 
         if riesgo <= 0.0:
@@ -162,12 +117,6 @@ class Rival:
     def _va_ganando(
         mis_dias: int, mis_puntos: int, sus_dias: int, sus_puntos: int
     ) -> bool:
-        """Con el mismo criterio con el que se decide el duelo: mandan
-        los dias y, si empatan, los puntos (ver jugador.ganadores).
-
-        Empatar cuenta como ir ganando a efectos de plantarse: si el
-        duelo se cierra ahora, un empate no se pierde.
-        """
         if mis_dias != sus_dias:
             return mis_dias > sus_dias
         return mis_puntos >= sus_puntos

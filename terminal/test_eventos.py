@@ -4,8 +4,6 @@ import eventos
 
 
 class FakeRng:
-    """Rng falso: `random()` fijo y `choice()` devuelve el primer elemento."""
-
     def __init__(self, valor_random):
         self.valor_random = valor_random
 

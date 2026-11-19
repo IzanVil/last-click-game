@@ -22,16 +22,6 @@ _parche_teclado: object = None
 
 
 def setUpModule() -> None:
-    """Deja la interfaz muda antes de tocarla.
-
-    Sin animaciones nada duerme ni escribe codigos de escape en la
-    terminal de quien lanza los tests (es el mismo interruptor que
-    --sin-animaciones), y con el teclado en crudo desactivado el
-    selector cae al metodo de teclear, que es el que los tests
-    alimentan con `input`. Ojo: `sys.stdin` SI es una terminal cuando
-    los tests se lanzan a mano, asi que sin este parche el selector se
-    quedaria esperando una flecha que nunca llega.
-    """
     global _parche_teclado
     efectos.configurar(animaciones=False, sonido=False)
     _parche_teclado = patch("entrada.modo_tecla_disponible", return_value=False)
@@ -43,8 +33,6 @@ def tearDownModule() -> None:
 
 
 class FakeTambor:
-    """Doble de estado.TamborJuicio con resultados de disparo prefijados."""
-
     def __init__(self, resultados, huecos=8, posicion_bala=5):
         self.huecos = huecos
         self.posicion_bala = posicion_bala
@@ -65,13 +53,6 @@ class FakeTambor:
 
 
 def _comprobar_final(caso, mock_pantalla, esperado):
-    """Comprueba una llamada a impacto()/retirada() desde el bucle.
-
-    Los cinco primeros argumentos (disparos, puntos, dias, resumen y si
-    hay record) se comparan uno a uno; el sexto solo se mira que sea un
-    Epilogo, porque cual toca ya lo cubren los tests de ambiente.py y
-    fijarlo aqui ataria estos tests al texto de cada final.
-    """
     mock_pantalla.assert_called_once()
     llamada = mock_pantalla.call_args
     caso.assertEqual(llamada.args[: len(esperado)], esperado)
@@ -79,9 +60,6 @@ def _comprobar_final(caso, mock_pantalla, esperado):
 
 
 def _parchear_records(func):
-    """Decorador que evita que los tests toquen el archivo de records real
-    del usuario: jugar()/jugar_duelo() cargan y guardan records siempre,
-    asi que cualquier test que las llame necesita este doble parcheo."""
     func = patch("ruleta.records.guardar")(func)
     func = patch("ruleta.records.cargar", return_value=records.Records())(func)
     return func
@@ -703,16 +681,6 @@ class TestVersionTexto(unittest.TestCase):
 
 
 class CasoQueLlamaMain(unittest.TestCase):
-    """Base para los tests que ejecutan main() de verdad.
-
-    main() enciende los efectos segun los flags que reciba, y AJUSTES es
-    global: sin devolverlo a su sitio despues de cada test, el resto del
-    modulo se queda con las animaciones encendidas y cada pausa() y cada
-    escribir() pasan a dormir de verdad (la suite entera se iba a mas de
-    25 segundos por esto). Tambien silencia el cursor, que si no escribe
-    codigos de escape en la terminal de quien lanza los tests.
-    """
-
     def setUp(self):
         parche = patch("ruleta.efectos.cursor")
         parche.start()
@@ -1026,14 +994,6 @@ class TestAmbientacion(unittest.TestCase):
 
     @staticmethod
     def _texto_del_cartel(lineas):
-        """Contenido de un cartel, devuelto como texto corrido.
-
-        ambiente.cartel() enmarca, centra y reparte en varias lineas un
-        texto que no quepa de una (los de evento no caben: miden ~53
-        caracteres frente a los 46 del cartel). Asi que el mensaje
-        original no esta ahi como subcadena literal: hay que quitarle el
-        marco y volver a juntar las palabras antes de buscarlo.
-        """
         sin_marco = " ".join(linea.strip("║╔╗╚╝═ ") for linea in lineas)
         return " ".join(sin_marco.split())
 
@@ -1175,8 +1135,6 @@ class TestRetiradaConRecord(unittest.TestCase):
 
 
 class TestFlujoAvanzado(unittest.TestCase):
-    """Ramas del bucle que solo aparecen con las opciones nuevas."""
-
     @patch("ruleta.efectos.pausa", return_value=None)
     @patch("ruleta.limpiar", return_value=None)
     @patch("ruleta.retirada")
@@ -1323,13 +1281,6 @@ class TestRivalDeLaMaquina(unittest.TestCase):
 
 
 class TestDueloContraLaMaquina(unittest.TestCase):
-    """Un duelo entero jugado de verdad contra el bot.
-
-    Los tests de rival.py prueban la cabeza de la maquina; este prueba
-    que esta enchufada: que le toca su turno, que decide sola, que se
-    anuncia lo que hace y que el duelo llega a su veredicto.
-    """
-
     def test_la_maquina_juega_sus_turnos_y_el_duelo_termina(self):
         salida = _grabar_partida(seed=4242, duelo=True, rival_nivel="implacable")
         self.assertIn("La maquina (implacable)", salida)
@@ -1428,14 +1379,6 @@ class TestTamborQueCabe(unittest.TestCase):
 
 
 def _guion(max_disparos=12):
-    """Un jugador de mentira que siempre juega igual.
-
-    Dispara a los huecos 1, 2, 3... por orden hasta `max_disparos` y
-    entonces se retira; si la bala lo encuentra antes, contesta que no a
-    jugar otra. Lo importante es que su guion NO depende de la semilla:
-    asi, si dos partidas con la misma semilla salen iguales, es merito
-    del generador y no de que el jugador haya reaccionado distinto.
-    """
     contador = {"disparos": 0}
 
     def responder(prompt=""):
@@ -1454,17 +1397,6 @@ def _guion(max_disparos=12):
 
 
 def _grabar_partida(entrada_falsa=None, **kwargs):
-    """Juega una partida entera con el guion de arriba y devuelve lo impreso.
-
-    Se captura sys.stdout entero (y no builtins.print) porque el tecleo
-    letra a letra de efectos.py escribe por ahi directamente: una pista
-    o un epilogo no pasan por print().
-
-    Los records se cargan NUEVOS en cada llamada (side_effect y no
-    return_value): compartiendo un unico Records entre dos partidas, la
-    primera dejaria su marca de dias y solo ella imprimiria "¡Nuevo
-    record!", una diferencia del doble de test y no del juego.
-    """
     salida = io.StringIO()
     with (
         patch("ruleta.records.cargar", side_effect=lambda: records.Records()),
@@ -1477,15 +1409,6 @@ def _grabar_partida(entrada_falsa=None, **kwargs):
 
 
 class TestSemilla(CasoQueLlamaMain):
-    """--seed pasa a ser por PARTIDA y no por sesion.
-
-    Antes main() hacia random.seed(args.seed): fijaba la sesion entera y
-    no dejaba forma de recuperar la semilla de una partida ya jugada,
-    que es justo lo que hace falta para compartirla o para reproducir un
-    fallo a posteriori. Ahora cada partida nace de su propio generador y
-    enseña su numero al terminar.
-    """
-
     def test_seed_llega_hasta_el_bucle_de_juego(self):
         with patch("ruleta.jugar") as mock_jugar:
             ruleta.main(["--seed", "1234"])
@@ -1499,14 +1422,6 @@ class TestSemilla(CasoQueLlamaMain):
 
 
 class TestSemillaRepetible(unittest.TestCase):
-    """La semilla vale si reproduce la partida ENTERA, no solo el tambor.
-
-    Por eso estos tests comparan todo lo que sale por pantalla (pistas,
-    eventos, frases de ambiente, epilogo) en vez de mirar campos
-    sueltos: cualquier sorteo que se quedase fuera del generador de la
-    partida -uno nuevo que se anada manana sin pasarle `rng`- rompe aqui.
-    """
-
     def test_la_misma_semilla_juega_la_misma_partida(self):
         primera = _grabar_partida(seed=4242)
         segunda = _grabar_partida(seed=4242)
@@ -1528,11 +1443,6 @@ class TestSemillaRepetible(unittest.TestCase):
         self.assertIn("Semilla de esta partida: 77", primera)
 
     def test_la_semilla_solo_fija_la_primera_partida(self):
-        """Jugar dos seguidas con --seed no repite la misma dos veces.
-
-        La segunda sortea la suya: si tambien heredase la del jugador,
-        la sesion entera seria un bucle de la misma partida.
-        """
         vistas = set()
         for _ in range(8):
             teclas = _guion()

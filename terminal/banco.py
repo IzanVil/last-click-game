@@ -1,22 +1,3 @@
-"""Banco de balance: juega miles de partidas y cuenta que sale.
-
-El balance del juego estaba fijado a ojo. Esto lo mide: enfrenta varias
-politicas -- desde disparar al azar hasta deducir con `solver.Creencia`
--- contra cada preset de dificultad, y cuenta dias sobrevividos, cuanto
-se tarda en acorralar la bala y cuantas partidas acaban en BOOM.
-
-Ninguna politica se retira nunca: se juega hasta que la bala aparece o
-hasta el tope de disparos. Asi el numero que sale mide la DEDUCCION y no
-lo prudente que sea cada una, que es lo que se quiere comparar.
-
-Se apoya en `motor.Motor`, no en la interfaz: por eso una partida entera
-cuesta microsegundos y caben decenas de miles.
-
-    python3 terminal/banco.py                  # 5000 partidas por caso
-    python3 terminal/banco.py --partidas 50000
-    python3 terminal/banco.py --duelos 500     # quien gana a quien en duelo
-"""
-
 import argparse
 import random
 import statistics
@@ -43,8 +24,6 @@ TOPE_DISPAROS = 300
 
 @dataclass
 class Resultado:
-    """Como acabo una partida y que se aprendio por el camino."""
-
     disparos: int
     dias: int
     murio: bool
@@ -56,8 +35,6 @@ class Resultado:
 
 
 class Politica:
-    """Como decide un jugador automatico. Base sin deduccion ninguna."""
-
     nombre = "azar"
     usa_faroles = False
 
@@ -91,8 +68,6 @@ class Politica:
 
 
 class Deductiva(Politica):
-    """Lleva la cuenta exacta de lo posible y dispara a lo mas seguro."""
-
     nombre = "deduce"
 
     def __init__(self, huecos: int, marcas: int, rng: random.Random) -> None:
@@ -125,16 +100,6 @@ class Deductiva(Politica):
 
 
 class DeductivaConFaroles(Deductiva):
-    """Como la anterior, pero gasta marcas para acorralar antes.
-
-    En solitario marcar no mueve la bala ni pasa turno: lo unico que
-    cuesta es la marca. Asi que mientras queden marcas y la bala no este
-    acorralada, farolear siempre sale a cuenta. Se marca el hueco MAS
-    probable a proposito: acertando se tacha el trozo mas gordo de la
-    creencia, y fallando se aprende la posicion exacta. Las dos
-    respuestas valen.
-    """
-
     nombre = "deduce+farol"
     usa_faroles = True
 
@@ -160,7 +125,6 @@ def jugar_una(
     semilla: int,
     tope: int = TOPE_DISPAROS,
 ) -> Resultado:
-    """Juega una partida entera contra el motor y devuelve como acabo."""
     juego = motor.Motor(huecos=huecos, marcas=marcas, rng=semillas.generador(semilla))
     politica = politica_cls(huecos, marcas, random.Random(semilla ^ 0x5EED))
 
@@ -212,8 +176,6 @@ def jugar_una(
 
 @dataclass
 class Informe:
-    """Lo que salio de jugar muchas partidas del mismo caso."""
-
     dificultad: str
     politica: str
     partidas: int
@@ -254,12 +216,6 @@ def correr(
     semilla_base: int = 0,
     tope: int = TOPE_DISPAROS,
 ) -> Informe:
-    """Juega `partidas` del mismo caso y agrega los resultados.
-
-    Las semillas van 0, 1, 2... a proposito: asi todas las politicas
-    juegan exactamente los mismos tambores y la comparacion no depende
-    de que a una le tocaran partidas mas faciles.
-    """
     preset = DIFICULTADES[dificultad]
     informe = Informe(dificultad, politica, partidas)
     for indice in range(partidas):
@@ -291,12 +247,6 @@ def correr(
 
 
 def _medio(valor: float) -> str:
-    """Una media, o un guion cuando no hubo ni una muestra.
-
-    Le pasa a la politica del azar, que no deduce nada y por tanto
-    nunca acorrala: imprimir "nan" ahi parece un fallo de calculo
-    cuando en realidad es la respuesta.
-    """
     return "--" if valor != valor else f"{valor:.1f}"
 
 
@@ -312,12 +262,6 @@ def _fila(informe: Informe) -> str:
 
 
 def _tabla_patrones(informe: Informe) -> list[str]:
-    """Cuantos disparos cuesta acorralar la bala con cada patron.
-
-    Es la pregunta que motivo el banco: si un patron se delata mucho
-    antes que los demas, el juego tiene cuatro dificultades distintas
-    sin haberlo decidido nadie.
-    """
     if not informe.por_patron:
         return []
     lineas = [
@@ -337,7 +281,6 @@ def _tabla_patrones(informe: Informe) -> list[str]:
 
 
 def informe_completo(partidas: int, tope: int = TOPE_DISPAROS) -> str:
-    """La tabla entera: cada dificultad contra cada politica."""
     cabecera = (
         f"{'dificultad':<9} {'politica':<13} {'dias med':>9} {'mediana':>9} "
         f"{'sobrevive':>11} {'acorrala en':>11} {'patron en':>10}"
@@ -402,11 +345,6 @@ if __name__ == "__main__":  # pragma: no cover
 def jugar_duelo(
     nivel_a: str, nivel_b: str, huecos: int, marcas: int, semilla: int, tope: int = 60
 ) -> str:
-    """Un duelo entre dos niveles. Devuelve "a", "b" o "empate".
-
-    Los dos ven lo mismo -- el tambor y las pistas son compartidos --,
-    asi que la unica diferencia es lo que cada uno sabe sacar de ello.
-    """
     juego = motor.Motor(
         huecos=huecos,
         marcas=marcas,
@@ -440,11 +378,6 @@ def jugar_duelo(
 
 
 def tabla_de_duelos(duelos: int, dificultad: str = "normal") -> str:
-    """Cada nivel contra cada nivel, para ver si alguno es imbatible.
-
-    La pregunta que motivo el rival: si `implacable` no pierde nunca, un
-    duelo contra el no es un duelo, es una demostracion.
-    """
     preset = DIFICULTADES[dificultad]
     lineas = [
         f"{duelos} duelos por cruce, dificultad {dificultad}.",

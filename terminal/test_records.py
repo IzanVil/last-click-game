@@ -113,10 +113,6 @@ class TestResumen(unittest.TestCase):
 
 
 class TestCargarCorrupto(unittest.TestCase):
-    """cargar() promete no reventar con un fichero roto: un records
-    corrupto no deberia impedir jugar. Estos son los dos casos en los
-    que esa promesa no se cumplia."""
-
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()
         self.addCleanup(self.dir.cleanup)

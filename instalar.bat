@@ -1,10 +1,4 @@
 @echo off
-rem ---------------------------------------------------------------
-rem Instalador de El Tambor del Juicio (version terminal Python) para Windows
-rem Uso: doble click en este archivo, o desde CMD:
-rem   instalar.bat          -> instala y ejecuta el juego
-rem   instalar.bat --solo   -> solo instala (sin abrir el juego)
-rem ---------------------------------------------------------------
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
 

@@ -5,8 +5,6 @@ import pistas
 
 
 class FakeRng:
-    """Rng falso que registra entre que opciones se le pide elegir."""
-
     def __init__(self, elegido):
         self.elegido = elegido
         self.opciones_vistas = None
@@ -120,11 +118,6 @@ class TestInterseccion(unittest.TestCase):
 
 
 class TestRelativaCuandoLaBalaCaeEnElUltimoDisparo(unittest.TestCase):
-    """La bala se mueve DESPUES de un disparo fallido, asi que puede
-    acabar justo en el hueco recien probado: con el patron "avanza"
-    basta con disparar un hueco por delante de ella. El codigo daba por
-    imposible ese caso."""
-
     def test_el_caso_es_alcanzable_jugando(self):
         tambor = estado.TamborJuicio(huecos=8, patron="avanza", posicion_inicial=3)
         self.assertFalse(tambor.disparar(4))

@@ -1,16 +1,3 @@
-"""Efectos de terminal de "El Tambor del Juicio": pantalla, tiempo y sonido.
-
-Este modulo no sabe nada del juego: solo ofrece las primitivas de
-presentacion (limpiar, mover el cursor, escribir letra a letra, pitar,
-repintar un bloque de lineas ya montado) que usa la interfaz en
-ruleta.py. La logica pura (estado.py y companiia) no lo importa nunca.
-
-Todo lo que consume tiempo o hace ruido pasa por `AJUSTES`, que la CLI
-configura una sola vez al arrancar (--sin-animaciones / --sin-sonido).
-Con las animaciones apagadas nada duerme ni parpadea, que es justo lo
-que necesitan los tests y CI, donde no hay una terminal delante.
-"""
-
 import io
 import os
 import re
@@ -51,8 +38,6 @@ _SECUENCIA_COLOR = re.compile(r"\033\[[0-9;]*m")
 
 @dataclass
 class Ajustes:
-    """Interruptores globales de presentacion (ver `configurar`)."""
-
     animaciones: bool = True
     sonido: bool = True
 
@@ -61,21 +46,11 @@ AJUSTES = Ajustes()
 
 
 class _SalidaSinColor(io.TextIOBase):
-    """Envoltorio de un stream que borra los colores segun se escriben.
-
-    Filtrar en la salida, y no en cada sitio que imprime, es lo que hace
-    viable apagar el color: los mensajes del juego llevan los codigos
-    incrustados en casi cien f-strings repartidas por ruleta.py, y
-    envolverlas una a una seria un cambio enorme y facil de olvidar en el
-    siguiente mensaje que se anada. Aqui basta un punto.
-    """
-
     def __init__(self, destino: TextIO) -> None:
         self._destino = destino
 
     @property
     def destino(self) -> TextIO:
-        """El stream original, para poder desenvolverlo luego."""
         return self._destino
 
     def write(self, texto: str) -> int:
@@ -96,23 +71,6 @@ class _SalidaSinColor(io.TextIOBase):
 
 
 def asegurar_utf8(salida: TextIO | None = None) -> None:
-    """Asegura que la salida admite los caracteres con los que se dibuja.
-
-    El tambor, el panel y los carteles se montan con caracteres de caja
-    (╔ ═ ║ ┌ ┬ └) que no existen en las codificaciones de 8 bits. Python
-    no siempre usa UTF-8 en la salida: en Windows toma la del sistema, y
-    con la salida redirigida eso suele ser cp1252, donde esos caracteres
-    no se pueden codificar. El primer print de la cabecera tumbaba
-    entonces la partida entera con UnicodeEncodeError.
-
-    Se pide UTF-8, que los tiene todos. Si el stream no se deja
-    reconfigurar se intenta al menos que reemplace lo que no quepa, y si
-    tampoco, se deja como estaba: esto es una red de seguridad, no algo
-    por lo que merezca la pena no arrancar.
-
-    Va antes que `filtrar_color`, que envuelve sys.stdout en un objeto
-    que ya no tiene `reconfigure`.
-    """
     destino = sys.stdout if salida is None else salida
     reconfigurar = getattr(destino, "reconfigure", None)
     if reconfigurar is None:
@@ -127,25 +85,12 @@ def asegurar_utf8(salida: TextIO | None = None) -> None:
 
 
 def color_activo(sin_color: bool = False) -> bool:
-    """Decide si tiene sentido emitir codigos de color.
-
-    Se apaga si se pide explicitamente (--sin-color), si esta puesta la
-    variable NO_COLOR (https://no-color.org) o si la salida no es una
-    terminal: los codigos en un fichero de log o en un pipe solo estorban
-    a quien luego lo lee.
-    """
     if sin_color or os.environ.get("NO_COLOR"):
         return False
     return hay_terminal()
 
 
 def filtrar_color(activo: bool) -> None:
-    """Instala (o quita) el filtro de color sobre sys.stdout.
-
-    Es idempotente en los dos sentidos: llamarla dos veces seguidas con
-    el mismo valor no apila envoltorios ni deja el stdout original
-    perdido por el camino.
-    """
     salida = sys.stdout
     if activo and not isinstance(salida, _SalidaSinColor):
         sys.stdout = _SalidaSinColor(salida)
@@ -154,17 +99,10 @@ def filtrar_color(activo: bool) -> None:
 
 
 def ancho_terminal() -> int:
-    """Columnas de la terminal, con un fallback si no se pueden saber."""
     return shutil.get_terminal_size(fallback=(80, 24)).columns
 
 
 def hay_terminal() -> bool:
-    """Indica si la salida es una terminal de verdad y no un fichero o pipe.
-
-    Cuando el juego se ejecuta con la salida redirigida (o desde los
-    tests) no hay nadie mirando: ni el timbre ni el teclado en crudo
-    tienen sentido ahi.
-    """
     try:
         return bool(sys.stdout.isatty())
     except (AttributeError, ValueError):  # pragma: no cover
@@ -172,63 +110,37 @@ def hay_terminal() -> bool:
 
 
 def configurar(animaciones: bool = True, sonido: bool = True) -> None:
-    """Fija los interruptores globales. La CLI la llama una sola vez.
-
-    El sonido se apaga tambien, aunque se pida, si no hay una terminal
-    de verdad detras: un BEL en un fichero de log solo ensucia.
-    """
     AJUSTES.animaciones = animaciones
     AJUSTES.sonido = sonido and hay_terminal()
 
 
 def _volcar(texto: str) -> None:
-    """Escribe sin salto de linea y vacia el buffer, para que se vea ya."""
     sys.stdout.write(texto)
     sys.stdout.flush()
 
 
 def limpiar(duro: bool = False) -> None:
-    """Deja la pantalla en blanco con el cursor arriba del todo.
-
-    Por defecto se usa "ir arriba + borrar hacia abajo", que repinta sin
-    el parpadeo (ni el proceso hijo) de un `clear`/`cls` del sistema:
-    esta funcion se llama en cada fotograma, asi que importa. Con
-    `duro=True` se borra ademas el historial de scroll, lo que solo hace
-    falta al arrancar y al terminar.
-
-    Sin animaciones no se borra nada: la partida se convierte en un
-    registro que va bajando, que es lo que se quiere al redirigir la
-    salida a un fichero, en CI o con un lector de pantalla delante.
-    """
     if not AJUSTES.animaciones:
         return
     _volcar(f"{CSI}2J{CSI}3J{CSI}H" if duro else f"{CSI}H{CSI}J")
 
 
 def ir_a(fila: int, columna: int = 1) -> None:
-    """Coloca el cursor en una posicion absoluta de la pantalla."""
     _volcar(f"{CSI}{fila};{columna}H")
 
 
 def cursor(visible: bool) -> None:
-    """Muestra u oculta el cursor, que molesta durante las animaciones.
-
-    Sin animaciones no hay nada que esconder (ni pantalla que tocar):
-    no se emite ningun codigo.
-    """
     if not AJUSTES.animaciones:
         return
     _volcar(f"{CSI}?25h" if visible else f"{CSI}?25l")
 
 
 def pausa(segundos: float) -> None:
-    """Espera, salvo que las animaciones esten apagadas."""
     if AJUSTES.animaciones:
         time.sleep(segundos)
 
 
 def _partes(texto: str) -> Iterable[tuple[str, bool]]:
-    """Trocea `texto` en (trozo, es_secuencia_ansi) conservando el orden."""
     posicion = 0
     for coincidencia in _SECUENCIA_ANSI.finditer(texto):
         yield texto[posicion : coincidencia.start()], False
@@ -238,14 +150,6 @@ def _partes(texto: str) -> Iterable[tuple[str, bool]]:
 
 
 def escribir(texto: str, retardo: float = RETARDO_TECLEO, salto: bool = True) -> None:
-    """Imprime `texto` letra a letra, como una teletipo imprimiendo.
-
-    Los codigos de color se vuelcan de golpe (son invisibles: teclearlos
-    solo seria tiempo muerto) y los espacios no esperan, para que la
-    cadencia se parezca a la de una maquina de escribir de verdad. Sin
-    animaciones sale por `print`, de una vez: es el camino que siguen el
-    resto de mensajes del juego cuando no hay pantalla que animar.
-    """
     if not AJUSTES.animaciones:
         if salto:
             print(texto)
@@ -266,7 +170,6 @@ def escribir(texto: str, retardo: float = RETARDO_TECLEO, salto: bool = True) ->
 
 
 def beep(patron: str = "clic") -> None:
-    """Hace sonar el timbre de la terminal con el ritmo de `patron`."""
     if not AJUSTES.sonido:
         return
     esperas = PATRONES_SONIDO.get(patron)
@@ -279,14 +182,6 @@ def beep(patron: str = "clic") -> None:
 
 
 def pintar_bloque(fotograma: str, subir: int = 0) -> None:
-    """Pinta un bloque de lineas, opcionalmente pisando el anterior.
-
-    Con `subir` > 0 el cursor retrocede esas lineas antes de pintar, de
-    modo que el bloque nuevo cae justo encima del viejo sin tocar el
-    resto de la pantalla. Cada linea se borra hasta el final para que no
-    queden restos de un fotograma mas ancho. Sin animaciones se imprime
-    tal cual, sin mover el cursor: no hay pantalla que repintar.
-    """
     if not AJUSTES.animaciones:
         print(fotograma)
         return
@@ -297,16 +192,10 @@ def pintar_bloque(fotograma: str, subir: int = 0) -> None:
 
 
 def ancho_visible(texto: str) -> int:
-    """Longitud de `texto` en pantalla, sin contar los codigos de color.
-
-    Es lo que hace falta para alinear un marco: los codigos ANSI ocupan
-    caracteres en la cadena pero ninguna columna en la terminal.
-    """
     return len(_SECUENCIA_ANSI.sub("", texto))
 
 
 def alto_de(fotograma: str) -> int:
-    """Numero de lineas que ocupa un fotograma al pintarlo."""
     return fotograma.count("\n") + 1
 
 
@@ -315,20 +204,6 @@ def repintar(
     retardo: float = RETARDO_FOTOGRAMA,
     factor: float = 1.0,
 ) -> None:
-    """Anima una secuencia de fotogramas del mismo alto, en el sitio.
-
-    Se da por hecho que en pantalla, justo encima del cursor, ya hay un
-    bloque del mismo alto (el que acaba de pintar la escena): el primer
-    fotograma lo pisa, igual que cada fotograma pisa al anterior. Al
-    terminar queda pintado el ultimo, asi que conviene que sea el estado
-    en reposo.
-
-    `factor` multiplica la espera tras cada fotograma: por debajo de 1
-    el ritmo acelera (el latido del tambor cuando la bala esta cerca) y
-    por encima frena (el tambor girando hasta pararse). Sin animaciones
-    no hace nada: es un efecto de transito, y la escena de verdad ya
-    esta pintada debajo.
-    """
     if not AJUSTES.animaciones or not fotogramas:
         return
 
@@ -345,12 +220,6 @@ def repintar(
 
 
 def banner(lineas: Sequence[str], color: str = "", segundos: float = 2.0) -> None:
-    """Planta un cartel a pantalla completa y lo deja unos segundos.
-
-    A diferencia de `repintar`, un banner tambien se imprime con las
-    animaciones apagadas (sin la espera): anuncia algo que ha pasado en
-    la partida, no es un adorno.
-    """
     limpiar()
     print()
     print()

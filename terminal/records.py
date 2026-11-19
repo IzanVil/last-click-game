@@ -1,11 +1,3 @@
-"""Récords y estadísticas de "El Tambor del Juicio", persistidos en disco.
-
-Un JSON simple en la carpeta de datos del usuario (ver `ruta_por_defecto`),
-con contadores acumulados a lo largo de todas las partidas jugadas. No
-sabe nada de la interfaz: ruleta.py decide cuándo cargarlo/guardarlo y
-cómo mostrarlo.
-"""
-
 import json
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
@@ -14,19 +6,11 @@ NOMBRE_ARCHIVO = "records.json"
 
 
 def ruta_por_defecto() -> Path:
-    """Carpeta de datos del usuario: ~/.tambor_del_juicio/records.json.
-
-    Path.home() ya resuelve bien en Linux/macOS/Windows sin depender de
-    ninguna libreria extra; no hace falta nada mas especifico de
-    plataforma para un unico fichero de texto tan pequeño como este.
-    """
     return Path.home() / ".tambor_del_juicio" / NOMBRE_ARCHIVO
 
 
 @dataclass
 class Records:
-    """Contadores acumulados a lo largo de todas las partidas jugadas."""
-
     partidas_jugadas: int = 0
     dias_maximos: int = 0
     puntos_maximos: int = 0
@@ -36,7 +20,6 @@ class Records:
     def registrar_partida(
         self, dias: int, puntos: int, faroles_usados: int, faroles_acertados: int
     ) -> None:
-        """Actualiza los contadores tras una partida (gane o pierda)."""
         self.partidas_jugadas += 1
         self.dias_maximos = max(self.dias_maximos, dias)
         self.puntos_maximos = max(self.puntos_maximos, puntos)
@@ -45,27 +28,10 @@ class Records:
 
 
 def _es_contador(valor: object) -> bool:
-    """True si `valor` sirve como contador de records: un entero >= 0.
-
-    Los campos de `Records` se escriben todos con aritmetica (`+= 1`,
-    `max(...)`), asi que un valor de otro tipo colado en el JSON no
-    revienta al cargarlo sino mucho despues, al terminar la partida:
-    `{"partidas_jugadas": "muchas"}` cargaba tal cual y estallaba con un
-    TypeError al registrar el resultado. Se descartan aqui y el campo se
-    queda con su valor por defecto. `bool` se excluye a proposito: es un
-    `int` para Python, pero un `true` en el JSON es un dato corrupto, no
-    un contador a 1.
-    """
     return isinstance(valor, int) and not isinstance(valor, bool) and valor >= 0
 
 
 def cargar(ruta: Path | None = None) -> Records:
-    """Carga los récords desde disco.
-
-    Si el archivo no existe todavia (primera partida) o esta corrupto,
-    devuelve unos récords vacios en vez de reventar: un fichero de
-    récords roto no deberia impedir jugar.
-    """
     ruta = ruta or ruta_por_defecto()
     try:
         datos = json.loads(ruta.read_text(encoding="utf-8"))
@@ -87,14 +53,12 @@ def cargar(ruta: Path | None = None) -> Records:
 
 
 def guardar(records: Records, ruta: Path | None = None) -> None:
-    """Guarda los récords en disco, creando la carpeta si hace falta."""
     ruta = ruta or ruta_por_defecto()
     ruta.parent.mkdir(parents=True, exist_ok=True)
     ruta.write_text(json.dumps(asdict(records), indent=2), encoding="utf-8")
 
 
 def resumen(records: Records) -> str:
-    """Frase resumen de los récords, para mostrar en pantalla."""
     if records.partidas_jugadas == 0:
         return "Todavia no hay recuerdos del tambor: esta sera tu primera partida."
 

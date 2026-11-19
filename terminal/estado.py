@@ -1,10 +1,3 @@
-"""Estado y logica pura de "El Tambor del Juicio" (sin entrada/salida).
-
-Este modulo no imprime nada ni lee del teclado: solo lleva el tambor, la
-posicion de la bala y su movimiento. La interfaz (ruleta.py) es quien
-decide como mostrarlo y como pedir la siguiente accion al jugador.
-"""
-
 import random
 
 HUECOS = 8
@@ -17,13 +10,10 @@ PATRONES = ("avanza", "retrocede", "salta_dos", "espejo")
 def dias_sobrevividos(
     disparos_superados: int, disparos_por_dia: int = DISPAROS_POR_DIA
 ) -> int:
-    """Cuenta cuantos dias completos (de `disparos_por_dia` disparos) se han
-    sobrevivido. Un dia en curso, aun sin terminar, no cuenta todavia."""
     return disparos_superados // disparos_por_dia
 
 
 def _mover(posicion: int, patron: str, huecos: int) -> int:
-    """Calcula la nueva posicion de la bala tras aplicar `patron`."""
     if patron == "avanza":
         return posicion % huecos + 1
     if patron == "retrocede":
@@ -36,13 +26,6 @@ def _mover(posicion: int, patron: str, huecos: int) -> int:
 
 
 class TamborJuicio:
-    """Tambor con una unica bala que se desplaza tras cada disparo fallido.
-
-    "Fallido" se entiende desde el punto de vista de la bala: un disparo
-    que no la encuentra. El patron de movimiento (`self.patron`) se sortea
-    al construir el tambor y no cambia durante la partida.
-    """
-
     def __init__(
         self,
         huecos: int = HUECOS,
@@ -65,12 +48,6 @@ class TamborJuicio:
         self.historial: list[int] = []
 
     def disparar(self, numero: int) -> bool:
-        """Resuelve un disparo a `numero`. Devuelve True si impacta en la bala.
-
-        Si no impacta, la bala se desplaza segun `self.patron` antes de
-        devolver el control: la siguiente pista y el siguiente disparo ya
-        veran la posicion nueva.
-        """
         if not 1 <= numero <= self.huecos:
             raise ValueError(f"Posicion fuera de rango: {numero}")
 
@@ -83,11 +60,5 @@ class TamborJuicio:
         return impacto
 
     def mover_extra(self) -> int:
-        """Desplaza la bala una vez mas, fuera de un disparo.
-
-        Lo dispara un evento aleatorio (ver eventos.py) para simular que
-        el tambor se ha movido solo entre disparo y disparo. Reutiliza el
-        mismo patron de movimiento que un fallo normal.
-        """
         self.posicion_bala = _mover(self.posicion_bala, self.patron, self.huecos)
         return self.posicion_bala

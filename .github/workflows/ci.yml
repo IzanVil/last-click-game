@@ -11,8 +11,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # requires-python en pyproject.toml es ">=3.11"; no tiene sentido
-        # testear 3.6-3.10, que ya estan fuera de soporte de seguridad.
         python-version: ["3.11", "3.12", "3.13"]
 
     steps:
@@ -44,16 +42,6 @@ jobs:
   python-tests-windows:
     name: python-tests-windows (Python 3.13)
     runs-on: windows-latest
-    # Job aparte y deliberadamente corto. Solo los tests, y solo en una
-    # version de Python: ruff, black y mypy miran exactamente el mismo
-    # codigo que en Linux, asi que repetirlos aqui no dice nada nuevo, y
-    # un runner de Windows gasta el doble de minutos que uno de Linux.
-    #
-    # Lo que cubre es lo que en Linux no se ejecuta nunca: la rama msvcrt
-    # de entrada.py (lectura de teclas y flechas con codigos extendidos)
-    # y el os.system("") de ruleta.py que habilita los codigos de color
-    # en cmd.exe. Hay ademas run.bat e instalar.bat, y hasta ahora todo
-    # ese lado del proyecto iba a ciegas.
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -70,10 +58,6 @@ jobs:
         run: python -m unittest discover -s terminal
 
       - name: El juego arranca y sale limpio sin entrada
-        # Sin stdin el juego termina por EOF, que main() captura: si
-        # saliera con un traceback (o con un codigo distinto de 0) este
-        # paso lo cazaria. Es el unico sitio donde se comprueba que el
-        # arranque real funciona en Windows.
         run: |
           "" | python terminal/ruleta.py --sin-animaciones --sin-sonido
           if ($LASTEXITCODE -ne 0) { exit 1 }
@@ -81,12 +65,7 @@ jobs:
   godot-smoke-test:
     name: godot-smoke-test
     runs-on: ubuntu-latest
-    # No depende de python-tests: corre en paralelo, como job independiente.
     env:
-      # 2d/project.godot declara config/features=("4.7", ...) -> se usa
-      # el ultimo patch estable de esa linea (4.7 por si solo no es una
-      # release descargable). Revisar y actualizar si el proyecto sube
-      # de version.
       GODOT_VERSION: "4.7.2-stable"
       GODOT_ZIP: "Godot_v4.7.2-stable_linux.x86_64.zip"
       GODOT_SHA512: "9aa00f7a605200940bce3027a567b782f49bd8e940dd06ae9e987bd65aee1b1467edd56ed84fcdcbdd44354bf613bdbb4e5d2913e925850368e150c59ed54c65"
@@ -106,22 +85,11 @@ jobs:
 
       - name: Importar el proyecto (genera .godot/, requerido para resolver uid://)
         run: |
-          # .godot/ (incluido uid_cache.bin) esta en .gitignore -> en un
-          # checkout limpio no existe, y run/main_scene="uid://..." en
-          # project.godot no se puede resolver sin este paso. Sin el,
-          # --check-only aborta con "Main scene's path could not be
-          # resolved from UID" (visto en un run real de CI). --import
-          # hace el escaneo/reimportacion y sale solo (no necesita --quit).
           ./godot --headless --import --path 2d
 
       - name: Smoke test (--headless --check-only, falla si hay SCRIPT ERROR)
         run: |
           set -o pipefail
-          # --check-only por si solo solo tiene efecto junto a --script; sin
-          # --quit el proceso se queda corriendo la escena para siempre. Y
-          # Godot devuelve exit code 0 aunque un script falle al parsear
-          # (solo lo imprime como SCRIPT ERROR/ERROR), asi que ademas del
-          # exit code se revisa el log en busca de esas lineas.
           ./godot --headless --check-only --quit --path 2d 2>&1 | tee godot-check.log
           if grep -qE "SCRIPT ERROR|ERROR:" godot-check.log; then
             echo "Godot reporto errores de importacion/parseo:"
@@ -130,33 +98,17 @@ jobs:
           fi
 
       - name: Tests de logica de El Tambor del Juicio (2d/tests/test_logica.gd)
-        # Godot no trae un framework de tests de serie (ni GUT ni similar
-        # esta instalado en el proyecto): este script hace de arnes minimo
-        # -- ver su docstring -- y sale con exit code 1 si algo falla.
         run: ./godot --headless --script res://tests/test_logica.gd --path 2d
 
       - name: Paridad con la version de terminal (2d/tests/test_paridad.gd)
-        # Compara esta version con la de Python caso a caso, usando la
-        # tabla que genera terminal/paridad.py y que vive versionada en
-        # 2d/tests/paridad.json. Es lo que impide que las dos versiones
-        # se separen en silencio: los comentarios de "hermano de X.py"
-        # no comprueban nada por si solos, y las dos divergencias que
-        # arreglo c5a0897 llevaban meses sin que nadie las viera.
         run: ./godot --headless --script res://tests/test_paridad.gd --path 2d
 
       - name: Test de integracion de la escena (2d/tests/test_escena.gd)
-        # Carga MainGame.tscn de verdad y simula disparar/marcar/retirarse
-        # esperando a las animaciones (Tween) entre cada accion: cubre el
-        # cableado de señales de MainGame.gd que test_logica.gd no toca.
         run: ./godot --headless --script res://tests/test_escena.gd --path 2d
 
   gdscript-lint:
     name: gdscript-lint
     runs-on: ubuntu-latest
-    # Job aparte del de Godot a proposito: gdtoolkit es un paquete de
-    # Python y no necesita el binario del motor, asi que da feedback de
-    # estilo en segundos, sin bajarse los ~100 MB de la release. Es a
-    # GDScript lo que ruff/black son al lado Python.
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -170,9 +122,6 @@ jobs:
         run: python -m pip install --upgrade pip && python -m pip install "gdtoolkit>=4.5"
 
       - name: Lint (gdlint)
-        # find en vez de un glob fijo para que no se quede fuera ninguna
-        # subcarpeta nueva (2d/tests/ y 2d/tools/ ya lo son). Las reglas
-        # que se apartan de las de serie estan en gdlintrc, en la raiz.
         run: find 2d -name '*.gd' -print0 | xargs -0 --no-run-if-empty gdlint
 
       - name: Formato (gdformat --check)

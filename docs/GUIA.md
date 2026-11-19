@@ -873,11 +873,14 @@ sea cuatro quintas partes de fondo negro. El script deja los PNG en
 
 ## Cómo está comentado el código
 
-El código no lleva comentarios `#` ni `##`: lo que hace cada cosa lo dicen
-los nombres, los tipos y los tests. En Python quedan las docstrings de
-módulos, clases y funciones, que es lo que enseña `help()`.
+El código no lleva comentarios ni docstrings, ni en Python ni en GDScript,
+ni en los workflows, los lanzadores y los ajustes: lo que hace cada cosa lo
+dicen los nombres, los tipos y los tests. Lo que no se lee ahí vive en esta
+sección. Si hace falta recuperar la explicación original de algo, está en el
+historial de git (`git log -p -S'texto' -- fichero`).
 
-Lo que no se lee en el código y conviene no volver a descubrir:
+**Godot y terminal.** Lo que no se lee en el código y conviene no volver a
+descubrir:
 
 - **`TamborView.girar`** da siempre un número entero de vueltas, así que cada
   hueco acaba donde empezó: el giro es dramatismo, no un sorteo. La bala se
@@ -896,6 +899,92 @@ Lo que no se lee en el código y conviene no volver a descubrir:
 - **`Partida.actor`** (terminal) no es lo mismo que `juego.jugador_activo`: el
   motor pasa el turno antes de devolver los sucesos, así que para cuando se
   pintan el activo ya es el otro.
+- **El orden de los sucesos** difiere entre versiones a propósito: `motor.py`
+  cuenta un disparo sobrevivido antes que el evento que viene detrás (es el
+  orden en que ocurren), y `RuletaEstado.gd` emite `disparo_sobrevivido` el
+  último, porque ese manejador es el que devuelve el control al jugador y
+  adelantarlo le dejaría pulsar botones mientras corre el cartel del evento.
+  Es una restricción de la interfaz gráfica, no otra regla: al comparar las dos
+  versiones se compara lo que pasa, no en qué orden se cuenta.
+- **`efectos.asegurar_utf8`** existe porque el tambor y los carteles se dibujan
+  con caracteres de caja (`╔ ═ ║`) que no están en las codificaciones de 8 bits:
+  en Windows, con la salida redirigida, Python usa cp1252 y el primer `print`
+  tumbaba la partida con `UnicodeEncodeError`. Corre antes de `filtrar_color`,
+  que envuelve `sys.stdout` en un objeto que ya no tiene `reconfigure`.
+- **`ambiente.cartel`** ensancha el marco cuando el título o una palabra suelta
+  no caben: `str.center()` devuelve la cadena intacta si ya es más larga que el
+  ancho, y el texto se salía por los lados. Los carteles de evento (~53
+  caracteres frente a los 46 de `ANCHO_CARTEL`) ya lo hacían.
+- **`records._es_contador`** descarta al cargar todo lo que no sea un entero
+  `>= 0`, y `bool` queda fuera a propósito: para Python es un `int`, pero un
+  `true` en el JSON es un dato corrupto, no un contador a 1. Sin esto, un
+  `"partidas_jugadas": "muchas"` reventaba al terminar la partida, mucho
+  después de cargarlo.
+- **`ruleta.sello_semilla`** se imprime después de `impacto()`/`retirada()` y no
+  dentro: esas dos pantallas son el cierre narrativo, y el número con el que
+  repetir la partida es una nota al pie.
+
+**Tests.** Cuatro trampas de `terminal/test_ruleta.py` y compañía:
+
+- **`sys.stdin` sí es una terminal** cuando los tests se lanzan a mano, así que
+  `setUpModule` apaga animaciones y teclado en crudo; sin eso el selector se
+  quedaba esperando una flecha que nunca llega.
+- **`AJUSTES` es global**: `CasoQueLlamaMain` lo devuelve a su sitio tras cada
+  test, y sin eso el resto del módulo duerme de verdad en cada pausa (la suite
+  pasaba de 25 segundos).
+- **`_grabar_partida`** captura `sys.stdout` y no `builtins.print`, porque el
+  tecleo de `efectos.py` escribe ahí directamente, y carga los `Records` nuevos
+  en cada llamada: compartiendo uno, solo la primera partida diría «¡Nuevo
+  record!».
+- **`TestSemillaRepetible`** compara todo lo impreso y no campos sueltos: cualquier
+  sorteo que se añada sin pasarle el `rng` de la partida rompe ahí. Y
+  `test_motor._motor_fijo` apaga los eventos porque `clic_metalico` mueve la
+  bala y haría intermitentes las secuencias fijas.
+
+**Configuración.**
+
+- **`gdlintrc`** apaga `class-definitions-order` a propósito: ponerlo en verde
+  obliga a mover bloques enteros en `MainGame.gd` y `RuletaEstado.gd`, con mucho
+  conflicto y `git blame` roto a cambio de valor estético; merece su propio
+  cambio. `max-file-lines` sube a 1400 en lugar de apagarse para que la regla
+  siga avisando si `MainGame.gd` se dispara: que pida partirse es real, pero es
+  una refactorización.
+- **`pyproject.toml`**: `E501` entra con `select = ["E", ...]`; `coverage` y
+  `mypy` miran la app y no los ficheros de test, porque su cobertura no dice
+  nada y exigir anotaciones a cada test y a cada mock sería ruido.
+- **`ci.yml`** corre 3.11–3.13 porque `requires-python` es `>=3.11`. El job de
+  Windows es corto a propósito (solo tests, una versión; ruff, black y mypy
+  miran el mismo código): cubre la rama `msvcrt` de `entrada.py` y el
+  `os.system("")` de `ruleta.py` que habilita los colores en `cmd.exe`, y el
+  paso sin stdin comprueba que el juego sale por EOF con código 0.
+- **El job de Godot** fija el último patch de la línea que declara
+  `config/features` en `project.godot` (`4.7` a secas no es una release
+  descargable) y hay que revisarlo si el proyecto sube de versión. `ci.yml` y
+  `release.yml` usan la misma: si una sube, la otra también. `--import` va
+  primero porque `.godot/` no está versionado y sin él `--check-only` aborta con
+  «Main scene's path could not be resolved from UID». `--check-only` por sí solo
+  solo tiene efecto junto a `--script`, y sin `--quit` el proceso se queda
+  corriendo la escena para siempre; además Godot sale con 0 aunque un script no
+  parsee, por eso se busca `SCRIPT ERROR|ERROR:` en el log.
+- **`gdscript-lint`** es un job aparte porque `gdtoolkit` es un paquete de Python
+  y no necesita el binario del motor: da feedback en segundos y se salta los
+  ~100 MB. Usa `find` y no un glob para que ninguna subcarpeta nueva se quede
+  fuera.
+- **`release.yml`** empaqueta con Python 3.11, el mínimo que declara
+  `requires-python`, para que el binario no dependa de nada más nuevo.
+- **`2d/.gitattributes`** marca `.ttf`, `.otf` y `.wav` como binarios aunque
+  `text=auto` los autodetecte: con uno corrupto el síntoma (una fuente que no
+  importa, un sonido mudo) es lo bastante confuso como para no dejarlo a la
+  detección.
+- **`instalar.sh`** avisa de que quedó el acceso directo antiguo
+  `RussianRoulette.desktop` en vez de borrarlo: está en el escritorio del
+  usuario y qué hacer con sus cosas lo decide él.
+- **`2d/project.godot`**: `run/max_fps=60` porque el fondo dibuja engranajes en
+  movimiento y sin tope los repintaría tan rápido como diera la máquina sin que
+  se viera mejor; y la ventana es más alta que ancha de lo habitual porque la
+  interfaz es una columna alta (título, tambor, pistas, resultado y botones).
+  Con el lienzo escalado (`canvas_items`) la partida se ve entera aunque la
+  ventana sea más pequeña: se encoge en vez de recortarse.
 
 ## Publicar ejecutables
 

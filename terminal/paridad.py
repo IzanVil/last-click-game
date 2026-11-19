@@ -1,34 +1,3 @@
-"""Tabla de paridad entre la version de terminal y la de Godot.
-
-Cada modulo de logica de `terminal/` tiene un hermano en `2d/` con la
-misma mecanica escrita a mano en GDScript, y hasta ahora lo unico que lo
-garantizaba era un comentario que decia "hermano de X.py". No bastaba:
-escribiendo los tests de la semilla aparecieron dos divergencias en
-`Pistas.gd` que llevaban ahi desde el principio (una pista mentirosa que
-no mentia, y un candidato de mas en el lado derecho de una pista
-relativa).
-
-Este modulo genera una tabla de casos -- entradas y la salida que da la
-version de Python -- que la version de Godot replica y compara en su
-test headless (`2d/tests/test_paridad.gd`). Si las dos versiones dejan
-de decir lo mismo, falla el CI en vez de descubrirse jugando.
-
-Solo entran funciones puras que existen en las dos versiones. Quedan
-fuera a proposito:
-
-
-- `ambiente.epilogo` y sus ocho finales, que son solo de la terminal.
-- El orden en que cada version cuenta lo que pasa en un turno: son
-  decisiones de interfaz, no reglas (ver la nota en motor.py).
-- El generador de numeros aleatorios: Python usa Mersenne Twister y
-  Godot PCG32, asi que una misma semilla no da la misma secuencia. Por
-  eso aqui no se sortea nada: todos los casos fijan sus entradas.
-
-Regenerar la tabla tras un cambio deliberado de reglas:
-
-    python3 terminal/paridad.py
-"""
-
 import itertools
 import json
 import random
@@ -65,18 +34,10 @@ HUECOS_PROBADOS = (6, 8, 10)
 
 
 def ruta_por_defecto() -> Path:
-    """Donde vive la tabla: dentro del proyecto de Godot, que es quien la
-    lee en tiempo de test (`res://tests/paridad.json`)."""
     return Path(__file__).resolve().parent.parent / "2d" / "tests" / "paridad.json"
 
 
 def _constantes() -> dict:
-    """Los numeros y textos que las dos versiones declaran por separado.
-
-    Es el caso mas tonto de divergencia y el mas facil de cometer: subir
-    la probabilidad de eventos en un lado y olvidarse del otro no rompe
-    nada, solo hace que los dos juegos dejen de ser el mismo juego.
-    """
     return {
         "huecos": estado.HUECOS,
         "disparos_por_dia": estado.DISPAROS_POR_DIA,
@@ -95,7 +56,6 @@ def _constantes() -> dict:
 
 
 def _mover() -> list[dict]:
-    """Adonde va la bala desde cada hueco con cada patron."""
     casos = []
     for huecos in HUECOS_PROBADOS:
         for patron in estado.PATRONES:
@@ -112,7 +72,6 @@ def _mover() -> list[dict]:
 
 
 def _dias() -> list[dict]:
-    """Cuantos dias son N disparos sobrevividos."""
     return [
         {"disparos": n, "resultado": estado.dias_sobrevividos(n)} for n in range(0, 13)
     ]
@@ -123,18 +82,6 @@ def _pista_a_dict(pista: "pistas.Pista") -> dict:
 
 
 class _RngFijo(random.Random):
-    """Un generador que siempre elige la opcion `indice` de las que haya.
-
-    La unica pista que sortea algo es la relativa mentirosa cuando la
-    bala cayo justo en el ultimo disparo: elige un lado al azar de entre
-    los que existen. Fijando ese sorteo se pueden anotar las dos
-    respuestas posibles en vez de una sola.
-
-    Hereda de random.Random en vez de ser una clase suelta con un
-    `choice` para que encaje donde se pide un generador de verdad, que
-    es lo unico que generar_pista acepta.
-    """
-
     def __init__(self, indice: int) -> None:
         super().__init__()
         self.indice = indice
@@ -170,13 +117,6 @@ def _caso_de_pista(
 
 
 def _pistas() -> list[dict]:
-    """Texto y candidatos de cada pista posible, veraz y mentirosa.
-
-    `posibles` lleva todas las respuestas validas: casi siempre una, y
-    dos en el caso de la relativa mentirosa con la bala en el ultimo
-    disparo, que elige lado al azar. La version de Godot pasa el caso si
-    da cualquiera de ellas.
-    """
     casos = []
     for huecos in HUECOS_PROBADOS:
         combinaciones = itertools.product(
@@ -193,7 +133,6 @@ def _pistas() -> list[dict]:
 
 
 def _interseccion() -> list[dict]:
-    """El cruce de varias pistas, incluido el cruce vacio."""
     grupos = [
         [],
         [[2, 4, 6, 8]],
@@ -212,7 +151,6 @@ def _interseccion() -> list[dict]:
 
 
 def _apuesta() -> list[dict]:
-    """Como evoluciona lo que hay en juego con cada operacion."""
     guiones = [
         ["doblar"],
         ["doblar", "doblar", "doblar"],
@@ -242,7 +180,6 @@ def _apuesta() -> list[dict]:
 
 
 def _farol() -> list[dict]:
-    """Aciertos y marcas restantes al gastar marcas seguidas."""
     guiones: list[tuple[int, int, list[int]]] = [
         (3, 5, [2, 5, 7]),
         (1, 1, [1]),
@@ -267,12 +204,6 @@ def _farol() -> list[dict]:
 
 
 def _resumen() -> list[dict]:
-    """La frase narrativa del final, con todas sus concordancias.
-
-    Es texto que las dos versiones construyen a mano trozo a trozo, con
-    sus singulares y plurales: justo la clase de cosa que se desincroniza
-    al retocar una palabra en un solo lado.
-    """
     combinaciones = [
         (0, 0, {}, 0),
         (0, 0, {}, 1),
@@ -303,12 +234,6 @@ def _resumen() -> list[dict]:
 
 
 def _ganadores() -> list[dict]:
-    """Quien gana un duelo, incluidos los empates.
-
-    Entra en la tabla desde que el desempate vive en `jugador.ganadores`:
-    mientras estuvo escrito dentro de `ruleta.resultado_duelo`, mezclado
-    con el pintado, no habia funcion pura que tabular.
-    """
     mesas: list[list[tuple[int, int, bool]]] = [
         [(9, 100, False), (18, 100, False)],
         [(18, 100, False), (9, 800, False)],
@@ -341,7 +266,6 @@ def _ganadores() -> list[dict]:
 
 
 def tabla() -> dict:
-    """La tabla entera, tal como se escribe a disco."""
     return {
         "formato": FORMATO,
         "constantes": _constantes(),
@@ -357,12 +281,6 @@ def tabla() -> dict:
 
 
 def escribir(ruta: Path | None = None) -> Path:
-    """Vuelca la tabla a disco, ordenada y con saltos de linea.
-
-    Ordenada e indentada para que el diff de un cambio de reglas se lea:
-    la gracia de tener la tabla versionada es ver en la revision que
-    casos han cambiado de respuesta.
-    """
     destino = ruta or ruta_por_defecto()
     destino.write_text(
         json.dumps(tabla(), indent=1, ensure_ascii=False, sort_keys=True) + "\n",
