@@ -16,21 +16,6 @@ const DURACION_TENSION := 0.35
 const PAUSA_FIN_PARTIDA := 2.0
 const DURACION_CIERRE := 0.6
 
-const TAMANO_TEXTO := 16
-const AUMENTO_TEXTO := 4
-
-const MEZCLA_CONTRASTE := 0.55
-
-const BUS_MUSICA := "Musica"
-const BUS_EFECTOS := "Efectos"
-
-const VOLUMEN_MUSICA_MENU := -20.0
-const VOLUMEN_MUSICA_PARTIDA := -13.0
-const VOLUMEN_SILENCIO := -80.0
-
-const HUECOS_PARA_TENSION := 3
-const ACELERACION_MAXIMA := 0.10
-
 const MAX_BITACORA := 5
 
 @onready var fondo: ColorRect = $Fondo
@@ -91,21 +76,12 @@ const MAX_BITACORA := 5
 @onready var contraste_check: CheckBox = $Pausa/Centro/Marco/Columnas/ContrasteCheck
 @onready var sonido_check: CheckBox = $Pausa/Centro/Marco/Columnas/SonidoCheck
 
-@onready var sonido_disparo: AudioStreamPlayer = $SonidoDisparo
-@onready var sonido_victoria: AudioStreamPlayer = $SonidoVictoria
-@onready var sonido_derrota: AudioStreamPlayer = $SonidoDerrota
-@onready var sonido_engranaje: AudioStreamPlayer = $SonidoEngranaje
-@onready var sonido_marca: AudioStreamPlayer = $SonidoMarca
-@onready var sonido_fallo: AudioStreamPlayer = $SonidoFallo
-@onready var sonido_clic: AudioStreamPlayer = $SonidoClic
-@onready var sonido_calor: AudioStreamPlayer = $SonidoCalor
-@onready var musica_base: AudioStreamPlayer = $MusicaBase
-@onready var musica_tension: AudioStreamPlayer = $MusicaTension
-
 var _estado := RuletaEstado.new()
 var _records := Records.new()
 var _diario := Diario.new()
 var _ajustes := Ajustes.new()
+var _sonido: Sonido
+var _apariencia: Apariencia
 
 var _es_reto_diario := false
 
@@ -128,15 +104,11 @@ var _ultimo_disparo := -1
 var _ultima_dificultad := "normal"
 var _ultimos_nombres: Array[String] = []
 
-var _colores_originales: Dictionary = {}
-var _tamanos_originales: Dictionary = {}
-var _colores_tema_originales: Dictionary = {}
-
 
 func _ready() -> void:
 	randomize()
 	_encadenar_respaldo_de_fuentes()
-	_preparar_buses()
+	_sonido = Sonido.new(self)
 
 	_estado.partida_iniciada.connect(_on_partida_iniciada)
 	_estado.entrada_invalida.connect(_on_entrada_invalida)
@@ -161,8 +133,10 @@ func _ready() -> void:
 		dificultad_opt.add_item(Dificultad.etiqueta_de(clave))
 	dificultad_opt.selected = Dificultad.ORDEN.find("normal")
 
-	_recordar_estilos(self)
+	_apariencia = Apariencia.new(self)
 	_ajustes = Ajustes.cargar(ruta_ajustes)
+	_sonido.ajustes = _ajustes
+	_apariencia.ajustes = _ajustes
 	_preparar_controles_de_ajustes()
 	_vestir_casillas()
 	_arrancar_musica()
@@ -246,7 +220,7 @@ func _pintar_records() -> void:
 		return
 
 	var columnas := "%s %s %s  %s" % ["  #", "DIAS".rpad(6), "PUNTOS".rpad(8), "FECHA"]
-	var color_cabecera := _con_contraste(Paleta.BRONCE).to_html(false)
+	var color_cabecera := _apariencia.con_contraste(Paleta.BRONCE).to_html(false)
 	var lineas: Array[String] = ["[color=#%s]%s[/color]" % [color_cabecera, columnas]]
 	for i in range(_records.mejores.size()):
 		var marca: Dictionary = _records.mejores[i]
@@ -255,19 +229,6 @@ func _pintar_records() -> void:
 		var puntos := str(marca["puntos"]).rpad(8)
 		lineas.append("%s %s %s  %s" % [puesto, dias, puntos, marca.get("fecha", "")])
 	records_tabla.text = "\n".join(lineas)
-
-
-func _recordar_estilos(nodo: Node) -> void:
-	if nodo is Label or nodo is Button or nodo is RichTextLabel:
-		var control := nodo as Control
-		if control.has_theme_color_override("font_color"):
-			_colores_originales[control] = control.get_theme_color("font_color")
-		if control.has_theme_font_size_override("font_size"):
-			_tamanos_originales[control] = control.get_theme_font_size("font_size")
-		if control.has_theme_font_size_override("normal_font_size"):
-			_tamanos_originales[control] = control.get_theme_font_size("normal_font_size")
-	for hijo in nodo.get_children():
-		_recordar_estilos(hijo)
 
 
 func _preparar_controles_de_ajustes() -> void:
@@ -327,56 +288,16 @@ func _aplicar_ajustes() -> void:
 	tambor.efectos_reducidos = _ajustes.efectos_reducidos
 	tambor.alto_contraste = _ajustes.alto_contraste
 
-	_aplicar_tamano_de_texto()
-	_aplicar_contraste()
-	_aplicar_volumenes()
+	_apariencia.aplicar(_iconos_del_hud())
+	_sonido.aplicar_volumenes()
 	_aplicar_pantalla_completa()
 
 	if not _ajustes.sonido:
-		musica_base.stop()
-		musica_tension.stop()
-	elif not musica_base.playing:
+		_sonido.parar_musica()
+	elif not _sonido.musica_sonando():
 		_arrancar_musica()
 	else:
 		_ajustar_musica()
-
-
-func _aplicar_tamano_de_texto() -> void:
-	var aumento := AUMENTO_TEXTO if _ajustes.texto_grande else 0
-	if theme != null:
-		theme.default_font_size = TAMANO_TEXTO + aumento
-	for control in _tamanos_originales:
-		var original: int = _tamanos_originales[control]
-		if control is RichTextLabel:
-			control.add_theme_font_size_override("normal_font_size", original + aumento)
-		else:
-			control.add_theme_font_size_override("font_size", original + aumento)
-	for icono in _iconos_del_hud():
-		icono.lado = 18.0 + aumento
-
-
-func _aplicar_contraste() -> void:
-	for control in _colores_originales:
-		var original: Color = _colores_originales[control]
-		control.add_theme_color_override("font_color", _con_contraste(original))
-	for icono in _iconos_del_hud():
-		icono.color = _con_contraste(Paleta.BRONCE)
-
-	if theme == null:
-		return
-	for tipo in ["Button", "CheckBox", "OptionButton", "LineEdit"]:
-		for nombre in ["font_color", "font_hover_color", "font_pressed_color"]:
-			if not theme.has_color(nombre, tipo):
-				continue
-			var clave := "%s/%s" % [tipo, nombre]
-			if not _colores_tema_originales.has(clave):
-				_colores_tema_originales[clave] = theme.get_color(nombre, tipo)
-			var original: Color = _colores_tema_originales[clave]
-			theme.set_color(nombre, tipo, _con_contraste(original))
-
-
-func _con_contraste(color: Color) -> Color:
-	return Paleta.aclarar(color, MEZCLA_CONTRASTE) if _ajustes.alto_contraste else color
 
 
 func _iconos_del_hud() -> Array[Icono]:
@@ -398,87 +319,14 @@ func _aplicar_pantalla_completa() -> void:
 		DisplayServer.window_set_mode(modo)
 
 
-func _preparar_buses() -> void:
-	for nombre in [BUS_MUSICA, BUS_EFECTOS]:
-		if AudioServer.get_bus_index(nombre) != -1:
-			continue
-		AudioServer.add_bus()
-		var indice := AudioServer.bus_count - 1
-		AudioServer.set_bus_name(indice, nombre)
-		AudioServer.set_bus_send(indice, "Master")
-
-	for reproductor in [musica_base, musica_tension]:
-		reproductor.bus = BUS_MUSICA
-	for reproductor in [
-		sonido_disparo,
-		sonido_victoria,
-		sonido_derrota,
-		sonido_engranaje,
-		sonido_marca,
-		sonido_fallo,
-		sonido_clic,
-		sonido_calor,
-	]:
-		reproductor.bus = BUS_EFECTOS
-
-
-func _aplicar_volumenes() -> void:
-	var mezclas := {
-		BUS_MUSICA: _ajustes.volumen_musica,
-		BUS_EFECTOS: _ajustes.volumen_efectos,
-	}
-	for nombre in mezclas:
-		var indice := AudioServer.get_bus_index(nombre)
-		if indice == -1:
-			continue
-		var valor: float = mezclas[nombre]
-		AudioServer.set_bus_mute(indice, valor <= 0.001)
-		AudioServer.set_bus_volume_db(indice, linear_to_db(maxf(valor, 0.001)))
-
-
-func _sonar(reproductor: AudioStreamPlayer) -> void:
-	if _ajustes.sonido:
-		reproductor.play()
-
-
 func _arrancar_musica() -> void:
-	if not _ajustes.sonido or DisplayServer.get_name() == "headless":
-		return
-	for reproductor in [musica_base, musica_tension]:
-		_poner_en_bucle(reproductor)
-		reproductor.volume_db = VOLUMEN_SILENCIO
-		reproductor.play()
-	_ajustar_musica(2.0)
-
-
-func _poner_en_bucle(reproductor: AudioStreamPlayer) -> void:
-	var flujo := reproductor.stream as AudioStreamWAV
-	if flujo == null or flujo.loop_mode == AudioStreamWAV.LOOP_FORWARD:
-		return
-	flujo.loop_mode = AudioStreamWAV.LOOP_FORWARD
-	flujo.loop_begin = 0
-	flujo.loop_end = int(flujo.get_length() * flujo.mix_rate)
+	if _sonido.arrancar_musica():
+		_ajustar_musica(2.0)
 
 
 func _ajustar_musica(duracion: float = 1.0) -> void:
-	if not musica_base.playing:
-		return
-
-	var en_partida := juego.visible
-	var libres := _huecos_libres()
 	var total := _estado.tambor.huecos if _estado.tambor != null else RuletaEstado.HUECOS
-	var apretado := 1.0 - float(libres) / float(maxi(total, 1))
-
-	var destino_base := VOLUMEN_MUSICA_PARTIDA if en_partida else VOLUMEN_MUSICA_MENU
-	var hay_tension := en_partida and libres <= HUECOS_PARA_TENSION
-	var destino_tension := VOLUMEN_MUSICA_PARTIDA - 4.0 if hay_tension else VOLUMEN_SILENCIO
-	var ritmo := 1.0 + ACELERACION_MAXIMA * apretado if en_partida else 1.0
-
-	var tween := create_tween().set_parallel(true)
-	tween.tween_property(musica_base, "volume_db", destino_base, duracion)
-	tween.tween_property(musica_tension, "volume_db", destino_tension, duracion)
-	for reproductor in [musica_base, musica_tension]:
-		tween.tween_property(reproductor, "pitch_scale", ritmo, duracion)
+	_sonido.ajustar_musica(juego.visible, _huecos_libres(), total, duracion)
 
 
 func _huecos_libres() -> int:
@@ -488,9 +336,7 @@ func _huecos_libres() -> int:
 
 
 func _exit_tree() -> void:
-	for reproductor in [musica_base, musica_tension]:
-		reproductor.stop()
-		reproductor.stream = null
+	_sonido.liberar()
 
 
 func _unhandled_input(evento: InputEvent) -> void:
@@ -592,7 +438,7 @@ func _on_hueco_pulsado(numero: int) -> void:
 		return
 	entrada_numero.text = str(numero)
 	tambor.elegir(numero)
-	_sonar(sonido_clic)
+	_sonido.reproducir(Sonido.Efecto.CLIC)
 
 
 func _on_entrada_cambiada(texto: String) -> void:
@@ -613,10 +459,10 @@ func _on_disparar_btn_pressed() -> void:
 	_mostrar_resultado("...")
 
 	tambor.acercar()
-	_sonar(sonido_engranaje)
+	_sonido.reproducir(Sonido.Efecto.ENGRANAJE)
 	var duracion := DURACION_GIRO_REDUCIDO if _ajustes.efectos_reducidos else DURACION_GIRO
 	await tambor.girar(duracion)
-	_sonar(sonido_fallo)
+	_sonido.reproducir(Sonido.Efecto.FALLO)
 	await tambor.tension(numero, DURACION_TENSION)
 
 	_ultimo_disparo = numero
@@ -661,7 +507,7 @@ func _on_partida_iniciada(huecos: int, es_duelo: bool) -> void:
 
 	_mostrar_resultado("El tambor esta cargado. Elige una posicion y actua.")
 	tambor.preparar_partida(huecos)
-	_sonar(sonido_engranaje)
+	_sonido.reproducir(Sonido.Efecto.ENGRANAJE)
 	tambor.girar(DURACION_GIRO)
 
 	entrada_numero.clear()
@@ -693,13 +539,13 @@ func _on_evento_ocurrido(tipo: String, texto: String) -> void:
 	_agregar_linea_resultado(texto)
 	match tipo:
 		"clic_metalico":
-			_sonar(sonido_engranaje)
+			_sonido.reproducir(Sonido.Efecto.ENGRANAJE)
 			tambor.barrido()
 			vineta.resplandor(Paleta.BRONCE, 0.9)
 			_vibrar_pantalla(0.02, 4, 0.25)
 		"tambor_caliente":
 			_proxima_pista_dudosa = true
-			_sonar(sonido_calor)
+			_sonido.reproducir(Sonido.Efecto.CALOR)
 			fondo_taller.calentar()
 			vineta.resplandor(Paleta.ROJO, 1.6)
 	_anotar("evento", texto)
@@ -719,7 +565,7 @@ func _on_disparo_sobrevivido(_disparos: int, en_juego: int) -> void:
 	_agregar_linea_resultado("Click. Cartucho vacio. Lo apostado se dobla a %d puntos." % en_juego)
 	tambor.aplicar_estados(_calcular_estados())
 	tambor.pulsar()
-	_sonar(sonido_clic)
+	_sonido.reproducir(Sonido.Efecto.CLIC)
 	_flash(COLOR_SUPERVIVENCIA)
 	_anotar("acierto", "Disparaste al %d, cartucho vacio (%d pts)" % [_ultimo_disparo, en_juego])
 	_actualizar_hud()
@@ -742,12 +588,12 @@ func _on_farol_resuelto(hueco: int, acierto: bool, en_juego: int, marcas_restant
 				% [hueco, RuletaEstado.BONO_MARCA_ACERTADA]
 			)
 		)
-		_sonar(sonido_marca)
+		_sonido.reproducir(Sonido.Efecto.MARCA)
 		_flash(COLOR_FAROL_ACIERTO)
 		_anotar("acierto", "Farol en el %d: acierto (%d pts)" % [hueco, en_juego])
 	else:
 		_mostrar_resultado("Farol fallido: ahi estaba la bala. Pierdes la marca.")
-		_sonar(sonido_fallo)
+		_sonido.reproducir(Sonido.Efecto.FALLO)
 		_flash(COLOR_FAROL_FALLO)
 		_anotar("fallo", "Farol en el %d: ahi estaba la bala" % hueco)
 
@@ -785,8 +631,8 @@ func _on_impacto(disparos: int, perdidos: int, dias: int, resumen: String) -> vo
 		estados[_ultimo_disparo] = TamborView.EstadoHueco.PELIGRO
 		tambor.aplicar_estados(estados)
 		tambor.reventar(_ultimo_disparo)
-	_sonar(sonido_disparo)
-	_sonar(sonido_derrota)
+	_sonido.reproducir(Sonido.Efecto.DISPARO)
+	_sonido.reproducir(Sonido.Efecto.DERROTA)
 	_flash(COLOR_BOOM)
 	vineta.resplandor(Paleta.ROJO, 1.2)
 	_vibrar_pantalla()
@@ -810,7 +656,7 @@ func _on_retirada(disparos: int, ganados: int, dias: int, resumen: String) -> vo
 	)
 	_anotar("acierto", "%sTe retiras con %d puntos" % [_prefijo_jugador(), ganados])
 
-	_sonar(sonido_victoria)
+	_sonido.reproducir(Sonido.Efecto.VICTORIA)
 	_flash(COLOR_RETIRADA)
 	_cerrar_partida("TE RETIRAS CON VIDA", resumen, nuevo_record)
 
@@ -853,7 +699,8 @@ func _cerrar_partida(titulo_final: String, resumen: String, nuevo_record: bool) 
 	_bloquear_acciones(true)
 	fin_titulo.text = titulo_final
 	fin_titulo.add_theme_color_override(
-		"font_color", _con_contraste(Paleta.ROJO if titulo_final == "HAS MUERTO" else Paleta.BRONCE)
+		"font_color",
+		_apariencia.con_contraste(Paleta.ROJO if titulo_final == "HAS MUERTO" else Paleta.BRONCE)
 	)
 	fin_resumen.text = resumen
 	if nuevo_record:
@@ -898,7 +745,9 @@ func _anotar(tipo: String, texto: String) -> void:
 		"dia": Paleta.BRONCE,
 	}
 	var color: Color = colores.get(tipo, Paleta.BRONCE_APAGADO)
-	_lineas_bitacora.append("[color=#%s]%s[/color]" % [_con_contraste(color).to_html(false), texto])
+	_lineas_bitacora.append(
+		"[color=#%s]%s[/color]" % [_apariencia.con_contraste(color).to_html(false), texto]
+	)
 	if _lineas_bitacora.size() > MAX_BITACORA:
 		_lineas_bitacora = _lineas_bitacora.slice(-MAX_BITACORA)
 	_pintar_bitacora()
@@ -947,7 +796,7 @@ func _actualizar_hud() -> void:
 func _poner_dato(etiqueta: RichTextLabel, valor: String, sufijo: String) -> void:
 	etiqueta.text = (
 		"[b]%s[/b] [color=#%s]%s[/color]"
-		% [valor, _con_contraste(Paleta.BRONCE_APAGADO).to_html(false), sufijo]
+		% [valor, _apariencia.con_contraste(Paleta.BRONCE_APAGADO).to_html(false), sufijo]
 	)
 
 

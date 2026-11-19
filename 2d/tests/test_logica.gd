@@ -21,6 +21,9 @@ func _init() -> void:
 	_test_dificultad()
 	_test_records()
 	_test_ajustes()
+	_test_sonido_plan_de_musica()
+	await _test_sonido_buses_y_volumenes()
+	_test_apariencia()
 	_test_jugador_ganadores()
 	_test_ruleta_estado_flujo_completo()
 	_test_duelo_flujo_completo()
@@ -536,6 +539,234 @@ func _test_ajustes() -> void:
 func _borrar_ajustes_test() -> void:
 	if FileAccess.file_exists(RUTA_AJUSTES_TEST):
 		DirAccess.remove_absolute(RUTA_AJUSTES_TEST)
+
+
+func _test_sonido_plan_de_musica() -> void:
+	var menu := Sonido.plan_de_musica(false, 8, 8)
+	_afirmar_igual(menu["base"], Sonido.VOLUMEN_MUSICA_MENU, "en el menu la base suena baja")
+	_afirmar_igual(menu["tension"], Sonido.VOLUMEN_SILENCIO, "en el menu la tension calla")
+	_afirmar_igual(menu["ritmo"], 1.0, "en el menu el pulso no se acelera")
+
+	var menu_sin_huecos := Sonido.plan_de_musica(false, 0, 8)
+	_afirmar_igual(
+		menu_sin_huecos["tension"], Sonido.VOLUMEN_SILENCIO, "fuera de partida no hay tension"
+	)
+	_afirmar_igual(menu_sin_huecos["ritmo"], 1.0, "ni se acelera aunque no queden huecos")
+
+	var holgado := Sonido.plan_de_musica(true, 8, 8)
+	_afirmar_igual(holgado["base"], Sonido.VOLUMEN_MUSICA_PARTIDA, "en partida la base sube")
+	_afirmar_igual(holgado["tension"], Sonido.VOLUMEN_SILENCIO, "con todos los huecos libres calla")
+	_afirmar_igual(holgado["ritmo"], 1.0, "y el pulso va a su ritmo")
+
+	var casi := Sonido.plan_de_musica(true, Sonido.HUECOS_PARA_TENSION + 1, 8)
+	_afirmar_igual(casi["tension"], Sonido.VOLUMEN_SILENCIO, "un hueco por encima del umbral calla")
+
+	var justo := Sonido.plan_de_musica(true, Sonido.HUECOS_PARA_TENSION, 8)
+	_afirmar_igual(
+		justo["tension"], Sonido.VOLUMEN_MUSICA_PARTIDA - 4.0, "en el umbral entra la tension"
+	)
+
+	var mitad := Sonido.plan_de_musica(true, 4, 8)
+	var esperado := 1.0 + Sonido.ACELERACION_MAXIMA * 0.5
+	_afirmar(absf(mitad["ritmo"] - esperado) < 0.0001, "con la mitad de huecos va a medio camino")
+
+	var acorralado := Sonido.plan_de_musica(true, 0, 8)
+	_afirmar(
+		absf(acorralado["ritmo"] - (1.0 + Sonido.ACELERACION_MAXIMA)) < 0.0001,
+		"sin huecos libres el pulso llega a su maximo",
+	)
+
+	var sin_tambor := Sonido.plan_de_musica(true, 0, 0)
+	_afirmar(
+		absf(sin_tambor["ritmo"] - (1.0 + Sonido.ACELERACION_MAXIMA)) < 0.0001,
+		"un tambor de cero huecos no divide por cero",
+	)
+
+
+func _test_sonido_buses_y_volumenes() -> void:
+	var anfitrion := Node.new()
+	var nombres: Array[String] = ["MusicaBase", "MusicaTension"]
+	for efecto in Sonido.NODOS_DE_EFECTOS:
+		nombres.append(Sonido.NODOS_DE_EFECTOS[efecto])
+	for nombre in nombres:
+		var reproductor := AudioStreamPlayer.new()
+		reproductor.name = nombre
+		anfitrion.add_child(reproductor)
+
+	root.add_child(anfitrion)
+	await process_frame
+	var sonido := Sonido.new(anfitrion)
+	for bus in [Sonido.BUS_MUSICA, Sonido.BUS_EFECTOS]:
+		var indice := AudioServer.get_bus_index(bus)
+		_afirmar(indice != -1, "existe el bus %s" % bus)
+		if indice != -1:
+			_afirmar_igual(
+				AudioServer.get_bus_send(indice), "Master", "el bus %s sale al master" % bus
+			)
+
+	for nombre in ["MusicaBase", "MusicaTension"]:
+		var reproductor := anfitrion.get_node(nombre) as AudioStreamPlayer
+		_afirmar_igual(reproductor.bus, Sonido.BUS_MUSICA, "%s va al bus de la musica" % nombre)
+	for efecto in Sonido.NODOS_DE_EFECTOS:
+		var nombre: String = Sonido.NODOS_DE_EFECTOS[efecto]
+		var reproductor := anfitrion.get_node(nombre) as AudioStreamPlayer
+		_afirmar_igual(reproductor.bus, Sonido.BUS_EFECTOS, "%s va al bus de efectos" % nombre)
+
+	var buses := AudioServer.bus_count
+	Sonido.new(anfitrion)
+	_afirmar_igual(AudioServer.bus_count, buses, "crear otro Sonido no duplica los buses")
+
+	var musica := AudioServer.get_bus_index(Sonido.BUS_MUSICA)
+	var efectos := AudioServer.get_bus_index(Sonido.BUS_EFECTOS)
+	sonido.ajustes.volumen_musica = 0.4
+	sonido.ajustes.volumen_efectos = 0.9
+	sonido.aplicar_volumenes()
+	_afirmar(
+		absf(AudioServer.get_bus_volume_db(musica) - linear_to_db(0.4)) < 0.01,
+		"el volumen de la musica llega a su bus",
+	)
+	_afirmar(
+		absf(AudioServer.get_bus_volume_db(efectos) - linear_to_db(0.9)) < 0.01,
+		"el volumen de los efectos llega al suyo",
+	)
+	_afirmar(not AudioServer.is_bus_mute(musica), "con volumen la musica no esta silenciada")
+
+	sonido.ajustes.volumen_musica = 0.0
+	sonido.aplicar_volumenes()
+	_afirmar(AudioServer.is_bus_mute(musica), "a cero la musica se silencia")
+	_afirmar(not AudioServer.is_bus_mute(efectos), "y los efectos siguen por su lado")
+	sonido.ajustes.volumen_musica = 0.001
+	sonido.aplicar_volumenes()
+	_afirmar(AudioServer.is_bus_mute(musica), "en el umbral tambien se silencia")
+	sonido.ajustes.volumen_musica = 0.002
+	sonido.aplicar_volumenes()
+	_afirmar(not AudioServer.is_bus_mute(musica), "un poco por encima ya suena")
+
+	var clic := anfitrion.get_node(Sonido.NODOS_DE_EFECTOS[Sonido.Efecto.CLIC]) as AudioStreamPlayer
+	var flujo := AudioStreamWAV.new()
+	flujo.format = AudioStreamWAV.FORMAT_16_BITS
+	flujo.mix_rate = 22050
+	flujo.data = PackedByteArray()
+	flujo.data.resize(44100)
+	clic.stream = flujo
+
+	sonido.ajustes.sonido = false
+	sonido.reproducir(Sonido.Efecto.CLIC)
+	_afirmar(not clic.playing, "con el sonido apagado un efecto no suena")
+	sonido.ajustes.sonido = true
+	sonido.reproducir(Sonido.Efecto.CLIC)
+	_afirmar(clic.playing, "con el sonido puesto el efecto suena")
+	clic.stop()
+	clic.stream = null
+	await create_timer(0.2).timeout
+
+	sonido.ajustes.sonido = false
+	_afirmar(not sonido.arrancar_musica(), "con el sonido apagado la musica no arranca")
+	_afirmar(not sonido.musica_sonando(), "y no queda sonando")
+	sonido.ajustes.sonido = true
+	if DisplayServer.get_name() == "headless":
+		_afirmar(not sonido.arrancar_musica(), "en headless la musica no se lanza")
+
+	anfitrion.free()
+
+
+func _test_apariencia() -> void:
+	var color_etiqueta := Color(0.2, 0.4, 0.6)
+	var color_boton := Color(0.4, 0.3, 0.2)
+
+	var raiz := Control.new()
+	raiz.theme = Theme.new()
+	raiz.theme.default_font_size = Apariencia.TAMANO_TEXTO
+	raiz.theme.set_color("font_color", "Button", color_boton)
+
+	var etiqueta := Label.new()
+	etiqueta.add_theme_color_override("font_color", color_etiqueta)
+	etiqueta.add_theme_font_size_override("font_size", 20)
+	raiz.add_child(etiqueta)
+
+	var rico := RichTextLabel.new()
+	rico.add_theme_font_size_override("normal_font_size", 14)
+	raiz.add_child(rico)
+
+	var sin_estilo := Label.new()
+	raiz.add_child(sin_estilo)
+
+	var icono := Icono.new()
+	raiz.add_child(icono)
+	var iconos: Array[Icono] = [icono]
+
+	var apariencia := Apariencia.new(raiz)
+	_afirmar_igual(
+		apariencia.con_contraste(color_etiqueta), color_etiqueta, "sin alto contraste no cambia"
+	)
+
+	apariencia.aplicar(iconos)
+	_afirmar_igual(raiz.theme.default_font_size, Apariencia.TAMANO_TEXTO, "de fabrica, cuerpo base")
+	_afirmar_igual(etiqueta.get_theme_font_size("font_size"), 20, "la etiqueta conserva su tamano")
+	_afirmar_igual(icono.lado, Apariencia.LADO_ICONO, "el icono conserva su lado")
+
+	apariencia.ajustes.texto_grande = true
+	apariencia.aplicar(iconos)
+	apariencia.aplicar(iconos)
+	var aumento := Apariencia.AUMENTO_TEXTO
+	_afirmar_igual(
+		raiz.theme.default_font_size, Apariencia.TAMANO_TEXTO + aumento, "texto grande: tema"
+	)
+	_afirmar_igual(
+		etiqueta.get_theme_font_size("font_size"), 20 + aumento, "texto grande: etiqueta"
+	)
+	_afirmar_igual(rico.get_theme_font_size("normal_font_size"), 14 + aumento, "texto grande: rico")
+	_afirmar(
+		not sin_estilo.has_theme_font_size_override("font_size"),
+		"lo que no tenia tamano propio no se toca",
+	)
+	_afirmar_igual(icono.lado, Apariencia.LADO_ICONO + aumento, "texto grande: icono")
+
+	apariencia.ajustes.alto_contraste = true
+	apariencia.aplicar(iconos)
+	apariencia.aplicar(iconos)
+	var mezcla := Apariencia.MEZCLA_CONTRASTE
+	_afirmar(
+		etiqueta.get_theme_color("font_color").is_equal_approx(
+			Paleta.aclarar(color_etiqueta, mezcla)
+		),
+		"alto contraste aclara el color de la etiqueta una sola vez",
+	)
+	_afirmar(
+		raiz.theme.get_color("font_color", "Button").is_equal_approx(
+			Paleta.aclarar(color_boton, mezcla)
+		),
+		"alto contraste aclara el color del tema una sola vez",
+	)
+	_afirmar(
+		icono.color.is_equal_approx(Paleta.aclarar(Paleta.BRONCE, mezcla)),
+		"alto contraste aclara el icono",
+	)
+	_afirmar(
+		apariencia.con_contraste(color_etiqueta).is_equal_approx(
+			Paleta.aclarar(color_etiqueta, mezcla)
+		),
+		"con_contraste mezcla con blanco",
+	)
+
+	apariencia.ajustes.texto_grande = false
+	apariencia.ajustes.alto_contraste = false
+	apariencia.aplicar(iconos)
+	_afirmar_igual(raiz.theme.default_font_size, Apariencia.TAMANO_TEXTO, "desactivado: tema")
+	_afirmar_igual(etiqueta.get_theme_font_size("font_size"), 20, "desactivado: etiqueta")
+	_afirmar_igual(rico.get_theme_font_size("normal_font_size"), 14, "desactivado: rico")
+	_afirmar(
+		etiqueta.get_theme_color("font_color").is_equal_approx(color_etiqueta),
+		"desactivado devuelve el color original de la etiqueta",
+	)
+	_afirmar(
+		raiz.theme.get_color("font_color", "Button").is_equal_approx(color_boton),
+		"desactivado devuelve el color original del tema",
+	)
+	_afirmar_igual(icono.lado, Apariencia.LADO_ICONO, "desactivado: icono")
+	_afirmar(icono.color.is_equal_approx(Paleta.BRONCE), "desactivado: color del icono")
+
+	raiz.free()
 
 
 func _test_jugador_ganadores() -> void:

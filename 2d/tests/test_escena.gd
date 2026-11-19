@@ -180,11 +180,11 @@ func _comprobar_ajustes() -> void:
 	_afirmar(not _main.fondo_taller.is_processing(), "con efectos reducidos el fondo no se repinta")
 	_afirmar(_main.tambor.alto_contraste, "el alto contraste llega al tambor")
 	_afirmar(
-		_main.theme.default_font_size == _main.TAMANO_TEXTO + _main.AUMENTO_TEXTO,
+		_main.theme.default_font_size == Apariencia.TAMANO_TEXTO + Apariencia.AUMENTO_TEXTO,
 		"el texto grande sube el cuerpo de la tipografia del tema",
 	)
 
-	var bus := AudioServer.get_bus_index(_main.BUS_MUSICA)
+	var bus := AudioServer.get_bus_index(Sonido.BUS_MUSICA)
 	_afirmar(bus != -1, "existe el bus de musica")
 	if bus != -1:
 		_afirmar(
@@ -203,7 +203,7 @@ func _comprobar_ajustes() -> void:
 	_main.musica_slider.value = 0.7
 	await process_frame
 	_afirmar(
-		_main.theme.default_font_size == _main.TAMANO_TEXTO,
+		_main.theme.default_font_size == Apariencia.TAMANO_TEXTO,
 		"desmarcarlo devuelve el cuerpo original",
 	)
 

@@ -1,4 +1,2 @@
 disable:
 - class-definitions-order
-
-max-file-lines: 1400
