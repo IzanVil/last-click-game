@@ -96,7 +96,8 @@ no lo tienes.
 - **Windows** → haz **doble clic** en `instalar.bat`.
 
 El instalador detecta Python, crea el acceso directo en el escritorio y abre
-el juego directamente.
+el juego directamente. Con `--solo` (`./instalar.sh --solo` o
+`instalar.bat --solo`) hace lo mismo pero sin abrir el juego al terminar.
 
 > 💡 Si el sistema bloquea el archivo por ser de Internet, abre la terminal y
 > ejecútalo tú: `./instalar.sh`. En Windows, si aparece un aviso, pulsa
@@ -824,9 +825,9 @@ de terceros más allá de las dos tipografías:
 4. Abre una *pull request*.
 
 Antes de tocar código, la [guía técnica](docs/GUIA.md) explica dónde vive
-cada cosa y por qué. El código no lleva comentarios: si algo esconde una
-decisión que no se lee en el propio código, va en la sección «Cómo está
-comentado el código» de esa guía.
+cada cosa y por qué. El código no lleva comentarios ni docstrings: si algo
+esconde una decisión que no se lee en el propio código, va en la sección «Cómo
+está comentado el código» de esa guía.
 
 ## 📄 Licencia
 
