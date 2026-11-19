@@ -1,11 +1,3 @@
-"""Ambientacion narrativa de "El Tambor del Juicio": voz, carteles y finales.
-
-Texto puro: aqui no se imprime nada ni se lee del teclado, igual que en
-el resto de modulos de logica. La interfaz (ruleta.py) pide una frase de
-ambiente al empezar un dia, un cartel para un evento o el epilogo que
-cierra la partida, y decide con que color y a que ritmo pintarlo.
-"""
-
 import random
 import textwrap
 from typing import NamedTuple
@@ -40,19 +32,11 @@ TITULOS_EVENTO: dict[str, str] = {
 
 
 class Epilogo(NamedTuple):
-    """Final alternativo: su titulo y el parrafo que lo acompania."""
-
     titulo: str
     texto: str
 
 
 def mensaje_de_dia(dia: int, rng: random.Random | None = None) -> str:
-    """Frase de ambiente para el amanecer del dia `dia`.
-
-    El primer dia siempre abre con la misma frase (es la entrada al
-    local, conviene que suene igual cada partida); a partir de ahi se
-    sortea una del resto.
-    """
     if dia <= 1:
         return MENSAJES_DIA[0]
     generador = rng or random
@@ -60,16 +44,6 @@ def mensaje_de_dia(dia: int, rng: random.Random | None = None) -> str:
 
 
 def cartel(titulo: str, texto: str = "", ancho: int = ANCHO_CARTEL) -> tuple[str, ...]:
-    """Monta un cartel enmarcado con el titulo (y el texto) centrados.
-
-    El texto se reparte en varias lineas si no cabe de una, y el marco se
-    ensancha si ni el titulo ni una palabra suelta caben en `ancho`.
-    str.center() devuelve la cadena intacta cuando ya es mas larga que el
-    ancho pedido, asi que sin esto un texto largo no se ajustaba: se
-    salia por los lados y dejaba esa linea mas ancha que el marco. Los
-    textos de evento (~53 caracteres frente a los 46 de ANCHO_CARTEL) ya
-    lo hacian, y el cartel de evento sale muy a menudo.
-    """
     lineas_texto = textwrap.wrap(texto, width=ancho - 2) if texto else []
     ancho_real = max(
         [ancho, len(titulo) + 2] + [len(linea) + 2 for linea in lineas_texto]
@@ -90,7 +64,6 @@ def cartel(titulo: str, texto: str = "", ancho: int = ANCHO_CARTEL) -> tuple[str
 
 
 def cartel_evento(tipo: str, texto: str) -> tuple[str, ...]:
-    """Cartel a pantalla completa para un evento del tambor."""
     return cartel(TITULOS_EVENTO.get(tipo, tipo.upper()), texto)
 
 
@@ -101,14 +74,6 @@ def epilogo(
     faroles_acertados: int = 0,
     puntos: int = 0,
 ) -> Epilogo:
-    """Elige el final que merece la partida que se acaba de jugar.
-
-    Se comprueban de lo mas especifico a lo mas general: primero las
-    partidas que no llegaron a empezar, luego las gestas (muchos dias,
-    faroles impecables, sangre fria sin faroles) y al final los cierres
-    genericos de retirada o de muerte. Solo depende de numeros, no de la
-    interfaz: la misma partida siempre cuenta el mismo final.
-    """
     if dias == 0:
         if retirado:
             return Epilogo(

@@ -1,21 +1,4 @@
 #!/usr/bin/env python3
-"""Sintetiza los efectos de sonido y el ambiente del juego como .wav mono
-de 16 bits, usando solo la libreria estandar. Son sonidos generados por
-codigo (sin banco externo, sin licencia que gestionar): placeholders limpios
-que se pueden sustituir mas adelante por SFX grabados sin tocar nada del lado
-de Godot (mismos nombres de archivo).
-
-Los efectos cortos (disparo, derrota, victoria, engranaje, marca, fallo,
-clic, calor) van a 44100 Hz. Las dos capas de musica, que suenan en bucle
-todo el rato y son graves y oscuras, van a 22050 Hz: ahi no se pierde nada
-audible y el archivo ocupa la mitad en el repositorio.
-
-La musica son dos pistas de la misma duracion que se reproducen a la vez y
-en fase: `musica_base` suena siempre, y `musica_tension` entra por encima
-cuando quedan pocos huecos por probar. Que sean dos ficheros y no uno con
-mas notas es justo lo que permite que la tension aparezca y desaparezca sin
-cortar la musica.
-"""
 
 import math
 import random
@@ -34,7 +17,6 @@ DURACION_MUSICA = PULSO * PULSOS_POR_COMPAS * COMPASES
 
 
 def _write_wav(path: str, samples: list[float], rate: int = SAMPLE_RATE) -> None:
-    """samples: floats en [-1, 1]."""
     with wave.open(path, "w") as f:
         f.setnchannels(1)
         f.setsampwidth(2)
@@ -55,8 +37,6 @@ def _normalizar(samples: list[float], pico: float = 0.95) -> list[float]:
 
 
 def disparo() -> list[float]:
-    """Disparo: chasquido de percusion (ruido con caida rapida) + golpe
-    grave (seno de baja frecuencia con caida algo mas lenta), sumados."""
     duracion = 0.3
     n = int(SAMPLE_RATE * duracion)
     random.seed(1)
@@ -74,8 +54,6 @@ def disparo() -> list[float]:
 
 
 def derrota() -> list[float]:
-    """Derrota: barrido descendente de onda cuadrada (tipico "wah-wah" de
-    fallo), de 300 Hz a 70 Hz en 0.7s, con caida suave al final."""
     duracion = 0.7
     n = int(SAMPLE_RATE * duracion)
     f_start, f_end = 300.0, 70.0
@@ -92,8 +70,6 @@ def derrota() -> list[float]:
 
 
 def victoria() -> list[float]:
-    """Victoria: arpegio ascendente (Do-Mi-Sol-Do agudo) con envolvente
-    de pulso corto por nota, superpuestas un poco entre si."""
     notas = [523.25, 659.25, 783.99, 1046.50]
     dur_nota = 0.22
     solape = 0.06
@@ -112,10 +88,6 @@ def victoria() -> list[float]:
 
 
 def engranaje() -> list[float]:
-    """Engranaje: la rueda dentada del tambor girando. Doce trinquetes
-    (ruido corto y muy seco, como un diente saltando) sobre un zumbido
-    metalico de fondo que sube y baja de tono, para que la tanda suene a
-    mecanismo y no a una lista de clics sueltos."""
     duracion = 0.55
     n = int(SAMPLE_RATE * duracion)
     random.seed(7)
@@ -143,9 +115,6 @@ def engranaje() -> list[float]:
 
 
 def marca() -> list[float]:
-    """Farol acertado: campanilla corta y aguda (dos senos en quinta) con
-    caida limpia. Un "clic" agudo de acierto, sin la fanfarria de
-    victoria.wav, que se reserva para retirarse con el dinero."""
     duracion = 0.35
     n = int(SAMPLE_RATE * duracion)
     env = _envelope_exp(n, 12.0)
@@ -160,9 +129,6 @@ def marca() -> list[float]:
 
 
 def fallo() -> list[float]:
-    """Farol fallido: golpe seco y grave (madera contra metal). Ni mata ni
-    premia, asi que dura poco y no lleva tono definido: solo el "toc" de
-    haber gastado una marca para nada."""
     duracion = 0.25
     n = int(SAMPLE_RATE * duracion)
     random.seed(11)
@@ -177,9 +143,6 @@ def fallo() -> list[float]:
 
 
 def clic() -> list[float]:
-    """Cartucho vacio: el clic hueco del percutor al caer sobre nada. Un
-    golpecito de ruido muy corto sobre dos resonancias metalicas que se
-    apagan enseguida; suena hueco justo porque no tiene cuerpo grave."""
     duracion = 0.18
     n = int(SAMPLE_RATE * duracion)
     random.seed(23)
@@ -195,9 +158,6 @@ def clic() -> list[float]:
 
 
 def calor() -> list[float]:
-    """Tambor caliente: un zumbido que sube de tono y se queda vibrando, con
-    el temblor de algo que se dilata. Acompana al evento que hace dudar de
-    la pista siguiente, asi que no golpea: incomoda."""
     duracion = 0.9
     n = int(SAMPLE_RATE * duracion)
     f_inicio, f_final = 90.0, 235.0
@@ -215,31 +175,17 @@ def calor() -> list[float]:
 
 
 def _frecuencia_de_bucle(freq: float, duracion: float) -> float:
-    """Ajusta `freq` a la frecuencia mas cercana que cabe un numero entero de
-    ciclos en `duracion`. Solo hace falta para los sonidos sostenidos (el
-    bordon de fondo): si un ciclo se corta a medias en el punto de bucle, al
-    repetirse se oye un chasquido."""
     ciclos = max(1, round(freq * duracion))
     return ciclos / duracion
 
 
 def _sumar_con_vuelta(destino: list[float], inicio: int, muestras: list[float]) -> None:
-    """Suma `muestras` en `destino` a partir de `inicio`, dando la vuelta al
-    llegar al final.
-
-    Asi la cola de la ultima nota de un compas reaparece al principio del
-    bucle, que es exactamente lo que se oiria si la musica siguiera sonando:
-    la repeticion no corta ninguna nota a medias.
-    """
     n = len(destino)
     for i, muestra in enumerate(muestras):
         destino[(inicio + i) % n] += muestra
 
 
 def _nota_piano(freq: float, duracion: float, rate: int) -> list[float]:
-    """Nota de piano de pobres: la fundamental y tres armonicos, cada uno
-    apagandose mas rapido que el anterior (como en una cuerda de verdad), con
-    un ataque de un par de milisegundos para que no chasquee al empezar."""
     n = int(rate * duracion)
     pesos = [(1.0, 1.0, 3.2), (2.0, 0.5, 4.6), (3.0, 0.25, 6.0), (4.0, 0.12, 7.4)]
     out = []
@@ -255,13 +201,6 @@ def _nota_piano(freq: float, duracion: float, rate: int) -> list[float]:
 
 
 def musica_base() -> list[float]:
-    """Capa que suena siempre: un bordon grave de La menor y un arpegio lento
-    de piano, un acorde por compas, a 70 pulsos por minuto.
-
-    Todo esta calculado para encadenar: el bordon usa frecuencias que caben
-    un numero entero de veces en el bucle y las colas de las notas dan la
-    vuelta al principio (ver _sumar_con_vuelta).
-    """
     rate = SAMPLE_RATE_MUSICA
     n = int(rate * DURACION_MUSICA)
     out = [0.0] * n
@@ -294,13 +233,6 @@ def musica_base() -> list[float]:
 
 
 def musica_tension() -> list[float]:
-    """Capa que se superpone a la base cuando quedan pocos huecos: un latido
-    en cada pulso y una nota alta a distancia de tritono, el intervalo que
-    lleva desde la Edad Media llamandose "el diablo en la musica".
-
-    Misma duracion y mismo tempo que musica_base, y se lanza a la vez, asi
-    que las dos van en fase mientras compartan `pitch_scale`.
-    """
     rate = SAMPLE_RATE_MUSICA
     n = int(rate * DURACION_MUSICA)
     out = [0.0] * n

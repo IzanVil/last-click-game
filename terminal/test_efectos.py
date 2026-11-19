@@ -8,8 +8,6 @@ import efectos
 
 
 class _EfectosTestCase(unittest.TestCase):
-    """Base que restaura los ajustes globales tras cada test."""
-
     def setUp(self):
         self.ajustes_previos = (
             efectos.AJUSTES.animaciones,
@@ -20,7 +18,6 @@ class _EfectosTestCase(unittest.TestCase):
         efectos.AJUSTES.animaciones, efectos.AJUSTES.sonido = self.ajustes_previos
 
     def capturar(self, funcion, *args, **kwargs):
-        """Ejecuta `funcion` y devuelve todo lo que escribio en pantalla."""
         salida = io.StringIO()
         with patch("efectos.sys.stdout", salida):
             funcion(*args, **kwargs)
@@ -226,11 +223,6 @@ class TestColorActivo(unittest.TestCase):
 
 
 class TestAsegurarUtf8(unittest.TestCase):
-    """El juego se dibuja con caracteres de caja, que no existen en las
-    codificaciones de 8 bits. En Windows con la salida redirigida Python
-    usa cp1252 y el primer print de la cabecera tumbaba la partida con
-    UnicodeEncodeError; lo cazo el job de CI de Windows."""
-
     @staticmethod
     def _stream(encoding):
         return io.TextIOWrapper(io.BytesIO(), encoding=encoding)

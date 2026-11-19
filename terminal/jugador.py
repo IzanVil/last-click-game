@@ -1,14 +1,3 @@
-"""Un jugador dentro de una partida: apuesta, marcas, historial y disparos.
-
-Hermano de 2d/Jugador.gd. Vale igual para la partida en solitario, que
-es -- aqui y alli -- un duelo de un unico jugador: asi el motor tiene un
-solo camino en vez de dos parecidos (ver motor.py).
-
-El tambor, su patron y las pistas NO viven aqui: son compartidos por
-todos los jugadores de la partida y los lleva el motor. En un duelo es
-literalmente el mismo revolver.
-"""
-
 from dataclasses import dataclass, field
 
 try:
@@ -22,8 +11,6 @@ except ImportError:  # pragma: no cover
 
 @dataclass
 class Jugador:
-    """Lo que es propio de cada jugador y no se comparte en un duelo."""
-
     nombre: str
     apuesta: "apuestas.Apuesta"
     marca: "farol.Farol"
@@ -36,16 +23,10 @@ class Jugador:
 
     @property
     def dias(self) -> int:
-        """Dias completos que lleva sobrevividos este jugador."""
         return estado.dias_sobrevividos(self.disparos - (1 if self.murio else 0))
 
 
 def ganadores(jugadores: list[Jugador]) -> list[Jugador]:
-    """Decide quien gana: mandan los dias, y desempatan los puntos.
-
-    Devuelve una lista porque un empate total (mismos dias y mismos
-    puntos) no tiene un ganador unico. Hermano de Jugador.ganadores().
-    """
     if not jugadores:
         return []
 

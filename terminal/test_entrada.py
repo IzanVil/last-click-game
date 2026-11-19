@@ -45,8 +45,6 @@ class TestModulo(unittest.TestCase):
 
 
 class _TerminalFalsa:
-    """Doble de sys.stdin que devuelve caracteres prefijados."""
-
     def __init__(self, texto):
         self._texto = iter(texto)
 
@@ -58,7 +56,6 @@ class _TerminalFalsa:
 
 
 def _leer_unix(texto):
-    """Lee una tecla simulando una terminal Unix que entrega `texto`."""
     with (
         patch("entrada.sys.stdin", _TerminalFalsa(texto)),
         patch("entrada._modulo", return_value=MagicMock()),

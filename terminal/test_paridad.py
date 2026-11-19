@@ -5,15 +5,6 @@ import paridad
 
 
 class TestTablaAlDia(unittest.TestCase):
-    """La tabla versionada tiene que decir lo que Python dice hoy.
-
-    Si alguien cambia una regla en `terminal/` y no regenera la tabla,
-    este test falla antes que el de Godot: la tabla dejaria de ser la
-    referencia con la que se compara la otra version. Regenerar es
-    `python3 terminal/paridad.py`, y el diff resultante se revisa como
-    parte del cambio.
-    """
-
     def test_el_json_del_repo_coincide_con_la_logica_actual(self):
         guardada = json.loads(paridad.ruta_por_defecto().read_text(encoding="utf-8"))
         self.assertEqual(
@@ -29,12 +20,6 @@ class TestTablaAlDia(unittest.TestCase):
 
 
 class TestCoberturaDeLaTabla(unittest.TestCase):
-    """La tabla solo sirve si de verdad recorre los casos.
-
-    Sin esto, un `continue` mal puesto podria dejarla en cuatro casos y
-    seguiria pasando todo en verde en las dos versiones.
-    """
-
     def setUp(self):
         self.tabla = paridad.tabla()
 

@@ -93,16 +93,6 @@ class TestElecciones(unittest.TestCase):
 
 
 class TestContraElMotor(unittest.TestCase):
-    """El test que de verdad importa: jugar y comprobar la deduccion.
-
-    Despues de cada observacion, el estado REAL del tambor (su patron y
-    donde esta la bala ahora) tiene que seguir entre los que la creencia
-    da por posibles. Si alguna vez se cae, es que el solver entiende el
-    juego de una forma distinta a como lo juega el motor -- y como la
-    deduccion se escribio leyendo motor.disparar, eso vale tambien como
-    comprobacion cruzada de las reglas.
-    """
-
     def _jugar_comprobando(self, semilla, huecos=8, disparos_max=15):
         juego = motor.Motor(huecos=huecos, rng=semillas.generador(semilla))
         creencia = solver.Creencia(huecos)

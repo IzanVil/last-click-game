@@ -6,7 +6,6 @@ import motor
 
 
 def _tipos(sucesos):
-    """Los nombres de los sucesos devueltos, en orden."""
     return [type(s).__name__ for s in sucesos]
 
 
@@ -18,13 +17,6 @@ def _primero(sucesos, clase):
 
 
 def _motor_fijo(patron="avanza", posicion=8, **kwargs):
-    """Un motor con el tambor puesto a mano y sin eventos aleatorios.
-
-    Los eventos se apagan (probabilidad 0) porque un "clic_metalico"
-    mueve la bala un paso de mas y haria intermitentes las secuencias
-    fijas de disparos de abajo; los que si quieren evento lo fuerzan
-    parcheando tirar_evento.
-    """
     kwargs.setdefault("probabilidad_eventos", 0.0)
     juego = motor.Motor(**kwargs)
     juego.tambor = estado.TamborJuicio(
