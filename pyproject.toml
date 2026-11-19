@@ -32,9 +32,6 @@ line-length = 88
 target-version = "py311"
 
 [tool.ruff.lint]
-# Reglas por defecto de ruff (pyflakes + un subconjunto de pycodestyle)
-# mas: E (pycodestyle completo, incluye E501 line-too-long), I (orden de
-# imports) y UP (sugerencias de sintaxis moderna acorde a requires-python).
 select = ["E", "F", "I", "UP"]
 
 [tool.black]
@@ -42,8 +39,6 @@ line-length = 88
 target-version = ["py311"]
 
 [tool.coverage.run]
-# Solo interesa medir el codigo de la app, no los propios ficheros de
-# tests: su "cobertura" no dice nada util.
 source = ["terminal"]
 omit = ["terminal/test_*.py"]
 
@@ -52,14 +47,8 @@ show_missing = true
 
 [tool.mypy]
 python_version = "3.11"
-# Toda la app (ruleta.py y los modulos de logica pura que importa), no
-# los propios ficheros de tests: igual que [tool.coverage.run] mas
-# arriba, exigirle anotaciones estrictas a cada metodo de test (y a cada
-# mock que reciben) seria ruido, no senal.
 files = ["terminal", "empaquetado"]
 exclude = ["terminal/test_.*\\.py$"]
-# El codigo ya venia con type hints en (casi) todas las firmas: esto
-# solo hace explicito lo que se daba por hecho, no cambia el estilo.
 disallow_untyped_defs = true
 warn_unused_ignores = true
 warn_redundant_casts = true

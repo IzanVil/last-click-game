@@ -1,8 +1,4 @@
 @echo off
-rem Lanzador de El Tambor del Juicio (version terminal Python) para Windows
-rem Uso: run.bat                 -> juega en la terminal
-rem       run.bat --huecos 6     -> dificultad personalizada (ver --help)
-rem       run.bat -g             -> abre el proyecto en el editor Godot
 setlocal
 cd /d "%~dp0"
 

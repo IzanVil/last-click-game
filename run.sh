@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# Lanzador de El Tambor del Juicio (versión terminal Python)
-# Uso:
-#   ./run.sh                    -> juega en la terminal
-#   ./run.sh --dificultad facil -> presets de dificultad (ver --help)
-#   ./run.sh -g                 -> abre el proyecto en el editor Godot
 set -euo pipefail
 
 cd "$(dirname "$0")"

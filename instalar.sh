@@ -1,11 +1,4 @@
 #!/usr/bin/env bash
-# ---------------------------------------------------------------
-# Instalador de El Tambor del Juicio (version terminal Python)
-# Uso:
-#   ./instalar.sh          -> instala y ejecuta el juego
-#   ./instalar.sh --solo   -> instala sin abrir el juego de golpe
-# Prerequisito: Python 3.11+ instalado en el sistema.
-# ---------------------------------------------------------------
 set -euo pipefail
 
 cd "$(dirname "$0")"
@@ -14,7 +7,6 @@ RUTA_RAIZ="$(cd "$(dirname "$0")" && pwd)"
 TERMINAL_DIR="terminal"
 PY=""
 
-# --- 1. Localizar Python -------------------------------------------
 if command -v python3 >/dev/null 2>&1; then
     PY="python3"
 elif command -v python >/dev/null 2>&1; then
@@ -28,7 +20,6 @@ fi
 
 echo "Se detecto Python: ${PY} ($(${PY} --version 2>&1))"
 
-# --- 2. Verificar la version ----------------------------------------
 MAYOR=$("${PY}" -c "import sys; print(sys.version_info.major)")
 MENOR=$("${PY}" -c "import sys; print(sys.version_info.minor)")
 if [ "$MAYOR" -lt 3 ] || { [ "$MAYOR" -eq 3 ] && [ "$MENOR" -lt 11 ]; }; then
@@ -36,7 +27,6 @@ if [ "$MAYOR" -lt 3 ] || { [ "$MAYOR" -eq 3 ] && [ "$MENOR" -lt 11 ]; }; then
     exit 1
 fi
 
-# --- 3. Crear acceso directo (solo en Linux/macOS) ------------------
 INSTALAR_DIRTO=1
 if [ "${1:-}" = "--solo" ]; then
     INSTALAR_DIRTO=0
@@ -66,9 +56,6 @@ Categories=Game;
 EOF
     chmod +x "$ESC/TamborDelJuicio.desktop"
     echo "Acceso directo creado en: $ESC/TamborDelJuicio.desktop"
-    # Las versiones anteriores lo creaban con el nombre viejo. Se avisa en
-    # vez de borrarlo: esta en el escritorio del usuario, y que hacer con
-    # sus cosas lo decide el, no el instalador.
     if [ -e "$ESC/RussianRoulette.desktop" ]; then
         echo "Aviso: quedo el acceso directo antiguo en $ESC/RussianRoulette.desktop"
         echo "       Apunta al mismo run.sh y sigue funcionando; puedes borrarlo."
@@ -77,7 +64,6 @@ else
     echo "Aviso: no se detecto escritorio, no se creo acceso directo."
 fi
 
-# --- 4. Lanzar el juego ---------------------------------------------
 if [ "$INSTALAR_DIRTO" = "1" ]; then
     echo "Abriendo El Tambor del Juicio..."
     exec "${PY}" "${TERMINAL_DIR}/ruleta.py"
