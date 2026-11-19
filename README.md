@@ -173,6 +173,8 @@ last-click-game/
     ├── Diario.gd        ← reto del día: un tambor igual para todos
     ├── Ajustes.gd       ← accesibilidad y mezcla, en user://ajustes.json
     ├── MainGame.gd      ← vista: las cuatro pantallas y su cableado
+    ├── Sonido.gd        ← buses, volúmenes, efectos y música con su tensión
+    ├── Apariencia.gd    ← tamaño de texto y alto contraste
     ├── TamborView.gd    ← dibuja el tambor, lo gira y escucha al ratón
     ├── FondoTaller.gd   ← engranajes y luz del fondo
     ├── Vineta.gd        ← viñeta, resplandores de evento y cierre en iris

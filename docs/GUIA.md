@@ -564,6 +564,11 @@ cd terminal && python3 -m unittest discover -s . -v
   `terminal/estado.py` y compañía, mismo vocabulario en español).
 - Vista: `2d/MainGame.gd` (menú + Label/Button/Tween) + `2d/TamborView.gd`
   (dibuja el tambor con `_draw()`).
+- Presentación que `MainGame.gd` delega: `2d/Sonido.gd` (buses, volúmenes,
+  efectos y las dos pistas de música) y `2d/Apariencia.gd` (tamaño de texto y
+  alto contraste sobre el árbol de nodos). Son `RefCounted`: `MainGame` los crea
+  en `_ready()` y les da el nodo, así que los tests de `test_logica.gd` los
+  prueban sin cargar la escena.
 - Ambientación (decorado puro, sin reglas): `2d/FondoTaller.gd`
   (engranajes y luz del fondo), `2d/Vineta.gd` (viñeta, resplandores de
   evento y cierre en iris) y `2d/Maquina.gd` (texto tecleado letra a letra).
@@ -592,7 +597,8 @@ Todos los scripts de lógica llevan `class_name` (`TamborJuicio`, `Pista`,
 `Dificultad`, `Records`, `Ajustes`, `RuletaEstado`): se usan directamente
 por su nombre desde cualquier script del proyecto, sin `preload()`. Lo
 mismo vale para los de vista que se referencian desde la escena o desde
-`MainGame.gd` (`TamborView`, `FondoTaller`, `Vineta`, `Maquina`).
+`MainGame.gd` (`TamborView`, `FondoTaller`, `Vineta`, `Maquina`, `Sonido`,
+`Apariencia`).
 
 ### Solitario y duelo: la misma lógica
 
@@ -757,21 +763,26 @@ Tres nodos de decorado, ninguno de los cuales sabe nada del juego: reciben
   cancelarlo si llega un mensaje nuevo antes de terminar el anterior.
 
 Los sonidos siguen el mismo reparto: `MainGame.gd` decide cuándo suena
-qué, y todo pasa por `_sonar()`, que respeta el ajuste de sonido.
+qué y lo pide con `_sonido.reproducir(Sonido.Efecto.CLIC)` (y compañía);
+`Sonido.gd` respeta el ajuste de sonido y es el único que toca los
+`AudioStreamPlayer` y el `AudioServer`.
 
 La música son **dos pistas de la misma duración** que se lanzan a la vez y
-en fase (`musica_base` y `musica_tension`): la primera suena siempre y la
+en fase (`MusicaBase` y `MusicaTension`): la primera suena siempre y la
 segunda entra por encima cuando quedan tres huecos o menos por probar. Las
 dos suben de volumen al empezar la partida y aceleran (`pitch_scale`)
-conforme el tambor se vacía, en `_ajustar_musica()`. Van por un bus de
-audio propio, separado del de los efectos, que es lo que permite los dos
+conforme el tambor se vacía, en `Sonido.ajustar_musica()`; los números salen
+de `Sonido.plan_de_musica()`, una función pura con sus tests. Van por un bus
+de audio propio, separado del de los efectos, que es lo que permite los dos
 deslizadores del menú de ajustes; los buses se crean por código en
-`_preparar_buses()` para que quede a la vista de quien lea el archivo.
+`Sonido._preparar_buses()` para que quede a la vista de quien lea el archivo.
 
 En **headless** la música no se lanza siquiera: no hay dispositivo de audio
 y una reproducción en bucle no termina nunca por sí sola, así que seguiría
 viva al cerrarse el motor y Godot avisaría de recursos sin liberar — un
-`ERROR:` en el log que la CI toma, con razón, por un fallo.
+`ERROR:` en el log que la CI toma, con razón, por un fallo. Por eso la
+música de verdad solo se comprueba con ventana: con `--audio-driver Dummy` suena
+en el vacío y se pueden leer `playing`, `volume_db` y `pitch_scale`.
 
 ### Accesibilidad
 
@@ -796,10 +807,10 @@ aquí se recuerdan entre partidas. Son cuatro casillas del menú:
   silencia en vez de bajarse: `linear_to_db(0)` sería `-inf`.
 - **Pantalla completa** — ventana o pantalla completa.
 
-`MainGame._recordar_estilos()` recorre el árbol una sola vez al arrancar y
-se apunta el color y el cuerpo de letra que cada nodo trae de la escena;
-así los dos ajustes de texto se pueden deshacer sin que la escena tenga que
-enumerarse a sí misma en una lista que envejecería mal.
+`Apariencia` recorre el árbol una sola vez, al construirse en
+`MainGame._ready()`, y se apunta el color y el cuerpo de letra que cada nodo
+trae de la escena; así los dos ajustes de texto se pueden deshacer sin que la
+escena tenga que enumerarse a sí misma en una lista que envejecería mal.
 
 Las casillas cambian el cuadradito del motor por una marca escrita
 (`[X]`/`[ ]`, ver `MainGame._vestir_casillas()`): el icono por defecto es un
@@ -888,14 +899,18 @@ descubrir:
 - **`MainGame._calcular_estados`** pinta en tres bucles cuyo orden manda: lo
   que se escribe después pisa a lo anterior, así que la certeza (un farol
   resuelto) gana a lo probado, y esto a la sospecha (un candidato).
-- **`MainGame._arrancar_musica`** marca el bucle en código y no en el
+- **`Sonido.arrancar_musica`** marca el bucle en código y no en el
   `.import`: el importador de WAV de Godot 4.7 deja escrito `edit/loop_mode`
   pero el recurso cargado sigue diciendo `LOOP_DISABLED`.
 - **`MainGame._ready`** tiene un orden que no es casual: las señales se
-  conectan antes de que `RuletaEstado` pueda emitir, `_recordar_estilos()`
+  conectan antes de que `RuletaEstado` pueda emitir, `Apariencia.new(self)`
   corre antes de que ningún ajuste pise los colores de la escena, la música
   arranca antes de aplicar los ajustes y los records se cargan antes de
   `_mostrar()`.
+- **`Sonido` y `Apariencia` comparten con `MainGame` el mismo objeto `Ajustes`**
+  y leen de él al momento, no una copia: `_ready()` se lo asigna a los dos justo
+  después de cargarlo del disco. Si algún día `_ajustes` se reemplaza, hay que
+  reasignarlo en los dos sitios, o seguirán con el anterior.
 - **`Partida.actor`** (terminal) no es lo mismo que `juego.jugador_activo`: el
   motor pasa el turno antes de devolver los sucesos, así que para cuando se
   pintan el activo ya es el otro.
@@ -946,9 +961,8 @@ descubrir:
 - **`gdlintrc`** apaga `class-definitions-order` a propósito: ponerlo en verde
   obliga a mover bloques enteros en `MainGame.gd` y `RuletaEstado.gd`, con mucho
   conflicto y `git blame` roto a cambio de valor estético; merece su propio
-  cambio. `max-file-lines` sube a 1400 en lugar de apagarse para que la regla
-  siga avisando si `MainGame.gd` se dispara: que pida partirse es real, pero es
-  una refactorización.
+  cambio. El límite de longitud de fichero es el de serie (1000 líneas), sin
+  excepciones.
 - **`pyproject.toml`**: `E501` entra con `select = ["E", ...]`; `coverage` y
   `mypy` miran la app y no los ficheros de test, porque su cobertura no dice
   nada y exigir anotaciones a cada test y a cada mock sería ruido.
@@ -1114,6 +1128,8 @@ last-click-game/
     ├── Records.gd
     ├── Ajustes.gd
     ├── MainGame.gd
+    ├── Sonido.gd
+    ├── Apariencia.gd
     ├── TamborView.gd
     ├── FondoTaller.gd
     ├── Vineta.gd
